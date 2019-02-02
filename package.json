@@ -1,0 +1,31 @@
+{
+  "name": "snow-ide",
+  "version": "0.0.1",
+  "description": "An ide for ServiceNow that supports pluggable compiler backends",
+  "main": "main.js",
+  "scripts": {
+    "test": "test",
+    "build": "browserify src/index.ts -p [ tsify --noImplicitAny ] > src/bundle.js"
+  },
+  "keywords": [
+    "snow",
+    "servicenow",
+    "ide",
+    "pluggable"
+  ],
+  "author": "Howard Chen",
+  "license": "ISC",
+  "dependencies": {
+    "@types/jquery": "^3.3.29",
+    "@types/voca": "^1.4.0",
+    "jquery": "^3.3.1",
+    "rxjs": "^6.4.0",
+    "tsmonad": "^0.8.0",
+    "voca": "^1.4.0"
+  },
+  "devDependencies": {
+    "browserify": "^16.2.3",
+    "tsify": "^4.0.1",
+    "typescript": "^3.3.1"
+  }
+}

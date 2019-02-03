@@ -6,6 +6,8 @@ interface List<T> {
     getCount(): number;
     makeFrontIterator(): DoubleIterator<T>; // put iterator one before first el of list, if any
     makeBackIterator(): DoubleIterator<T>; // put iterator one after last el of list, if any.
+    asArray(): Array<T>;
+    empty(): void; // empties linked list.
 }
 
 interface ListNode<T> {
@@ -17,6 +19,7 @@ interface ListNode<T> {
 
 interface DoubleIterator<T> {
     clone(): DoubleIterator<T>;
+    isValid(): boolean;
     next(): void;
     prev(): void;
     hasNext(): boolean;
@@ -25,6 +28,8 @@ interface DoubleIterator<T> {
     insertBefore(val: T): void; // inserts before. Does not move iterator.
     insertAfter(val: T): void; // inserts after. Does not move iterator.
     remove(forward: boolean): void; // Removes current. Then goes to next or prev depending on direction flag.
+    removeNext(): void; // Removes value after current, if it exists.
+    removePrev(): void; // removes node before current, if it exists.
     replace(val: T): void; // Replaces current node's value.
     grab(): T // throws an error if no value was present in the node.
 }
@@ -37,8 +42,27 @@ class LinkedList<T> implements List<T> {
     constructor() {
         this.front_sentinel = new LinkedListNode<T>(Maybe.nothing(), Maybe.nothing(), Maybe.nothing());
         this.back_sentinel = new LinkedListNode<T>(Maybe.nothing(), Maybe.nothing(), Maybe.nothing());
+
+        // connect front sentinel to back sentinel
         this.front_sentinel.next = Maybe.just(this.back_sentinel);
         this.back_sentinel.prev = Maybe.just(this.front_sentinel);
+    }
+
+    empty(): void {
+        let iterator = this.makeFrontIterator();
+        while(iterator.hasNext()) {
+            iterator.removeNext();
+        }
+    }
+
+    asArray(): Array<T> {
+        let iterator = this.makeFrontIterator();
+        let array = [];
+        while(iterator.hasNext()) {
+            iterator.next();
+            array.push(iterator.grab());
+        }
+        return array;
     }
 
     // Naive implementation just counts the list. May cache in future as optimization.
@@ -84,6 +108,10 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
         this.list = list;
     }
 
+    isValid(): boolean {
+        return Maybe.isJust(this.current.data) && !this._isSentinel();
+    }
+
     _isSentinel(): boolean {
         return this._isFrontSentinel() || this._isBackSentinel();
     }
@@ -116,6 +144,7 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
 
     replace(val: T): void {
         if(this._isSentinel()) {
+            console.log('Cannot replace value in a sentinel');
             return;
         }
 
@@ -124,12 +153,14 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
 
     insertBefore(val: T): void {
         if(this._isFrontSentinel()) {
+            console.log('Cannot insert before front sentinel');
             return;
         }
 
         let thisIterator = this;
         this.current.prev.caseOf({
             just: function(prevNode) {
+                // prevNode -> newNode -> curr
                 let newNode = new LinkedListNode(Maybe.just(val), Maybe.just(prevNode), Maybe.just(thisIterator.current));
                 prevNode.next = Maybe.just(newNode);
                 thisIterator.current.prev = Maybe.just(newNode);
@@ -144,14 +175,16 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
 
     insertAfter(val: T): void {
         if(this._isBackSentinel()) {
+            console.log('Cannot insert after back sentinel');
             return;
         }
 
         let thisIterator = this;
         this.current.next.caseOf({
             just: function(nextNode) {
+                // curr -> newNode -> nextNode
                 let newNode = new LinkedListNode(Maybe.just(val), Maybe.just(thisIterator.current), Maybe.just(nextNode));
-                nextNode.next = Maybe.just(newNode);
+                nextNode.prev = Maybe.just(newNode);
                 thisIterator.current.next = Maybe.just(newNode);
             },
             nothing: function() {
@@ -164,6 +197,7 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
 
     remove(goForward: boolean): void {
         if(this._isSentinel()) {
+            console.log('Tried to remove sentinel');
             return;
         }
 
@@ -200,7 +234,6 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
         });
 
         if(goForward) {
-            // go forward to next
             this.current.next.caseOf({
                 just: function(nextNode) {
                     thisIterator.current = nextNode;
@@ -210,10 +243,9 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
                 }
             });
         } else {
-            //go backwards to prev
             this.current.prev.caseOf({
                 just: function(prevNode) {
-                    thisIterator.current = prevNode;
+                        thisIterator.current = prevNode;
                 },
                 nothing: function() {
                     // can't go backward
@@ -224,6 +256,16 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
         // Disconnect current so it can be GCed.
         oldCurrent.next = Maybe.nothing();
         oldCurrent.prev = Maybe.nothing();
+    }
+
+    removeNext(): void {
+        this.next();
+        this.remove(false); // go backward after removing.
+    }
+
+    removePrev(): void {
+        this.prev();
+        this.remove(true); // go forward after removing.
     }
 
     clone(): DoubleIterator<T> {
@@ -267,7 +309,7 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
         let thisIterator = this;
         this.current.next.caseOf({
             just: function(nextNode) {
-                next =  nextNode === thisIterator.list.back_sentinel;
+                next =  nextNode !== thisIterator.list.back_sentinel;
             },
             nothing: function(){
                 next = false;
@@ -281,7 +323,7 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
         let thisIterator = this;
         this.current.prev.caseOf({
             just: function(prevNode) {
-                prev = prevNode === thisIterator.list.front_sentinel;
+                prev = prevNode !== thisIterator.list.front_sentinel;
             }, 
             nothing: function() {
                 prev = false;
@@ -298,3 +340,5 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
         return Maybe.nothing();
     }
 }
+
+export { LinkedList };

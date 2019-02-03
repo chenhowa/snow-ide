@@ -4,7 +4,7 @@
   "description": "An ide for ServiceNow that supports pluggable compiler backends",
   "main": "main.js",
   "scripts": {
-    "test": "test",
+    "test": "jest",
     "build": "browserify src/index.ts -p [ tsify --noImplicitAny ] > src/bundle.js"
   },
   "keywords": [
@@ -24,7 +24,10 @@
     "voca": "^1.4.0"
   },
   "devDependencies": {
+    "@types/jest": "^23.3.13",
     "browserify": "^16.2.3",
+    "jest": "^23.6.0",
+    "ts-jest": "^23.10.5",
     "tsify": "^4.0.1",
     "typescript": "^3.3.1"
   }

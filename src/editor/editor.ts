@@ -102,7 +102,7 @@ class Editor {
                 if(selection.isCollapsed) {
                     // TODO : this finds the text node, potentially.
                     // We want to find the div so we can check the line-number attr.
-                    let node = $(selection.anchorNode).closest();
+                    //let node = $(selection.anchorNode).closest();
                     let lineNumber = node.attr('line-number');
                     if(lineNumber) {
                         let node = $("div.text[line-number='" + lineNumber + "']");

@@ -1,7 +1,10 @@
 import { Maybe } from "tsmonad";
 import { splice, repeat } from 'voca';
 import $ from "jquery";
-import Cursor from './cursor';
+import Cursor from 'editor/cursor';
+import { Glyph, ToNode, GlyphStyle } from 'editor/glyph';
+import { LinkedList, List, DoubleIterator } from 'data_structures/linked-list';
+import { fromEvent } from 'rxjs';
 
 declare var Strings: any;
 
@@ -16,6 +19,8 @@ declare var Strings: any;
 */
 
 class Editor {
+    glyphs: List<Glyph>;
+    glyph_iter: DoubleIterator<Glyph>
     editor: JQuery<HTMLElement>;
     cursor: Cursor;
     maxLines: number = 0;
@@ -38,11 +43,14 @@ class Editor {
             this.editor = $('#editor');
         }
 
+        this.glyphs = new LinkedList();
+        this.glyph_iter = this.glyphs.makeFrontIterator();
         if(this.valid()) {
             this.editor.empty();
             this.editor.attr('spellcheck', 'false');
-            this._insertFirstNewLine();
-            this._insertNewLines(80);
+            let line = this._insertFirstNewLine();
+            /*
+            this._insertNewLines(80);*/
         }
     }
 
@@ -53,35 +61,19 @@ class Editor {
     _insertFirstNewLine(): JQuery<HTMLElement> {
         let firstNewLine = this.insertNewLine();
         firstNewLine.addClass('first-line');
+
         return firstNewLine;
     }
 
     // Inserts a bootstrap row.
     insertNewLine(): JQuery<HTMLElement> {
-        this.maxLines += 1;
+        /*this.maxLines += 1;*/
 
-        let row = $("<div></div>");
-        row.addClass('line');
-        row.attr('line-number', this.maxLines.toString());
+        let line = $("<div></div>");
+        line.addClass('line');
+        this.editor.append(line);
 
-        let lineNumber = $("<div></div>");
-        lineNumber.addClass('number');
-        lineNumber.attr('line-number', this.maxLines.toString());
-        lineNumber.text(this.maxLines.toString());
-        row.append(lineNumber);
-
-        let lineText = $("<div></div>");
-        lineText.addClass('text');
-        lineText.attr('line-number', this.maxLines.toString());
-        row.append(lineText);
-        this.editor.append(row);
-
-        let separator = $("<div></div>");
-        separator.addClass('separator');
-        separator.attr('line-number', this.maxLines.toString());
-        this.editor.append(separator);
-
-        return lineText;
+        return line;
     }
 
     _insertNewLines(num: number) {
@@ -91,7 +83,106 @@ class Editor {
     }
 
     run() {
+        // We assume that a glyph that glyph_iter points to is the one that would be removed by BACKSPACE.
+        // Hence the cursor will be IN FRONT of it.
+
         let thisEditor = this;
+        let keydownObs = fromEvent(this.editor, 'keydown');
+        let keydownSub = keydownObs.subscribe({
+            next: (event: any) => {
+                console.log(this.cursor.selection);
+                console.log(event);
+                let key: string = event.key;
+                if(key.length === 1) {
+                    if(this.cursor.isCollapsed()) {
+                        this.insertGlyph(key);
+                        this.renderCurrentGlyph();
+                        this.cursor.maybeMoveCursorToNodeBoundary(this.glyph_iter.get(), false);
+                        event.preventDefault();
+                        console.log(this.glyphs.asArray());
+                    }
+                } else if (key === 'Backspace') {
+                    console.log('backspace');
+                    if(this.cursor.isCollapsed()) {
+                        this.deleteCurrentGlyph(false);
+                        this.cursor.maybeMoveCursorToNodeBoundary(this.glyph_iter.get(), false);
+
+                        console.log("deleted a char");
+                        event.preventDefault();
+                    }
+                } else if (key === 'Enter') {
+                    console.log('enter');
+                    this.insertGlyph("\n");
+                    this.renderCurrentGlyph(); // renders glyph as an empty span
+                    this.insertLineAfterCurrentGlyph();
+                    /*this.currentLine += 1;
+                    this.maxLines += 1;*/
+                    console.log(this.glyphs.asArray());
+                    event.preventDefault();
+                } else if (key === 'Tab') {
+                    console.log('tab');
+                    this.insertGlyph("\t");
+                    event.preventDefault();
+                }
+                
+                
+            },
+            error: (err) => {},
+            complete: () => {}
+        });
+
+        let clickObs = fromEvent(this.editor, 'click');
+        let clickSub = clickObs.subscribe({
+            next: (event: any) => {
+                let target: JQuery<HTMLElement> = $(event.target);
+                if(target.hasClass('preserve-whitespace')) {
+                    // If we clicked outside the editor, for now, point the iterator
+                    // at the first char of the first line, and then move cursor accordingly.
+                    thisEditor.glyph_iter = thisEditor.glyphs.makeFrontIterator();
+                    let count = 0;
+                    if(thisEditor.glyph_iter.hasNext()) {
+                        count += 1;
+                        thisEditor.glyph_iter.next();
+                        thisEditor.glyph_iter.get().caseOf({
+                            just: (glyph) => {
+                                glyph.node.caseOf({
+                                    just:(node) => {
+                                        this.cursor.moveCursorToNodeBoundary(node, true);
+                                    },
+                                    nothing: () => {
+                                        console.log("Could not move cursor to glyph. Glyph had no rendered node");
+                                    }
+                                })
+                                
+                            },
+                            nothing: () => {
+                                console.log("Could not move cursor to glyph. Glyph was empty somehow");
+                                // Do nothing. Hope for recovery.
+                            }
+                        });
+                    } else {
+                        let firstLine = thisEditor.editor.children(".first-line").get(0);
+                        this.cursor.moveCursorToNodeBoundary(firstLine, false);
+                        console.log(this.cursor.selection);
+                    }
+                }
+            },
+            error: (err) => {},
+            complete: () => {}
+        });
+
+        let focusObs = fromEvent(this.editor, 'focus');
+        let focusSub = focusObs.subscribe({
+            next: (event: any) => {
+                console.log("FOCUS");
+                console.log(event);
+            },
+            error: (err) => {},
+            complete: () => {}
+        });
+
+
+        /*let thisEditor = this;
         this.editor.click(function(event) {
             // move cursor to text.
             console.log(event);
@@ -122,7 +213,7 @@ class Editor {
             } else if (node.hasClass('text')) {
 
             }
-        });
+        });*/
 /*
         this.editor.keydown(function(event) {
             thisEditor._updateCurrentLine(); // get current line before registering any keys.
@@ -172,6 +263,58 @@ class Editor {
                 }
             }
         });*/
+    }
+
+    insertLineAfterCurrentGlyph() {
+        this.glyph_iter.get().caseOf({
+            just: (glyph) => {
+                glyph.node.caseOf({
+                    just: (node) => {
+                        // This node should be a span.
+                        // TODO : find the parent line and insert a new line after it. Then maybe move cursor
+                        // to within this new line.
+                    },
+                    nothing: () => {
+
+                    }
+                })
+            },
+            nothing: () => {
+
+            }
+        })
+    }
+
+    insertGlyph(char: string) {
+        this.glyph_iter.insertAfter(new Glyph(char, new GlyphStyle()));
+        this.glyph_iter.next();
+    }
+
+    deleteCurrentGlyph(forward: boolean) {
+        let maybe_glyph = this.glyph_iter.get();
+        maybe_glyph.caseOf({
+            just: (glyph) => {
+                glyph.destroyNode();
+                this.glyph_iter.remove(forward);
+            },
+            nothing: () => {
+
+            }
+        });
+    }
+
+    renderCurrentGlyph() {
+        let maybe_glyph = this.glyph_iter.get();
+        let thisEditor = this;
+        maybe_glyph.caseOf({
+            just: function(glyph) {
+                let node = glyph.toNode();
+                thisEditor.cursor.insertNode(node);
+            },
+            nothing: function() {
+
+            }
+        })
     }
 
     _updateCurrentLine() {

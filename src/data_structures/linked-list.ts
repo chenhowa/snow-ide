@@ -1,5 +1,4 @@
 import { Maybe } from "tsmonad";
-
 interface List<T> {
     front_sentinel: ListNode<T>;
     back_sentinel: ListNode<T>;
@@ -341,4 +340,4 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
     }
 }
 
-export { LinkedList };
+export { LinkedList, List, DoubleIterator };

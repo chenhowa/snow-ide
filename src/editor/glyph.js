@@ -15,11 +15,23 @@ var Glyph = /** @class */ (function () {
         return this.node;
     };
     Glyph.prototype.toNode = function () {
+        var node_to_add;
         var span = jquery_1.default("<span></span>");
+        span.addClass('glyph');
         span.text(this.glyph);
-        var node = span.get(0);
-        this.node = tsmonad_1.Maybe.just(node);
-        return node;
+        if (this.glyph === '\n') {
+            // if newline, wrap span in a newline div
+            span.addClass('hidden');
+            var line = jquery_1.default("<div></div>");
+            line.addClass('line');
+            line.append(span);
+            node_to_add = line.get(0);
+        }
+        else {
+            node_to_add = span.get(0);
+        }
+        this.node = tsmonad_1.Maybe.just(node_to_add);
+        return node_to_add;
     };
     Glyph.prototype.destroyNode = function () {
         var _this = this;

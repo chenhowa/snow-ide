@@ -9,6 +9,32 @@ var LinkedList = /** @class */ (function () {
         this.front_sentinel.next = tsmonad_1.Maybe.just(this.back_sentinel);
         this.back_sentinel.prev = tsmonad_1.Maybe.just(this.front_sentinel);
     }
+    /**
+     * @description Finds first match of filter, searching from start to end.
+     *              Otherwise returns iterator to end.
+     * @param filter
+     */
+    LinkedList.prototype.find = function (filter) {
+        var iterator = this.makeFrontIterator();
+        var done = false;
+        while (iterator.hasNext() && !done) {
+            iterator.next();
+            iterator.get().caseOf({
+                just: function (d) {
+                    if (filter(d)) {
+                        done = true;
+                    }
+                },
+                nothing: function () { }
+            });
+        }
+        if (done) {
+            return iterator;
+        }
+        else {
+            return this.makeBackIterator();
+        }
+    };
     LinkedList.prototype.empty = function () {
         var iterator = this.makeFrontIterator();
         while (iterator.hasNext()) {

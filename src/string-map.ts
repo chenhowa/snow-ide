@@ -1,31 +1,34 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 var Strings = {
     tab: '!!!!',
-    tabString: function () {
+    tabString: function() {
         return this.tab;
         return '    ';
     },
+
     glyph: 'glyph',
-    glyphName: function () {
+    glyphName: function() {
         return this.glyph;
     },
-    glyphSelector: function () {
+    glyphSelector: function() {
         return "." + this.glyphName();
     },
+
     line: 'line',
-    lineName: function () {
+    lineName: function() {
         return this.line;
     },
-    lineSelector: function () {
+    lineSelector: function() {
         return "." + this.lineName();
     },
+
     editor: 'preserve-whitespace',
-    editorName: function () {
+    editorName: function() {
         return this.editor;
     },
-    editorSelector: function () {
+    editorSelector: function() {
         return "." + this.editorName();
     }
-};
-exports.default = Strings;
+
+}
+
+export default Strings;

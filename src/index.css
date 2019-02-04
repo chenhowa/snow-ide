@@ -71,3 +71,7 @@ h4 {
     padding-left: 10px;
     background-color: lightgray;
 }
+
+.hidden {
+    display: none;
+}

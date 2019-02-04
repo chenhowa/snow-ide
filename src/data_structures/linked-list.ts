@@ -7,6 +7,7 @@ interface List<T> {
     makeBackIterator(): DoubleIterator<T>; // put iterator one after last el of list, if any.
     asArray(): Array<T>;
     empty(): void; // empties linked list.
+    find(filter: (data: T) => boolean): DoubleIterator<T>; //
 }
 
 interface ListNode<T> {
@@ -45,6 +46,33 @@ class LinkedList<T> implements List<T> {
         // connect front sentinel to back sentinel
         this.front_sentinel.next = Maybe.just(this.back_sentinel);
         this.back_sentinel.prev = Maybe.just(this.front_sentinel);
+    }
+
+    /**
+     * @description Finds first match of filter, searching from start to end.
+     *              Otherwise returns iterator to end.
+     * @param filter 
+     */
+    find(filter: (data: T) => boolean ): DoubleIterator<T> {
+        let iterator = this.makeFrontIterator();
+        let done = false;
+        while(iterator.hasNext() && !done) {
+            iterator.next();
+            iterator.get().caseOf({
+                just: (d) => {
+                    if(filter(d)) {
+                        done = true;
+                    }
+                },
+                nothing: () =>  {}
+            });
+        }
+
+        if(done) {
+            return iterator;
+        } else {
+            return this.makeBackIterator();
+        }
     }
 
     empty(): void {

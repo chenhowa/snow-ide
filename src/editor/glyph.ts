@@ -30,11 +30,25 @@ class Glyph implements ToNode {
     }
 
     toNode(): Node {
+        let node_to_add: Node;
+
         let span = $("<span></span>");
+        span.addClass('glyph');
         span.text(this.glyph);
-        let node = span.get(0);
-        this.node = Maybe.just(node);
-        return node;
+
+        if(this.glyph === '\n') {
+            // if newline, wrap span in a newline div
+            span.addClass('hidden');
+            let line = $("<div></div>");
+            line.addClass('line');
+            line.append(span);
+            node_to_add = line.get(0);
+        } else {
+            node_to_add = span.get(0);
+        }
+
+        this.node = Maybe.just(node_to_add);
+        return node_to_add;
     }
 
     destroyNode(): void {

@@ -18,6 +18,7 @@ interface ListNode<T> {
 
 
 interface DoubleIterator<T> {
+    getCurrent(): ListNode<T>;
     clone(): DoubleIterator<T>;
     isValid(): boolean;
     next(): void;
@@ -32,6 +33,7 @@ interface DoubleIterator<T> {
     removePrev(): void; // removes node before current, if it exists.
     replace(val: T): void; // Replaces current node's value.
     grab(): T // throws an error if no value was present in the node.
+    equals(other: DoubleIterator<T>) : boolean;
 }
 
 
@@ -133,6 +135,14 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
     constructor(current: LinkedListNode<T>, list : LinkedList<T>) {
         this.current = current;
         this.list = list;
+    }
+
+    equals(other: DoubleIterator<T>): boolean {
+        return this.getCurrent() === other.getCurrent();
+    }
+
+    getCurrent(): ListNode<T> {
+        return this.current;
     }
 
     isValid(): boolean {

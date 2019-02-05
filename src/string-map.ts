@@ -27,6 +27,17 @@ var Strings = {
     },
     editorSelector: function() {
         return "." + this.editorName();
+    },
+
+    newline: '\n',
+    newlineString: function() {
+        return this.newline
+    },
+    newlineName: function() {
+        return 'hidden';
+    },
+    newlineSelector: function() {
+        return "." + this.newlineName();
     }
 
 }

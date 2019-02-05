@@ -15018,6 +15018,12 @@ var LinkedListIterator = /** @class */ (function () {
         this.current = current;
         this.list = list;
     }
+    LinkedListIterator.prototype.equals = function (other) {
+        return this.getCurrent() === other.getCurrent();
+    };
+    LinkedListIterator.prototype.getCurrent = function () {
+        return this.current;
+    };
     LinkedListIterator.prototype.isValid = function () {
         return tsmonad_1.Maybe.isJust(this.current.data) && !this._isSentinel();
     };
@@ -15344,7 +15350,131 @@ var Cursor = /** @class */ (function () {
 }());
 exports.default = Cursor;
 
-},{"jquery":1,"string-map":105}],102:[function(require,module,exports){
+},{"jquery":1,"string-map":107}],102:[function(require,module,exports){
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var glyph_1 = require("editor/glyph");
+var string_map_1 = __importDefault(require("string-map"));
+var jquery_1 = __importDefault(require("jquery"));
+var EditorDeleter = /** @class */ (function () {
+    function EditorDeleter(renderer) {
+        this.renderer = renderer;
+    }
+    EditorDeleter.prototype.deleteAndRender = function (iter, editor, direction) {
+        var _this = this;
+        iter.get().caseOf({
+            just: function (glyph) {
+                glyph.getNode().caseOf({
+                    just: function (node) {
+                        _this._deleteGlyphAndRerender(iter, node, editor, direction);
+                    },
+                    nothing: function () {
+                        // If node was not rendered, nothing to do but remove the cell.
+                        iter.remove(direction);
+                    }
+                });
+            },
+            nothing: function () {
+                // The cell is empty. Might as well delete it.
+                iter.remove(direction);
+            }
+        });
+    };
+    EditorDeleter.prototype._deleteGlyphAndRerender = function (iter, node, editor, direction) {
+        var deadNode = jquery_1.default(node);
+        iter.remove(direction);
+        if (deadNode.hasClass(string_map_1.default.lineName())) {
+            deadNode.remove();
+            // If we are deleting a line, we derender everything in this line and previous line, and then rerender
+            // previous line and remainder of this line.
+            var deleteIterator_1 = iter.clone();
+            if (direction) {
+                // If we went forward, we need to adjust for algorithm by backing up one.
+                deleteIterator_1.prev();
+            }
+            var foundNextLine_1 = false;
+            while (deleteIterator_1.hasNext() && !foundNextLine_1) {
+                deleteIterator_1.next();
+                deleteIterator_1.get().caseOf({
+                    just: function (glyph) {
+                        glyph.getNode().caseOf({
+                            just: function (node) {
+                                if (jquery_1.default(node).hasClass(string_map_1.default.lineName())) {
+                                    foundNextLine_1 = true;
+                                }
+                                else {
+                                    glyph.destroyNode();
+                                }
+                            },
+                            nothing: function () {
+                                // If node was empty, nothing to destroy.
+                            }
+                        });
+                    },
+                    nothing: function () {
+                        // If the cell was empty, just remove it.
+                        deleteIterator_1.remove(false);
+                    }
+                });
+            }
+            var endIterator = deleteIterator_1.clone(); // This marks the stopping point of the rerendering later.
+            if (foundNextLine_1) {
+                endIterator.prev();
+            }
+            // Then we go backward and derender the entire previous line.
+            var foundPrevLine_1 = false;
+            while (deleteIterator_1.hasPrev() && !foundPrevLine_1) {
+                deleteIterator_1.prev();
+                deleteIterator_1.get().caseOf({
+                    just: function (glyph) {
+                        glyph.getNode().caseOf({
+                            just: function (node) {
+                                if (jquery_1.default(node).hasClass(string_map_1.default.lineName())) {
+                                    glyph.destroyNode();
+                                    foundPrevLine_1 = true;
+                                }
+                                else {
+                                    glyph.destroyNode();
+                                }
+                            },
+                            nothing: function () {
+                            }
+                        });
+                    },
+                    nothing: function () {
+                        deleteIterator_1.remove(true);
+                    }
+                });
+            }
+            // Now we rerender 
+            var renderIterator = deleteIterator_1.clone();
+            renderIterator.prev();
+            if (!foundPrevLine_1) {
+                // We MUST have a newline at start for document rendering to work correctly.
+                renderIterator.insertAfter(new glyph_1.Glyph("\n", new glyph_1.GlyphStyle()));
+            }
+            while (!renderIterator.equals(endIterator)) {
+                renderIterator.next();
+                this.renderer.render(renderIterator, editor);
+            }
+        }
+        else if (deadNode.hasClass(string_map_1.default.glyphName())) {
+            // If we are just deleting a glyph node, all we do is destroy it.
+            // No need to rerender.
+            deadNode.remove();
+        }
+        else {
+            throw new Error("Unhandled node being deleted");
+        }
+    };
+    return EditorDeleter;
+}());
+exports.EditorDeleter = EditorDeleter;
+
+},{"editor/glyph":104,"jquery":1,"string-map":107}],103:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -15357,10 +15487,10 @@ var glyph_1 = require("editor/glyph");
 var linked_list_1 = require("data_structures/linked-list");
 var rxjs_1 = require("rxjs");
 var string_map_1 = __importDefault(require("string-map"));
+var renderer_1 = require("editor/renderer");
+var deleter_1 = require("editor/deleter");
 /*
-    TODO : Handle Enter to insert new line where CURSOR is, not at the end of the document.
-    TODO : Handle Enter to scroll only if cursor is at LAST LINE
-    TODO : Handle how to track last line.
+    TODO : Ensure click leads to correct iterator. It currently does not.
 
     TODO : Always have all the lines created, with the accompanying lines.
            Only show them from the first line to the farthest line that
@@ -15368,8 +15498,8 @@ var string_map_1 = __importDefault(require("string-map"));
 */
 var Editor = /** @class */ (function () {
     function Editor(editor_id) {
-        this.maxLines = 0;
-        this.currentLine = 0;
+        this.renderer = new renderer_1.EditorRenderer();
+        this.deleter = new deleter_1.EditorDeleter(this.renderer);
         this.cursor = new cursor_1.default();
         if (editor_id) {
             this.editor = jquery_1.default(editor_id);
@@ -15390,6 +15520,9 @@ var Editor = /** @class */ (function () {
         this.glyph_iter = this.glyphs.makeFrontIterator();
         this.glyph_iter.insertAfter(new glyph_1.Glyph('\n', new glyph_1.GlyphStyle()));
         this.glyph_iter.next();
+        this.glyph_iter.insertAfter(new glyph_1.Glyph('a', new glyph_1.GlyphStyle()));
+        this.glyph_iter.next(); // We stay pointing at 'a', so cursor should be between a and b
+        this.glyph_iter.insertAfter(new glyph_1.Glyph('b', new glyph_1.GlyphStyle()));
         this.rerender();
     };
     Editor.prototype.getDocument = function () {
@@ -15415,41 +15548,20 @@ var Editor = /** @class */ (function () {
                     if (_this.cursor.isCollapsed()) {
                         _this.insertGlyph(key);
                         _this.renderCurrentGlyph();
-                        _this.cursor.maybeMoveCursorToNodeBoundary(_this.glyph_iter.get(), false);
+                        _this.updateCursorToCurrent();
                         event.preventDefault();
                     }
                 }
                 else if (key === 'Backspace') {
                     if (_this.cursor.isCollapsed()) {
-                        _this.deleteCurrentGlyph(false);
-                        _this.glyph_iter.get().caseOf({
-                            just: function (glyph) {
-                                glyph.getNode().caseOf({
-                                    just: function (node) {
-                                        if (glyph.glyph === "\n") {
-                                            // We need to move to first glyph child of newline
-                                            var firstSpan = jquery_1.default(node).children(string_map_1.default.glyphSelector()).first();
-                                            _this.cursor.moveCursorToNodeBoundary(firstSpan.get(0), false);
-                                        }
-                                        else {
-                                            _this.cursor.moveCursorToNodeBoundary(node, false);
-                                        }
-                                    },
-                                    nothing: function () {
-                                        // do nothing. Cannot move.
-                                    }
-                                });
-                            },
-                            nothing: function () {
-                            }
-                        });
+                        _this.deleteCurrentGlyphAndRerender(false);
                         event.preventDefault();
                     }
                 }
                 else if (key === 'Enter') {
                     _this.insertGlyph("\n");
-                    // Renders glyph by rerendering the next two lines.
-                    _this.rerenderCurrentGlyph(); // renders glyph as div and span, and inserts.
+                    // Renders glyph by rerendering current line and new line.
+                    _this.rerenderCurrentGlyph();
                     event.preventDefault();
                 }
                 else if (key === 'Tab') {
@@ -15583,169 +15695,99 @@ var Editor = /** @class */ (function () {
     };
     Editor.prototype.rerender = function () {
         this.editor.empty();
-        this.cursor.moveCursorToNodeBoundary(this.editor.get(0), true);
         var iterator = this.glyphs.makeFrontIterator();
         while (iterator.hasNext()) {
             iterator.next();
             this.renderGlyph(iterator);
         }
-        this.cursor.maybeMoveCursorToNodeBoundary(this.glyph_iter.get(), false);
+        this.updateCursorToCurrent(); // Initially is between a and b!
     };
     Editor.prototype.insertGlyph = function (char) {
         this.glyph_iter.insertAfter(new glyph_1.Glyph(char, new glyph_1.GlyphStyle()));
         this.glyph_iter.next();
     };
-    Editor.prototype.deleteCurrentGlyph = function (forward) {
-        var _this = this;
-        var maybe_glyph = this.glyph_iter.get();
-        maybe_glyph.caseOf({
-            just: function (glyph) {
-                var char = glyph.glyph;
-                glyph.destroyNode();
-                _this.glyph_iter.remove(forward); //removes the glyph entirely.
-                console.log('removing forward');
-                if (char === "\n") {
-                    console.log("DELETING NEWLINE");
-                    // Re render entire previous line to next newline.
-                    var renderIterator_1 = _this.glyph_iter.clone();
-                    var foundPrevLine_1 = false;
-                    while (!foundPrevLine_1) {
-                        renderIterator_1.get().caseOf({
-                            just: function (glyph) {
-                                if (glyph.glyph === "\n") {
-                                    glyph.destroyNode(); // Clear out previous line, prepare to rerender.
-                                    foundPrevLine_1 = true;
-                                    renderIterator_1.prev(); // go back one to set cursor.
-                                    console.log('found prev newline');
-                                    _this.cursor.maybeMoveCursorToNodeBoundary(renderIterator_1.get(), false);
-                                    console.log('ready to render');
-                                    // render newline.
-                                    renderIterator_1.next();
-                                    _this.renderGlyph(renderIterator_1);
-                                }
-                                else {
-                                    renderIterator_1.prev();
-                                }
-                            },
-                            nothing: function () { }
-                        });
-                    }
-                    //Once you've found the entire previous line, render the next line entirely.
-                    var foundNextLine_1 = false;
-                    while (!foundNextLine_1 && renderIterator_1.hasNext()) {
-                        renderIterator_1.next();
-                        renderIterator_1.get().caseOf({
-                            just: function (glyph) {
-                                if (glyph.glyph === "\n") {
-                                    console.log('found next line');
-                                    foundNextLine_1 = true;
-                                }
-                                else {
-                                    console.log('rerendering glyph: ' + glyph.glyph);
-                                    glyph.destroyNode();
-                                    _this.renderGlyph(renderIterator_1);
-                                }
-                            },
-                            nothing: function () { }
-                        });
-                    }
-                }
-                else {
-                }
-                _this.cursor.maybeMoveCursorToNodeBoundary(_this.glyph_iter.get(), false);
-            },
-            nothing: function () {
-            }
-        });
+    /**
+     * @description -- deletes the current glyph and rerenders document
+     * @param forward boolean that indicates direction in which to move after deletion.
+     *                true indicates forward, false indicates backward.
+     */
+    Editor.prototype.deleteCurrentGlyphAndRerender = function (forward) {
+        this.deleteGlyphAndRerender(this.glyph_iter, forward);
+    };
+    Editor.prototype.deleteGlyphAndRerender = function (iter, direction) {
+        this.deleter.deleteAndRender(iter, this.editor.get(0), direction);
+        this.updateCursorToCurrent();
     };
     Editor.prototype.rerenderCurrentGlyph = function () {
         this.rerenderGlyph(this.glyph_iter);
     };
     Editor.prototype.rerenderGlyph = function (iter) {
-        var _this = this;
-        var maybe_glyph = iter.get();
-        maybe_glyph.caseOf({
-            just: function (glyph) {
-                if (glyph.glyph === "\n") {
-                    // Newline requires special handling for enter. Need to delete previous line
-                    // IF it exists and then render next two lines.
-                    var iterator_1 = iter.clone();
-                    var foundPrevLine_2 = false;
-                    while (iterator_1.hasPrev() && !foundPrevLine_2) {
-                        iterator_1.prev();
-                        iterator_1.get().caseOf({
-                            just: function (glyph) {
-                                if (glyph.glyph === "\n") {
-                                    foundPrevLine_2 = true;
-                                    glyph.getNode().caseOf({
-                                        just: function (node) {
-                                            jquery_1.default(node).remove();
-                                        },
-                                        nothing: function () { }
-                                    });
-                                }
-                                else {
-                                    // Do nothing. We will delete the entire line shortly.
-                                }
-                            },
-                            nothing: function () { }
-                        });
-                    }
-                    if (foundPrevLine_2) {
-                        iterator_1.prev();
-                        _this.cursor.maybeMoveCursorToNodeBoundary(iterator_1.get(), false);
-                        // render next two lines
-                        var lineCount_1 = 0;
-                        while (iterator_1.hasNext() && lineCount_1 < 3) {
-                            iterator_1.next();
-                            iterator_1.get().caseOf({
-                                just: function (glyph) {
-                                    if (glyph.glyph === "\n") {
-                                        lineCount_1 += 1;
-                                    }
-                                    _this.renderGlyph(iterator_1); // THIS LEADS TO RECURSION
-                                },
-                                nothing: function () {
-                                }
-                            });
-                        }
-                    }
-                    else {
-                        // If no previous line, then just render the new line.
-                        _this.renderGlyph(iter);
-                    }
-                }
-                else {
-                    _this.renderGlyph(iter);
-                }
-            },
-            nothing: function () {
-                console.log("No glyph to rerender");
-            }
-        });
+        this.renderer.rerender(iter, this.editor.get(0));
+        this.updateCursorToCurrent();
     };
     /**
-     * @todo FIX. Recursive because for Enter, need to keep writing. NEED A rerenderGlyph
-     *       function for this, to avoid recursion.
+     * Renders glyph pointed at by the this.glyph_iter iterator.
+     */
+    Editor.prototype.renderCurrentGlyph = function () {
+        this.renderGlyph(this.glyph_iter);
+    };
+    /**
+     * @desciption - Renders glyph in DOM based on the surrounding nodes.
      * @param iter
      */
     Editor.prototype.renderGlyph = function (iter) {
+        this.renderer.render(iter, this.editor.get(0));
+    };
+    /**
+     * @description Updates cursor to be right after character of this.glyph_iter
+     */
+    Editor.prototype.updateCursorToCurrent = function () {
+        this.updateCursor(this.glyph_iter);
+    };
+    /**
+     * @description Updates cursor to be RIGHT AFTER character that iterator is pointing to.
+     *              THIS IS FOR VISUAL FEEDBACK ONLY. Cursor placement is inaccurate and tricky. Don't use for data manip.
+     * @param iter
+     */
+    Editor.prototype.updateCursor = function (iter) {
         var _this = this;
-        var maybe_glyph = iter.get();
-        maybe_glyph.caseOf({
+        // THIS IS FOR VISUAL FEEDBACK TO USER ONLY.
+        // Using the cursor for direct insert is error prone, as it may be misplaced.
+        iter.get().caseOf({
             just: function (glyph) {
-                console.log(glyph.glyph);
-                glyph.destroyNode();
-                var node = glyph.toNode();
-                _this.cursor.insertNode(node);
+                if (glyph.glyph === "\n") {
+                    glyph.getNode().caseOf({
+                        just: function (newlineNode) {
+                            var glyphNode = jquery_1.default(newlineNode).children(string_map_1.default.glyphSelector()).first();
+                            if (glyphNode.length > 0) {
+                                _this.cursor.moveCursorToNodeBoundary(glyphNode.get(0), false);
+                            }
+                            else {
+                                throw new Error("DID NOT FIND A HIDDEN SPAN IN LINE DIV");
+                            }
+                        },
+                        nothing: function () { }
+                    });
+                }
+                else {
+                    // Otherwise we just move cursor to node, if it has been rendered.
+                    glyph.getNode().caseOf({
+                        just: function (spanNode) {
+                            _this.cursor.moveCursorToNodeBoundary(spanNode, false);
+                        },
+                        nothing: function () { }
+                    });
+                }
             },
             nothing: function () {
-                console.log("No glyph to render");
+                console.log("updateCursor failed. Iterator did not get glyph");
+                // This should only happen when glyph_iter is at front sentinel..
+                if (iter.hasNext()) {
+                    iter.next();
+                    _this.updateCursor(iter);
+                }
             }
         });
-    };
-    Editor.prototype.renderCurrentGlyph = function () {
-        this.renderGlyph(this.glyph_iter);
     };
     Editor.new = function (editor_id) {
         var editor = new Editor(editor_id);
@@ -15760,7 +15802,7 @@ var Editor = /** @class */ (function () {
 }());
 exports.default = Editor;
 
-},{"data_structures/linked-list":100,"editor/cursor":101,"editor/glyph":103,"jquery":1,"rxjs":2,"string-map":105,"tsmonad":99}],103:[function(require,module,exports){
+},{"data_structures/linked-list":100,"editor/cursor":101,"editor/deleter":102,"editor/glyph":104,"editor/renderer":105,"jquery":1,"rxjs":2,"string-map":107,"tsmonad":99}],104:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -15818,7 +15860,238 @@ var GlyphStyle = /** @class */ (function () {
 }());
 exports.GlyphStyle = GlyphStyle;
 
-},{"jquery":1,"tsmonad":99}],104:[function(require,module,exports){
+},{"jquery":1,"tsmonad":99}],105:[function(require,module,exports){
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var string_map_1 = __importDefault(require("string-map"));
+var jquery_1 = __importDefault(require("jquery"));
+var EditorRenderer = /** @class */ (function () {
+    function EditorRenderer() {
+    }
+    /**
+     * @description Rerenders what iterator is pointing at. Useful for difficult to render things like newline insertions.
+     * @param iter
+     * @param editor
+     */
+    EditorRenderer.prototype.rerender = function (iter, editor) {
+        var _this = this;
+        iter.get().caseOf({
+            just: function (glyph) {
+                glyph.getNode().caseOf({
+                    just: function (node) {
+                        _this._rerenderNode(iter, node, editor);
+                    },
+                    nothing: function () {
+                        _this._rerenderNode(iter, glyph.toNode(), editor);
+                    }
+                });
+            },
+            nothing: function () {
+                // Nothing to rerender. So we do nothing.
+            }
+        });
+    };
+    EditorRenderer.prototype._rerenderNode = function (iter, node, editor) {
+        var newNode = jquery_1.default(node);
+        if (newNode.hasClass(string_map_1.default.lineName())) {
+            this._rerenderLine(iter, editor);
+        }
+        else {
+            // If we are not rerendering a newline, we will just destroy and rerender the node
+            // through the this.render() method.
+            this.render(iter, editor);
+        }
+    };
+    /**
+     *
+     * @param iter // iterator pointing at the newline to rerender.
+     * @param editor
+     */
+    EditorRenderer.prototype._rerenderLine = function (iter, editor) {
+        // destroy rerendering newline, if it exists.
+        iter.get().caseOf({
+            just: function (glyph) {
+                glyph.destroyNode();
+            },
+            nothing: function () {
+            }
+        });
+        var back_iter = iter.clone();
+        var foundPrevLine = false;
+        while (back_iter.hasPrev() && !foundPrevLine) {
+            back_iter.prev();
+            back_iter.get().caseOf({
+                just: function (glyph) {
+                    glyph.getNode().caseOf({
+                        just: function (node) {
+                            foundPrevLine = jquery_1.default(node).hasClass(string_map_1.default.lineName());
+                            glyph.destroyNode();
+                        },
+                        nothing: function () {
+                            // Nothing to destroy. Do nothing.
+                        }
+                    });
+                },
+                nothing: function () {
+                    // Nothing to rerender. Do nothing.
+                }
+            });
+        }
+        var forward_iter = iter.clone();
+        var foundNextLine = false;
+        while (forward_iter.hasNext() && !foundNextLine) {
+            forward_iter.next();
+            forward_iter.get().caseOf({
+                just: function (glyph) {
+                    glyph.getNode().caseOf({
+                        just: function (node) {
+                            foundNextLine = jquery_1.default(node).hasClass(string_map_1.default.lineName());
+                        },
+                        nothing: function () {
+                            // Nothing to destroy. Do nothing.
+                        }
+                    });
+                },
+                nothing: function () {
+                    // Nothing to destroy.
+                }
+            });
+        }
+        var end_iter = forward_iter.clone();
+        if (foundNextLine) {
+            end_iter.prev();
+        }
+        //Prepare to rerender.
+        var rerender_iter = back_iter.clone();
+        rerender_iter.prev();
+        while (!rerender_iter.equals(forward_iter)) {
+            rerender_iter.next();
+            this.render(rerender_iter, editor);
+        }
+    };
+    /**
+     * @description Renders the node within the editor. Will destroy existing representations if they exist.
+     * @param iter
+     * @param editor
+     */
+    EditorRenderer.prototype.render = function (iter, editor) {
+        var _this = this;
+        iter.get().caseOf({
+            just: function (glyph) {
+                // We have something to render.
+                glyph.destroyNode(); // Destroy old representation, if any.
+                _this._renderNode(iter, glyph.toNode(), editor);
+            },
+            nothing: function () {
+                // We have nothing to render. So we do nothing.
+            }
+        });
+    };
+    EditorRenderer.prototype._renderNode = function (iter, node, editor) {
+        /* Where do we render it? And how? We decide based on the current
+            character and the previous character. We have several cases:
+
+            1. Current is newline. Then we insert after current line, or if that is not found, we insert as line at start of editor.
+            2. Current is NOT newline. Then we insert in current line (after prev glyph), or if that is not found, we insert after previous glyph.
+        */
+        var newNode = jquery_1.default(node);
+        if (newNode.hasClass(string_map_1.default.lineName())) {
+            this._renderLine(iter, node, editor);
+        }
+        else if (newNode.hasClass(string_map_1.default.glyphName())) {
+            this._renderGlyph(iter, node, editor);
+        }
+    };
+    EditorRenderer.prototype._renderLine = function (iter, newline, editor) {
+        //1. Current is newline. Then we insert after current line, or if that is not found, we assume editor is empty and append.
+        var scan_iter = iter.clone();
+        var found_valid_prev = false;
+        while (scan_iter.hasPrev() && !found_valid_prev) {
+            scan_iter.prev();
+            scan_iter.get().caseOf({
+                just: function (glyph) {
+                    glyph.getNode().caseOf({
+                        just: function (node) {
+                            var prevNode = jquery_1.default(node);
+                            var oldline;
+                            if (prevNode.hasClass(string_map_1.default.lineName())) {
+                                oldline = prevNode;
+                            }
+                            else {
+                                oldline = jquery_1.default(node).parents(string_map_1.default.lineSelector()).first();
+                            }
+                            if (oldline.length > 0) {
+                                //Found line. We will insert after this line.
+                                found_valid_prev = true;
+                                jquery_1.default(newline).insertAfter(oldline);
+                            }
+                        },
+                        nothing: function () { }
+                    });
+                },
+                nothing: function () { }
+            });
+        }
+        if (!found_valid_prev) {
+            // If the previous step did not succeed, we can only insert at start of editor.
+            editor.appendChild(newline);
+        }
+    };
+    EditorRenderer.prototype._renderGlyph = function (iter, new_glyph, editor) {
+        //2. Current is NOT newline. Then we insert in current line (after prev glyph), or if that is not found, we insert after previous glyph.
+        var scan_iter = iter.clone();
+        var found_valid_prev = false;
+        while (scan_iter.hasPrev() && !found_valid_prev) {
+            scan_iter.prev();
+            scan_iter.get().caseOf({
+                just: function (glyph) {
+                    glyph.getNode().caseOf({
+                        just: function (node) {
+                            var prevNode = jquery_1.default(node);
+                            var old_glyph = prevNode.parents(string_map_1.default.glyphSelector()).first();
+                            if (prevNode.hasClass(string_map_1.default.lineName())) {
+                                // We found a line! Let's insert/append to it.
+                                found_valid_prev = true;
+                                var newline = prevNode.children(string_map_1.default.newlineSelector()).first();
+                                if (newline.length > 0) {
+                                    jquery_1.default(new_glyph).insertAfter(newline);
+                                }
+                                else {
+                                    prevNode.get(0).appendChild(new_glyph);
+                                }
+                            }
+                            else if (prevNode.hasClass(string_map_1.default.glyphName())) {
+                                old_glyph = prevNode;
+                            }
+                            else {
+                                old_glyph = prevNode.parents(string_map_1.default.glyphSelector()).first();
+                            }
+                            if (old_glyph.length > 0) {
+                                //Found glyph. We will insert after this glyph
+                                found_valid_prev = true;
+                                jquery_1.default(new_glyph).insertAfter(old_glyph);
+                            }
+                        },
+                        nothing: function () { }
+                    });
+                },
+                nothing: function () { }
+            });
+        }
+        if (!found_valid_prev) {
+            // If the previous step did not succeed, we can only insert at start of editor.
+            // REALLY WE SHOULD THROW AN EXCEPTION HERE AND RERENDER THE DOCUMENT.
+            editor.appendChild(new_glyph);
+        }
+    };
+    return EditorRenderer;
+}());
+exports.EditorRenderer = EditorRenderer;
+
+},{"jquery":1,"string-map":107}],106:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -15849,7 +16122,7 @@ jquery_1.default(document).ready(function () {
     });
 });
 
-},{"./editor/editor":102,"jquery":1}],105:[function(require,module,exports){
+},{"./editor/editor":103,"jquery":1}],107:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var Strings = {
@@ -15878,8 +16151,18 @@ var Strings = {
     },
     editorSelector: function () {
         return "." + this.editorName();
+    },
+    newline: '\n',
+    newlineString: function () {
+        return this.newline;
+    },
+    newlineName: function () {
+        return 'hidden';
+    },
+    newlineSelector: function () {
+        return "." + this.newlineName();
     }
 };
 exports.default = Strings;
 
-},{}]},{},[104]);
+},{}]},{},[106]);

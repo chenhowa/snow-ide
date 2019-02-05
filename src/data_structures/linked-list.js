@@ -84,6 +84,12 @@ var LinkedListIterator = /** @class */ (function () {
         this.current = current;
         this.list = list;
     }
+    LinkedListIterator.prototype.equals = function (other) {
+        return this.getCurrent() === other.getCurrent();
+    };
+    LinkedListIterator.prototype.getCurrent = function () {
+        return this.current;
+    };
     LinkedListIterator.prototype.isValid = function () {
         return tsmonad_1.Maybe.isJust(this.current.data) && !this._isSentinel();
     };

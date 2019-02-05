@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var jquery_1 = __importDefault(require("jquery"));
 var tsmonad_1 = require("tsmonad");
+var string_map_1 = __importDefault(require("string-map"));
 var Glyph = /** @class */ (function () {
     function Glyph(glyph, style) {
         this.glyph = glyph;
@@ -26,6 +27,11 @@ var Glyph = /** @class */ (function () {
             line.addClass('line');
             line.append(span);
             node_to_add = line.get(0);
+        }
+        else if (this.glyph === string_map_1.default.tab) {
+            span.text(string_map_1.default.tabString());
+            span.addClass(string_map_1.default.tabName());
+            node_to_add = span.get(0);
         }
         else {
             node_to_add = span.get(0);

@@ -1,8 +1,16 @@
+import {repeat} from "voca";
+
 var Strings = {
-    tab: '!!!!',
+    tab: 'Tab',
     tabString: function() {
-        return this.tab;
+        return repeat(' ', 4);
         return '    ';
+    },
+    tabName: function() {
+        return 'tab';
+    },
+    tabSelector: function() {
+        return '.' + this.tabName();
     },
 
     glyph: 'glyph',

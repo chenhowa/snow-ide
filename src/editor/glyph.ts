@@ -1,5 +1,6 @@
 import $ from "jquery";
 import { Maybe } from "tsmonad";
+import Strings from "string-map";
 
 
 // This interface implies that something can be converted to a Node (with children, etc);
@@ -43,6 +44,10 @@ class Glyph implements ToNode {
             line.addClass('line');
             line.append(span);
             node_to_add = line.get(0);
+        } else if (this.glyph === Strings.tab) {
+            span.text(Strings.tabString());
+            span.addClass(Strings.tabName());
+            node_to_add = span.get(0);
         } else {
             node_to_add = span.get(0);
         }

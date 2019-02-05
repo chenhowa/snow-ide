@@ -1,10 +1,17 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+var voca_1 = require("voca");
 var Strings = {
-    tab: '!!!!',
+    tab: 'Tab',
     tabString: function () {
-        return this.tab;
+        return voca_1.repeat(' ', 4);
         return '    ';
+    },
+    tabName: function () {
+        return 'tab';
+    },
+    tabSelector: function () {
+        return '.' + this.tabName();
     },
     glyph: 'glyph',
     glyphName: function () {

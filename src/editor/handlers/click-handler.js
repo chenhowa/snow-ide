@@ -27,14 +27,14 @@ var ClickHandler = /** @class */ (function () {
         */
         if (this.cursor.isCollapsed()) {
             var node = this.cursor.selection.anchorNode;
-            var offset = this.cursor.selection.anchorOffset;
+            var before = this.cursor.selection.anchorOffset === 0;
             if (node.nodeType === 3) {
                 console.log("text node");
-                this._handleTextNode(node, iter);
+                this._handleTextNode(node, iter, before);
             }
             else if (jquery_1.default(node).hasClass(string_map_1.default.glyphName()) || jquery_1.default(node).hasClass(string_map_1.default.lineName())) {
                 console.log("standard node");
-                this._handleStandardNode(node, iter);
+                this._handleStandardNode(node, iter, before);
             }
             else if (jquery_1.default(node).hasClass(string_map_1.default.editorName())) {
                 // If this happens, let caller decide what to do with this.
@@ -50,25 +50,25 @@ var ClickHandler = /** @class */ (function () {
             this.iterator = tsmonad_1.Maybe.nothing();
         }
     };
-    ClickHandler.prototype._handleTextNode = function (node, iter) {
+    ClickHandler.prototype._handleTextNode = function (node, iter, before) {
         //If text node, search for the span.
         var glyph = jquery_1.default(node).parents(string_map_1.default.glyphSelector()).first();
         var line = jquery_1.default(node).parents(string_map_1.default.lineSelector()).first();
         var targetNode = glyph.get(0);
         if (glyph.length > 0) {
             console.log("text glyph");
-            this._handleStandardNode(glyph.get(0), iter);
+            this._handleStandardNode(glyph.get(0), iter, before);
         }
         else if (line.length > 0) {
             console.log("text line");
-            this._handleStandardNode(line.get(0), iter);
+            this._handleStandardNode(line.get(0), iter, before);
         }
         else {
             console.log("text not found");
             this.iterator = tsmonad_1.Maybe.nothing();
         }
     };
-    ClickHandler.prototype._handleStandardNode = function (node, iter) {
+    ClickHandler.prototype._handleStandardNode = function (node, iter, before) {
         var found_iter = iter.findForward(function (glyph) {
             var match = false;
             glyph.getNode().caseOf({
@@ -81,6 +81,9 @@ var ClickHandler = /** @class */ (function () {
         });
         if (found_iter.isValid()) {
             console.log("found");
+            if (before && found_iter.hasPrev()) {
+                found_iter.prev();
+            }
             // If we found the value, we can set the iterator to this one.
             this.iterator = tsmonad_1.Maybe.just(found_iter);
         }

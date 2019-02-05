@@ -59,18 +59,25 @@ var Editor = /** @class */ (function () {
     Editor.prototype.valid = function () {
         return this.editor.length !== 0;
     };
+    Editor.prototype.isChar = function (key) {
+        return key.length === 1;
+    };
+    Editor.prototype.isArrowKey = function (key) {
+        return true;
+    };
     Editor.prototype.run = function () {
         // We assume that a glyph that glyph_iter points to is the one that would be removed by BACKSPACE.
         // Hence the cursor will be IN FRONT of it.
         var _this = this;
         // Render initial state of document.
         this.rerender();
-        var thisEditor = this;
         var keydownObs = rxjs_1.fromEvent(this.editor, 'keydown');
         var keydownSub = keydownObs.subscribe({
             next: function (event) {
                 var key = event.key;
-                if (key.length === 1) {
+                console.log("key: " + key);
+                console.log(event);
+                if (_this.isChar(key)) {
                     if (_this.cursor.isCollapsed()) {
                         _this.insertGlyph(key);
                         _this.renderCurrentGlyph();
@@ -91,8 +98,13 @@ var Editor = /** @class */ (function () {
                     event.preventDefault();
                 }
                 else if (key === 'Tab') {
+                    console.log('tab');
+                    // TODO. Insert 4 \t glyphs to represent each space in a tab.
+                    // This allows you to render each as a <span class='tab'> </span>
                     _this.insertGlyph("\t");
                     event.preventDefault();
+                }
+                else if (_this.isArrowKey(key)) {
                 }
             },
             error: function (err) { },

@@ -33,14 +33,14 @@ class ClickHandler implements Handler {
         */
         if(this.cursor.isCollapsed()) {
             let node = this.cursor.selection.anchorNode;
-            let offset = this.cursor.selection.anchorOffset;
+            let before = this.cursor.selection.anchorOffset === 0;
 
             if(node.nodeType === 3) {
                 console.log("text node");
-                this._handleTextNode(node, iter);
+                this._handleTextNode(node, iter, before);
             } else if ($(node).hasClass(Strings.glyphName()) || $(node).hasClass(Strings.lineName())) {
                 console.log("standard node");
-                this._handleStandardNode(node, iter);
+                this._handleStandardNode(node, iter, before);
             } else if ($(node).hasClass(Strings.editorName())) {
                 // If this happens, let caller decide what to do with this.
                 console.log("else 2");
@@ -54,24 +54,24 @@ class ClickHandler implements Handler {
         }
     }
 
-    _handleTextNode(node: Node, iter: DoubleIterator<Glyph>) {
+    _handleTextNode(node: Node, iter: DoubleIterator<Glyph>, before: boolean) {
         //If text node, search for the span.
         let glyph = $(node).parents(Strings.glyphSelector()).first();
         let line = $(node).parents(Strings.lineSelector()).first();
         let targetNode = glyph.get(0);
         if(glyph.length > 0) {
             console.log("text glyph");
-            this._handleStandardNode(glyph.get(0), iter);
+            this._handleStandardNode(glyph.get(0), iter, before);
         } else if (line.length > 0) {
             console.log ("text line");
-            this._handleStandardNode(line.get(0), iter);
+            this._handleStandardNode(line.get(0), iter, before);
         } else {
             console.log("text not found");
             this.iterator = Maybe.nothing();
         }
     }
 
-    _handleStandardNode(node: Node, iter: DoubleIterator<Glyph>) {
+    _handleStandardNode(node: Node, iter: DoubleIterator<Glyph>, before: boolean) {
         let found_iter = iter.findForward((glyph: ToNode) => {
             let match = false;
             glyph.getNode().caseOf({
@@ -79,12 +79,15 @@ class ClickHandler implements Handler {
                     match =  node === glyphNode;
                 },
                 nothing: () => {}
-            })
+            });
             return match;
         });
 
         if(found_iter.isValid()) {
             console.log("found");
+            if(before && found_iter.hasPrev()) {
+                found_iter.prev();
+            }
             // If we found the value, we can set the iterator to this one.
             this.iterator = Maybe.just(found_iter);
         } else {

@@ -78,6 +78,20 @@ class Editor {
         return this.editor.length !== 0;
     }
 
+    isChar(key: string): boolean {
+        return key.length === 1;
+    }
+
+    isArrowKey(key: string): boolean {
+        let keys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'];
+        for(let i = 0; i < keys.length; i++) {
+            if(key === keys[i]) {
+                return true;
+            }
+        }
+        return false; 
+    }
+
     run() {
         // We assume that a glyph that glyph_iter points to is the one that would be removed by BACKSPACE.
         // Hence the cursor will be IN FRONT of it.
@@ -85,12 +99,13 @@ class Editor {
         // Render initial state of document.
         this.rerender();
 
-        let thisEditor = this;
         let keydownObs = fromEvent(this.editor, 'keydown');
         let keydownSub = keydownObs.subscribe({
             next: (event: any) => {
                 let key: string = event.key;
-                if(key.length === 1) {
+                console.log("key: " +  key);
+                console.log(event);
+                if(this.isChar(key)) {
                     if(this.cursor.isCollapsed()) {
                         this.insertGlyph(key);
                         this.renderCurrentGlyph();
@@ -108,9 +123,17 @@ class Editor {
                     this.rerenderCurrentGlyph();
                     event.preventDefault();
                 } else if (key === 'Tab') {
+                    console.log('tab');
+                    // TODO. Insert 4 \t glyphs to represent each space in a tab.
+                    // This allows you to render each as a <span class='tab'> </span>
                     this.insertGlyph("\t");
                     event.preventDefault();
-                }              
+                } else if (this.isArrowKey(key)) {
+                    // TODO. Move iterator to correct destination and then rerender the cursor.
+
+                    this.updateCursorToCurrent();
+                }
+
             },
             error: (err) => {},
             complete: () => {}
@@ -158,9 +181,7 @@ class Editor {
         }
 
         this.updateCursorToCurrent(); // Initially is between a and b!
-
     }
-
 
     insertGlyph(char: string) {
         this.glyph_iter.insertAfter(new Glyph(char, new GlyphStyle()));

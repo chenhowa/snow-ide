@@ -84,6 +84,61 @@ var LinkedListIterator = /** @class */ (function () {
         this.current = current;
         this.list = list;
     }
+    /**
+     * @description Finds first occurence at or after this iterator.
+     * @param filter
+     */
+    LinkedListIterator.prototype.findForward = function (filter) {
+        var iter = this.clone();
+        var found = false;
+        if (!iter.isValid()) {
+            // If we are in a sentinel or something, go forward one.
+            iter.next();
+        }
+        while (iter.isValid() && !found) {
+            iter.get().caseOf({
+                just: function (val) {
+                    if (filter(val)) {
+                        found = true;
+                    }
+                    else {
+                        iter.next();
+                    }
+                },
+                nothing: function () {
+                    iter.next();
+                }
+            });
+        }
+        return iter;
+    };
+    /**
+     * @description Finds first occurence at or before this iterator.
+     * @param filter
+     */
+    LinkedListIterator.prototype.findBackward = function (filter) {
+        var iter = this.clone();
+        var found = false;
+        if (!iter.isValid()) {
+            iter.prev(); // Try going backward if it isn't valid. Maybe it's at a back sentinel.
+        }
+        while (iter.isValid() && !found) {
+            iter.get().caseOf({
+                just: function (val) {
+                    if (filter(val)) {
+                        found = true;
+                    }
+                    else {
+                        iter.prev();
+                    }
+                },
+                nothing: function () {
+                    iter.prev();
+                }
+            });
+        }
+        return iter;
+    };
     LinkedListIterator.prototype.equals = function (other) {
         return this.getCurrent() === other.getCurrent();
     };

@@ -34,6 +34,8 @@ interface DoubleIterator<T> {
     replace(val: T): void; // Replaces current node's value.
     grab(): T // throws an error if no value was present in the node.
     equals(other: DoubleIterator<T>) : boolean;
+    findForward(filter: (data: T) => boolean): DoubleIterator<T>;
+    findBackward(filter: (data: T) => boolean): DoubleIterator<T>;
 }
 
 
@@ -135,6 +137,67 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
     constructor(current: LinkedListNode<T>, list : LinkedList<T>) {
         this.current = current;
         this.list = list;
+    }
+
+    /**
+     * @description Finds first occurence at or after this iterator.
+     * @param filter 
+     */
+    findForward(filter: (data: T) => boolean): DoubleIterator<T> {
+        let iter = this.clone();
+        let found = false;
+
+        if(!iter.isValid()) {
+            // If we are in a sentinel or something, go forward one.
+            iter.next();
+        }
+
+        while( iter.isValid() && !found ) {
+            iter.get().caseOf({
+                just: (val) => {
+                    if(filter(val)) {
+                        found = true;
+                    } else {
+                        iter.next();
+                    }
+                },
+                nothing: () => {
+                    iter.next();
+                }
+            });
+        }
+        return iter;
+    }
+
+    /**
+     * @description Finds first occurence at or before this iterator.
+     * @param filter 
+     */
+    findBackward(filter: (data: T) => boolean): DoubleIterator<T> {
+
+
+        let iter = this.clone();
+        let found = false;
+
+        if(!iter.isValid()) {
+            iter.prev();  // Try going backward if it isn't valid. Maybe it's at a back sentinel.
+        }
+
+        while( iter.isValid() && !found ) {
+            iter.get().caseOf({
+                just: (val) => {
+                    if(filter(val)) {
+                        found = true;
+                    } else {
+                        iter.prev();
+                    }
+                },
+                nothing: () => {
+                    iter.prev();
+                }
+            })
+        }
+        return iter;
     }
 
     equals(other: DoubleIterator<T>): boolean {

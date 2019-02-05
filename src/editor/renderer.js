@@ -48,6 +48,7 @@ var EditorRenderer = /** @class */ (function () {
      * @param editor
      */
     EditorRenderer.prototype._rerenderLine = function (iter, editor) {
+        // TODO: Fix bug. Presseing enter in a 3 line text deletes the next-next line.
         // destroy rerendering newline, if it exists.
         iter.get().caseOf({
             just: function (glyph) {
@@ -99,12 +100,12 @@ var EditorRenderer = /** @class */ (function () {
         }
         var end_iter = forward_iter.clone();
         if (foundNextLine) {
-            end_iter.prev();
+            end_iter.prev(); // Rerendering will end and include this iterator, and NOT the next newline.
         }
         //Prepare to rerender.
         var rerender_iter = back_iter.clone();
         rerender_iter.prev();
-        while (!rerender_iter.equals(forward_iter)) {
+        while (!rerender_iter.equals(end_iter)) {
             rerender_iter.next();
             this.render(rerender_iter, editor);
         }
@@ -136,6 +137,7 @@ var EditorRenderer = /** @class */ (function () {
         */
         var newNode = jquery_1.default(node);
         if (newNode.hasClass(string_map_1.default.lineName())) {
+            console.log("RENDERING LINE");
             this._renderLine(iter, node, editor);
         }
         else if (newNode.hasClass(string_map_1.default.glyphName())) {

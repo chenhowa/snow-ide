@@ -55,6 +55,8 @@ class EditorRenderer implements Renderer {
      * @param editor 
      */
     _rerenderLine(iter: DoubleIterator<ToNode>, editor: Node) {
+        // TODO: Fix bug. Presseing enter in a 3 line text deletes the next-next line.
+
         // destroy rerendering newline, if it exists.
         iter.get().caseOf({
             just: (glyph) => {
@@ -110,13 +112,13 @@ class EditorRenderer implements Renderer {
 
         let end_iter = forward_iter.clone();
         if(foundNextLine) {
-            end_iter.prev();
+            end_iter.prev(); // Rerendering will end and include this iterator, and NOT the next newline.
         }
 
         //Prepare to rerender.
         let rerender_iter = back_iter.clone();
         rerender_iter.prev();
-        while(!rerender_iter.equals(forward_iter)) {
+        while(!rerender_iter.equals(end_iter)) {
             rerender_iter.next();
             this.render(rerender_iter, editor);
         }
@@ -150,6 +152,7 @@ class EditorRenderer implements Renderer {
         */
         let newNode = $(node);
         if(newNode.hasClass(Strings.lineName())) {
+            console.log("RENDERING LINE");
             this._renderLine(iter, node, editor);
         } else if (newNode.hasClass(Strings.glyphName()) ) {
             this._renderGlyph(iter, node, editor);

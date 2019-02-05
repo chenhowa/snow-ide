@@ -69,7 +69,7 @@ var EditorDeleter = /** @class */ (function () {
             }
             var endIterator = deleteIterator_1.clone(); // This marks the stopping point of the rerendering later.
             if (foundNextLine_1) {
-                endIterator.prev();
+                endIterator.prev(); // We don't want to rerender the new line, so we back up one.
             }
             // Then we go backward and derender the entire previous line.
             var foundPrevLine_1 = false;

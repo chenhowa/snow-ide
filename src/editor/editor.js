@@ -12,6 +12,7 @@ var rxjs_1 = require("rxjs");
 var string_map_1 = __importDefault(require("string-map"));
 var renderer_1 = require("editor/renderer");
 var deleter_1 = require("editor/deleter");
+var click_handler_1 = __importDefault(require("editor/handlers/click-handler"));
 /*
     TODO : Ensure click leads to correct iterator. It currently does not.
 
@@ -21,8 +22,10 @@ var deleter_1 = require("editor/deleter");
 */
 var Editor = /** @class */ (function () {
     function Editor(editor_id) {
+        this.cursor = new cursor_1.default();
         this.renderer = new renderer_1.EditorRenderer();
         this.deleter = new deleter_1.EditorDeleter(this.renderer);
+        this.clicker = new click_handler_1.default(this.cursor);
         this.cursor = new cursor_1.default();
         if (editor_id) {
             this.editor = jquery_1.default(editor_id);
@@ -98,112 +101,22 @@ var Editor = /** @class */ (function () {
         var clickObs = rxjs_1.fromEvent(this.editor, 'click');
         var clickSub = clickObs.subscribe({
             next: function (event) {
-                console.log(event);
-                console.log(_this.cursor.selection);
-                var target = jquery_1.default(event.target);
-                if (target.hasClass(string_map_1.default.editorName())) {
-                    var selectionNode = jquery_1.default(_this.cursor.selection.anchorNode);
-                    if (selectionNode.hasClass(string_map_1.default.glyphName())) {
-                        var targetNode_1 = selectionNode.get(0);
-                        var iterator = _this.glyphs.find(function (glyph) {
-                            var match = false;
-                            glyph.getNode().caseOf({
-                                just: function (node) {
-                                    match = targetNode_1 === node;
-                                },
-                                nothing: function () { }
-                            });
-                            return match;
-                        });
-                        _this.cursor.maybeMoveCursorToNodeBoundary(iterator.get(), false);
-                    }
-                    else if (selectionNode.get(0).nodeType === 3) {
-                        var targetNode_2 = selectionNode.parent(string_map_1.default.glyphSelector()).first().get(0);
-                        var iterator = _this.glyphs.find(function (glyph) {
-                            var match = false;
-                            glyph.getNode().caseOf({
-                                just: function (node) {
-                                    match = targetNode_2 === node;
-                                },
-                                nothing: function () { }
-                            });
-                            return match;
-                        });
-                        _this.cursor.maybeMoveCursorToNodeBoundary(iterator.get(), false);
-                    }
-                    else {
-                        // If we clicked outside the editor, for now, point the iterator
-                        // at the first char of the first line, and then move cursor accordingly.
-                        thisEditor.glyph_iter = thisEditor.glyphs.makeFrontIterator();
-                        var count = 0;
-                        if (thisEditor.glyph_iter.hasNext()) {
-                            count += 1;
-                            thisEditor.glyph_iter.next();
-                            thisEditor.glyph_iter.get().caseOf({
-                                just: function (glyph) {
-                                    glyph.node.caseOf({
-                                        just: function (node) {
-                                            _this.cursor.moveCursorToNodeBoundary(node, true);
-                                        },
-                                        nothing: function () {
-                                            console.log("Could not move cursor to glyph. Glyph had no rendered node");
-                                        }
-                                    });
-                                },
-                                nothing: function () {
-                                    console.log("Could not move cursor to glyph. Glyph was empty somehow");
-                                    // Do nothing. Hope for recovery.
-                                }
-                            });
+                _this.clicker.handle(event, _this.glyphs.makeFrontIterator());
+                _this.clicker.getNewIterators().caseOf({
+                    just: function (iter) {
+                        _this.glyph_iter = iter;
+                    },
+                    nothing: function () {
+                        _this.glyph_iter = _this.glyphs.makeFrontIterator();
+                        if (_this.glyph_iter.hasNext()) {
+                            _this.glyph_iter.next();
+                        }
+                        else {
+                            throw new Error("Empty list. Need newline");
                         }
                     }
-                }
-                else if (target.hasClass(string_map_1.default.lineName())) {
-                    console.log('moving to line');
-                }
-                else if (target.hasClass(string_map_1.default.glyphName())) {
-                    console.log('moving to glyph');
-                    // Have to use selection to get correct cursor position
-                    var toStart = _this.cursor.selection.anchorOffset === 0;
-                    var targetNode_3 = jquery_1.default(_this.cursor.selection.anchorNode).parent(string_map_1.default.glyphSelector()).first().get(0);
-                    var iterator = _this.glyphs.find(function (glyph) {
-                        var match = false;
-                        glyph.getNode().caseOf({
-                            just: function (node) {
-                                match = targetNode_3 === node;
-                            },
-                            nothing: function () { }
-                        });
-                        return match;
-                    });
-                    _this.glyph_iter = iterator;
-                    _this.cursor.maybeMoveCursorToNodeBoundary(iterator.get(), toStart);
-                }
-                else if (target.get(0).nodeType === 3) {
-                    // Was text node, so it should be in a span.
-                    var node = target.parent(string_map_1.default.glyphSelector()).first();
-                    if (node.length > 0) {
-                        var targetNode_4 = node.get(0);
-                        var iterator = _this.glyphs.find(function (glyph) {
-                            var match = false;
-                            glyph.getNode().caseOf({
-                                just: function (node) {
-                                    match = targetNode_4 === node;
-                                },
-                                nothing: function () { }
-                            });
-                            return match;
-                        });
-                        _this.cursor.maybeMoveCursorToNodeBoundary(iterator.get(), false);
-                        console.log(_this.cursor.selection);
-                    }
-                }
-                else {
-                    console.log("NOT RECOGNIZED CLICK");
-                    var firstLine = thisEditor.editor.children(".first-line").get(0);
-                    _this.cursor.moveCursorToNodeBoundary(firstLine, false);
-                }
-                console.log(_this.glyph_iter.grab());
+                });
+                _this.updateCursorToCurrent();
             },
             error: function (err) { },
             complete: function () { }

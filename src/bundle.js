@@ -15018,6 +15018,61 @@ var LinkedListIterator = /** @class */ (function () {
         this.current = current;
         this.list = list;
     }
+    /**
+     * @description Finds first occurence at or after this iterator.
+     * @param filter
+     */
+    LinkedListIterator.prototype.findForward = function (filter) {
+        var iter = this.clone();
+        var found = false;
+        if (!iter.isValid()) {
+            // If we are in a sentinel or something, go forward one.
+            iter.next();
+        }
+        while (iter.isValid() && !found) {
+            iter.get().caseOf({
+                just: function (val) {
+                    if (filter(val)) {
+                        found = true;
+                    }
+                    else {
+                        iter.next();
+                    }
+                },
+                nothing: function () {
+                    iter.next();
+                }
+            });
+        }
+        return iter;
+    };
+    /**
+     * @description Finds first occurence at or before this iterator.
+     * @param filter
+     */
+    LinkedListIterator.prototype.findBackward = function (filter) {
+        var iter = this.clone();
+        var found = false;
+        if (!iter.isValid()) {
+            iter.prev(); // Try going backward if it isn't valid. Maybe it's at a back sentinel.
+        }
+        while (iter.isValid() && !found) {
+            iter.get().caseOf({
+                just: function (val) {
+                    if (filter(val)) {
+                        found = true;
+                    }
+                    else {
+                        iter.prev();
+                    }
+                },
+                nothing: function () {
+                    iter.prev();
+                }
+            });
+        }
+        return iter;
+    };
     LinkedListIterator.prototype.equals = function (other) {
         return this.getCurrent() === other.getCurrent();
     };
@@ -15350,7 +15405,7 @@ var Cursor = /** @class */ (function () {
 }());
 exports.default = Cursor;
 
-},{"jquery":1,"string-map":107}],102:[function(require,module,exports){
+},{"jquery":1,"string-map":108}],102:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -15422,7 +15477,7 @@ var EditorDeleter = /** @class */ (function () {
             }
             var endIterator = deleteIterator_1.clone(); // This marks the stopping point of the rerendering later.
             if (foundNextLine_1) {
-                endIterator.prev();
+                endIterator.prev(); // We don't want to rerender the new line, so we back up one.
             }
             // Then we go backward and derender the entire previous line.
             var foundPrevLine_1 = false;
@@ -15474,7 +15529,7 @@ var EditorDeleter = /** @class */ (function () {
 }());
 exports.EditorDeleter = EditorDeleter;
 
-},{"editor/glyph":104,"jquery":1,"string-map":107}],103:[function(require,module,exports){
+},{"editor/glyph":104,"jquery":1,"string-map":108}],103:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -15489,6 +15544,7 @@ var rxjs_1 = require("rxjs");
 var string_map_1 = __importDefault(require("string-map"));
 var renderer_1 = require("editor/renderer");
 var deleter_1 = require("editor/deleter");
+var click_handler_1 = __importDefault(require("editor/handlers/click-handler"));
 /*
     TODO : Ensure click leads to correct iterator. It currently does not.
 
@@ -15498,8 +15554,10 @@ var deleter_1 = require("editor/deleter");
 */
 var Editor = /** @class */ (function () {
     function Editor(editor_id) {
+        this.cursor = new cursor_1.default();
         this.renderer = new renderer_1.EditorRenderer();
         this.deleter = new deleter_1.EditorDeleter(this.renderer);
+        this.clicker = new click_handler_1.default(this.cursor);
         this.cursor = new cursor_1.default();
         if (editor_id) {
             this.editor = jquery_1.default(editor_id);
@@ -15575,112 +15633,22 @@ var Editor = /** @class */ (function () {
         var clickObs = rxjs_1.fromEvent(this.editor, 'click');
         var clickSub = clickObs.subscribe({
             next: function (event) {
-                console.log(event);
-                console.log(_this.cursor.selection);
-                var target = jquery_1.default(event.target);
-                if (target.hasClass(string_map_1.default.editorName())) {
-                    var selectionNode = jquery_1.default(_this.cursor.selection.anchorNode);
-                    if (selectionNode.hasClass(string_map_1.default.glyphName())) {
-                        var targetNode_1 = selectionNode.get(0);
-                        var iterator = _this.glyphs.find(function (glyph) {
-                            var match = false;
-                            glyph.getNode().caseOf({
-                                just: function (node) {
-                                    match = targetNode_1 === node;
-                                },
-                                nothing: function () { }
-                            });
-                            return match;
-                        });
-                        _this.cursor.maybeMoveCursorToNodeBoundary(iterator.get(), false);
-                    }
-                    else if (selectionNode.get(0).nodeType === 3) {
-                        var targetNode_2 = selectionNode.parent(string_map_1.default.glyphSelector()).first().get(0);
-                        var iterator = _this.glyphs.find(function (glyph) {
-                            var match = false;
-                            glyph.getNode().caseOf({
-                                just: function (node) {
-                                    match = targetNode_2 === node;
-                                },
-                                nothing: function () { }
-                            });
-                            return match;
-                        });
-                        _this.cursor.maybeMoveCursorToNodeBoundary(iterator.get(), false);
-                    }
-                    else {
-                        // If we clicked outside the editor, for now, point the iterator
-                        // at the first char of the first line, and then move cursor accordingly.
-                        thisEditor.glyph_iter = thisEditor.glyphs.makeFrontIterator();
-                        var count = 0;
-                        if (thisEditor.glyph_iter.hasNext()) {
-                            count += 1;
-                            thisEditor.glyph_iter.next();
-                            thisEditor.glyph_iter.get().caseOf({
-                                just: function (glyph) {
-                                    glyph.node.caseOf({
-                                        just: function (node) {
-                                            _this.cursor.moveCursorToNodeBoundary(node, true);
-                                        },
-                                        nothing: function () {
-                                            console.log("Could not move cursor to glyph. Glyph had no rendered node");
-                                        }
-                                    });
-                                },
-                                nothing: function () {
-                                    console.log("Could not move cursor to glyph. Glyph was empty somehow");
-                                    // Do nothing. Hope for recovery.
-                                }
-                            });
+                _this.clicker.handle(event, _this.glyphs.makeFrontIterator());
+                _this.clicker.getNewIterators().caseOf({
+                    just: function (iter) {
+                        _this.glyph_iter = iter;
+                    },
+                    nothing: function () {
+                        _this.glyph_iter = _this.glyphs.makeFrontIterator();
+                        if (_this.glyph_iter.hasNext()) {
+                            _this.glyph_iter.next();
+                        }
+                        else {
+                            throw new Error("Empty list. Need newline");
                         }
                     }
-                }
-                else if (target.hasClass(string_map_1.default.lineName())) {
-                    console.log('moving to line');
-                }
-                else if (target.hasClass(string_map_1.default.glyphName())) {
-                    console.log('moving to glyph');
-                    // Have to use selection to get correct cursor position
-                    var toStart = _this.cursor.selection.anchorOffset === 0;
-                    var targetNode_3 = jquery_1.default(_this.cursor.selection.anchorNode).parent(string_map_1.default.glyphSelector()).first().get(0);
-                    var iterator = _this.glyphs.find(function (glyph) {
-                        var match = false;
-                        glyph.getNode().caseOf({
-                            just: function (node) {
-                                match = targetNode_3 === node;
-                            },
-                            nothing: function () { }
-                        });
-                        return match;
-                    });
-                    _this.glyph_iter = iterator;
-                    _this.cursor.maybeMoveCursorToNodeBoundary(iterator.get(), toStart);
-                }
-                else if (target.get(0).nodeType === 3) {
-                    // Was text node, so it should be in a span.
-                    var node = target.parent(string_map_1.default.glyphSelector()).first();
-                    if (node.length > 0) {
-                        var targetNode_4 = node.get(0);
-                        var iterator = _this.glyphs.find(function (glyph) {
-                            var match = false;
-                            glyph.getNode().caseOf({
-                                just: function (node) {
-                                    match = targetNode_4 === node;
-                                },
-                                nothing: function () { }
-                            });
-                            return match;
-                        });
-                        _this.cursor.maybeMoveCursorToNodeBoundary(iterator.get(), false);
-                        console.log(_this.cursor.selection);
-                    }
-                }
-                else {
-                    console.log("NOT RECOGNIZED CLICK");
-                    var firstLine = thisEditor.editor.children(".first-line").get(0);
-                    _this.cursor.moveCursorToNodeBoundary(firstLine, false);
-                }
-                console.log(_this.glyph_iter.grab());
+                });
+                _this.updateCursorToCurrent();
             },
             error: function (err) { },
             complete: function () { }
@@ -15802,7 +15770,7 @@ var Editor = /** @class */ (function () {
 }());
 exports.default = Editor;
 
-},{"data_structures/linked-list":100,"editor/cursor":101,"editor/deleter":102,"editor/glyph":104,"editor/renderer":105,"jquery":1,"rxjs":2,"string-map":107,"tsmonad":99}],104:[function(require,module,exports){
+},{"data_structures/linked-list":100,"editor/cursor":101,"editor/deleter":102,"editor/glyph":104,"editor/handlers/click-handler":105,"editor/renderer":106,"jquery":1,"rxjs":2,"string-map":108,"tsmonad":99}],104:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -15866,6 +15834,105 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+var tsmonad_1 = require("tsmonad");
+var string_map_1 = __importDefault(require("string-map"));
+var jquery_1 = __importDefault(require("jquery"));
+/*
+    This class is for handling the state changes that occur after clicking.
+    Can return the iterator in case the editor should also save the resultant iterator.
+*/
+var ClickHandler = /** @class */ (function () {
+    function ClickHandler(cursor) {
+        this.iterator = tsmonad_1.Maybe.nothing();
+        this.cursor = cursor;
+    }
+    ClickHandler.prototype.handle = function (event, iter) {
+        console.log(event);
+        console.log(this.cursor.selection);
+        /* In click handler, set the position of the iterator according to
+           where the cursor is now located. Three possibilities of where the cursor now is:
+            1. in a text node.
+            2. in a glyph span node.
+            3. In a line div node.
+            4. in the editor node.
+        */
+        if (this.cursor.isCollapsed()) {
+            var node = this.cursor.selection.anchorNode;
+            var offset = this.cursor.selection.anchorOffset;
+            if (node.nodeType === 3) {
+                console.log("text node");
+                this._handleTextNode(node, iter);
+            }
+            else if (jquery_1.default(node).hasClass(string_map_1.default.glyphName()) || jquery_1.default(node).hasClass(string_map_1.default.lineName())) {
+                console.log("standard node");
+                this._handleStandardNode(node, iter);
+            }
+            else if (jquery_1.default(node).hasClass(string_map_1.default.editorName())) {
+                // If this happens, let caller decide what to do with this.
+                console.log("else 2");
+                this.iterator = tsmonad_1.Maybe.nothing();
+            }
+            else {
+                throw new Error("Unhandled selection node in ClickHandler");
+            }
+        }
+        else {
+            console.log("else 1");
+            this.iterator = tsmonad_1.Maybe.nothing();
+        }
+    };
+    ClickHandler.prototype._handleTextNode = function (node, iter) {
+        //If text node, search for the span.
+        var glyph = jquery_1.default(node).parents(string_map_1.default.glyphSelector()).first();
+        var line = jquery_1.default(node).parents(string_map_1.default.lineSelector()).first();
+        var targetNode = glyph.get(0);
+        if (glyph.length > 0) {
+            console.log("text glyph");
+            this._handleStandardNode(glyph.get(0), iter);
+        }
+        else if (line.length > 0) {
+            console.log("text line");
+            this._handleStandardNode(line.get(0), iter);
+        }
+        else {
+            console.log("text not found");
+            this.iterator = tsmonad_1.Maybe.nothing();
+        }
+    };
+    ClickHandler.prototype._handleStandardNode = function (node, iter) {
+        var found_iter = iter.findForward(function (glyph) {
+            var match = false;
+            glyph.getNode().caseOf({
+                just: function (glyphNode) {
+                    match = node === glyphNode;
+                },
+                nothing: function () { }
+            });
+            return match;
+        });
+        if (found_iter.isValid()) {
+            console.log("found");
+            // If we found the value, we can set the iterator to this one.
+            this.iterator = tsmonad_1.Maybe.just(found_iter);
+        }
+        else {
+            console.log("not found");
+            this.iterator = tsmonad_1.Maybe.nothing();
+        }
+    };
+    ClickHandler.prototype.getNewIterators = function () {
+        return this.iterator;
+    };
+    return ClickHandler;
+}());
+exports.default = ClickHandler;
+
+},{"jquery":1,"string-map":108,"tsmonad":99}],106:[function(require,module,exports){
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
 var string_map_1 = __importDefault(require("string-map"));
 var jquery_1 = __importDefault(require("jquery"));
 var EditorRenderer = /** @class */ (function () {
@@ -15911,6 +15978,7 @@ var EditorRenderer = /** @class */ (function () {
      * @param editor
      */
     EditorRenderer.prototype._rerenderLine = function (iter, editor) {
+        // TODO: Fix bug. Presseing enter in a 3 line text deletes the next-next line.
         // destroy rerendering newline, if it exists.
         iter.get().caseOf({
             just: function (glyph) {
@@ -15962,12 +16030,12 @@ var EditorRenderer = /** @class */ (function () {
         }
         var end_iter = forward_iter.clone();
         if (foundNextLine) {
-            end_iter.prev();
+            end_iter.prev(); // Rerendering will end and include this iterator, and NOT the next newline.
         }
         //Prepare to rerender.
         var rerender_iter = back_iter.clone();
         rerender_iter.prev();
-        while (!rerender_iter.equals(forward_iter)) {
+        while (!rerender_iter.equals(end_iter)) {
             rerender_iter.next();
             this.render(rerender_iter, editor);
         }
@@ -15999,6 +16067,7 @@ var EditorRenderer = /** @class */ (function () {
         */
         var newNode = jquery_1.default(node);
         if (newNode.hasClass(string_map_1.default.lineName())) {
+            console.log("RENDERING LINE");
             this._renderLine(iter, node, editor);
         }
         else if (newNode.hasClass(string_map_1.default.glyphName())) {
@@ -16091,7 +16160,7 @@ var EditorRenderer = /** @class */ (function () {
 }());
 exports.EditorRenderer = EditorRenderer;
 
-},{"jquery":1,"string-map":107}],106:[function(require,module,exports){
+},{"jquery":1,"string-map":108}],107:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -16122,7 +16191,7 @@ jquery_1.default(document).ready(function () {
     });
 });
 
-},{"./editor/editor":103,"jquery":1}],107:[function(require,module,exports){
+},{"./editor/editor":103,"jquery":1}],108:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var Strings = {
@@ -16165,4 +16234,4 @@ var Strings = {
 };
 exports.default = Strings;
 
-},{}]},{},[106]);
+},{}]},{},[107]);

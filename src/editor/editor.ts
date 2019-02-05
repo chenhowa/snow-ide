@@ -9,6 +9,9 @@ import Strings from "string-map";
 import { Renderer, EditorRenderer } from "editor/renderer";
 import { DeleteRenderer, EditorDeleter } from "editor/deleter";
 
+import Handler from "editor/handlers/handler";
+import ClickHandler from "editor/handlers/click-handler";
+
 
 /*
     TODO : Ensure click leads to correct iterator. It currently does not.
@@ -22,9 +25,10 @@ class Editor {
     glyphs: List<Glyph>;
     glyph_iter: DoubleIterator<Glyph>
     editor: JQuery<HTMLElement>;
-    cursor: Cursor;
+    cursor: Cursor = new Cursor();
     renderer: Renderer = new EditorRenderer();
     deleter: DeleteRenderer = new EditorDeleter(this.renderer);
+    clicker: Handler = new ClickHandler(this.cursor);
 
     static new = function(editor_id?: string): Maybe<Editor> {
         let editor: Editor = new Editor(editor_id);
@@ -106,9 +110,7 @@ class Editor {
                 } else if (key === 'Tab') {
                     this.insertGlyph("\t");
                     event.preventDefault();
-                }
-                
-                
+                }              
             },
             error: (err) => {},
             complete: () => {}
@@ -117,112 +119,21 @@ class Editor {
         let clickObs = fromEvent(this.editor, 'click');
         let clickSub = clickObs.subscribe({
             next: (event: any) => {
-                console.log(event);
-                console.log(this.cursor.selection);
-                let target: JQuery<HTMLElement> = $(event.target);
-                if(target.hasClass(Strings.editorName())) {
-                    let selectionNode = $(this.cursor.selection.anchorNode);
-                    if(selectionNode.hasClass(Strings.glyphName())) {
-                        let targetNode = selectionNode.get(0);
-                        let iterator = this.glyphs.find((glyph: ToNode) => {
-                            let match = false;
-                            glyph.getNode().caseOf({
-                                just: (node) => {
-                                    match = targetNode === node;
-                                },
-                                nothing: () => {}
-                            })
-                            return match;
-                        });
-                        this.cursor.maybeMoveCursorToNodeBoundary(iterator.get(), false);
-                    } else if ( selectionNode.get(0).nodeType === 3 ) {
-                        let targetNode = selectionNode.parent(Strings.glyphSelector()).first().get(0);
-                        let iterator = this.glyphs.find((glyph: ToNode) => {
-                            let match = false;
-                            glyph.getNode().caseOf({
-                                just: (node) => {
-                                    match = targetNode === node;
-                                },
-                                nothing: () => {}
-                            })
-                            return match;
-                        });
-                        this.cursor.maybeMoveCursorToNodeBoundary(iterator.get(), false);
-                    } else {
-                        // If we clicked outside the editor, for now, point the iterator
-                        // at the first char of the first line, and then move cursor accordingly.
-                        thisEditor.glyph_iter = thisEditor.glyphs.makeFrontIterator();
-                        let count = 0;
-                        if(thisEditor.glyph_iter.hasNext()) {
-                            count += 1;
-                            thisEditor.glyph_iter.next();
-                            thisEditor.glyph_iter.get().caseOf({
-                                just: (glyph) => {
-                                    glyph.node.caseOf({
-                                        just:(node) => {
-                                            this.cursor.moveCursorToNodeBoundary(node, true);
-                                        },
-                                        nothing: () => {
-                                            console.log("Could not move cursor to glyph. Glyph had no rendered node");
-                                        }
-                                    })
-                                    
-                                },
-                                nothing: () => {
-                                    console.log("Could not move cursor to glyph. Glyph was empty somehow");
-                                    // Do nothing. Hope for recovery.
-                                }
-                            });
+                this.clicker.handle(event, this.glyphs.makeFrontIterator());
+                this.clicker.getNewIterators().caseOf({
+                    just: (iter) => {
+                        this.glyph_iter = iter;
+                    },
+                    nothing: () => {
+                        this.glyph_iter = this.glyphs.makeFrontIterator();
+                        if(this.glyph_iter.hasNext()) {
+                            this.glyph_iter.next();
+                        } else {
+                            throw new Error("Empty list. Need newline");
                         }
                     }
-                } else if (target.hasClass(Strings.lineName())) {
-                    console.log('moving to line');
-
-                } else if (target.hasClass(Strings.glyphName())) { 
-                    console.log('moving to glyph');
-                    // Have to use selection to get correct cursor position
-                    let toStart = this.cursor.selection.anchorOffset === 0;
-                    let targetNode = $(this.cursor.selection.anchorNode).parent(Strings.glyphSelector()).first().get(0);
-                    let iterator = this.glyphs.find((glyph: ToNode) => {
-                        let match = false;
-                        glyph.getNode().caseOf({
-                            just: (node) => {
-                                match = targetNode === node;
-                            },
-                            nothing: () => {}
-                        })
-                        return match;
-                    });
-                    this.glyph_iter = iterator;
-                    this.cursor.maybeMoveCursorToNodeBoundary(iterator.get(), toStart);
-
-                } else if (target.get(0).nodeType === 3) {
-                    // Was text node, so it should be in a span.
-                    let node = target.parent(Strings.glyphSelector()).first();
-                    if(node.length > 0) {
-                        let targetNode = node.get(0);
-                        let iterator = this.glyphs.find((glyph: ToNode) => {
-                            let match = false;
-                            glyph.getNode().caseOf({
-                                just: (node) => {
-                                    match = targetNode === node;
-                                },
-                                nothing: () => {}
-                            })
-                            return match;
-                        });
-                        
-                        this.cursor.maybeMoveCursorToNodeBoundary(iterator.get(), false);
-                        console.log(this.cursor.selection);
-                    }
-
-                } else {
-                    console.log("NOT RECOGNIZED CLICK");
-                    let firstLine = thisEditor.editor.children(".first-line").get(0);
-                    this.cursor.moveCursorToNodeBoundary(firstLine, false);
-                }
-
-                console.log(this.glyph_iter.grab());
+                });
+                this.updateCursorToCurrent();
             },
             error: (err) => {},
             complete: () => {}

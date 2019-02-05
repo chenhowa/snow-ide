@@ -75,7 +75,7 @@ class EditorDeleter {
             }
             let endIterator = deleteIterator.clone();  // This marks the stopping point of the rerendering later.
             if(foundNextLine) {
-                endIterator.prev();
+                endIterator.prev(); // We don't want to rerender the new line, so we back up one.
             }
 
             // Then we go backward and derender the entire previous line.

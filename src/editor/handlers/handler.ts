@@ -4,7 +4,8 @@ import { Glyph } from "editor/glyph";
 
 interface Handler {
     handle(event: any, iter: DoubleIterator<Glyph>): void;
-    getNewIterators(): Maybe< DoubleIterator<Glyph> >
+    getNewIterators(): Maybe< DoubleIterator<Glyph> >;
+    getEndIterator(): Maybe< DoubleIterator<Glyph> >;
 }
 
 

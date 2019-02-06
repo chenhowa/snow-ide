@@ -14,13 +14,25 @@ import $ from "jquery";
     Can return the iterator in case the editor should also save the resultant iterator.
 */
 class ClickHandler implements Handler {
-    iterator: Maybe< DoubleIterator<Glyph> > = Maybe.nothing();
+    end_iter: Maybe< DoubleIterator<Glyph> > = Maybe.nothing();
+    start_iter: Maybe< DoubleIterator<Glyph> > = Maybe.nothing();
     cursor: Cursor;
-    constructor(cursor: Cursor) {
+    editor: Node;
+    constructor(cursor: Cursor, editor: Node) {
         this.cursor = cursor;
+        this.editor = editor;
     }
 
-    handle(event: any, iter: DoubleIterator<Glyph>) {
+    handle(event: any, source_iter: DoubleIterator<Glyph>) {
+        let iter = source_iter.clone();
+
+        if(this.cursor.selection.containsNode(this.editor, false)) {
+            console.log("CONTAINS NODE");
+            // If the entire editor is selected for some reason, do nothing except collapse to end iterator.
+            this.end_iter = Maybe.just(iter.clone() );
+            this.start_iter = Maybe.just(iter.clone());
+            return;
+        }
 
         /* In click handler, set the position of the iterator according to 
            where the cursor is now located. Three possibilities of where the cursor now is:
@@ -33,36 +45,52 @@ class ClickHandler implements Handler {
             let node = this.cursor.selection.anchorNode;
             let before = this.cursor.selection.anchorOffset === 0;
 
-            if(node.nodeType === 3) {
-                this._handleTextNode(node, iter, before);
-            } else if ($(node).hasClass(Strings.glyphName()) || $(node).hasClass(Strings.lineName())) {
-                this._handleStandardNode(node, iter, before);
-            } else if ($(node).hasClass(Strings.editorName())) {
-                // If this happens, let caller decide what to do with this.
-                this.iterator = Maybe.nothing();
-            } else {
-                throw new Error("Unhandled selection node in ClickHandler");
-            }
+            this.start_iter = this._getIterator(node, before, iter);
+            this.end_iter = this._getIterator(node, before, iter);
         } else {
-            this.iterator = Maybe.nothing();
+            // If the selection is NOT collapsed and is entirely within the editor, we can try to set the start and end iterators.
+            let start_node = this.cursor.selection.anchorNode;
+            let before_start = this.cursor.selection.anchorOffset === 0;
+            this.start_iter = this._getIterator(start_node, before_start, iter);
+
+            let end_node = this.cursor.selection.focusNode;
+            let before_end = this.cursor.selection.focusOffset === 0;
+            this.end_iter = this._getIterator(end_node, before_end, iter);
+        }
+
+        event.preventDefault();
+    }
+
+    _getIterator(node: Node, before: boolean, source_iter: DoubleIterator<Glyph>): Maybe< DoubleIterator<Glyph> > {
+        let iter = source_iter.clone();
+        if(node.nodeType === 3) {
+            return this._handleTextNode(node, iter, before);
+        } else if ($(node).hasClass(Strings.glyphName()) || $(node).hasClass(Strings.lineName())) {
+            return this._handleStandardNode(node, iter, before);
+        } else if ($(node).hasClass(Strings.editorName())) {
+            // If this happens, let caller decide what to do with this.
+            return Maybe.nothing();
+        } else {
+            throw new Error("Unhandled selection node in ClickHandler");
         }
     }
 
-    _handleTextNode(node: Node, iter: DoubleIterator<Glyph>, before: boolean) {
+    _handleTextNode(node: Node, source_iter: DoubleIterator<Glyph>, before: boolean): Maybe<DoubleIterator<Glyph>> {
         //If text node, search for the span.
+        let iter = source_iter.clone();
         let glyph = $(node).parents(Strings.glyphSelector()).first();
         let line = $(node).parents(Strings.lineSelector()).first();
-        let targetNode = glyph.get(0);
         if(glyph.length > 0) {
-            this._handleStandardNode(glyph.get(0), iter, before);
+            return this._handleStandardNode(glyph.get(0), iter, before);
         } else if (line.length > 0) {
-            this._handleStandardNode(line.get(0), iter, before);
+            return this._handleStandardNode(line.get(0), iter, before);
         } else {
-            this.iterator = Maybe.nothing();
+            return Maybe.nothing();
         }
     }
 
-    _handleStandardNode(node: Node, iter: DoubleIterator<Glyph>, before: boolean) {
+    _handleStandardNode(node: Node, source_iter: DoubleIterator<Glyph>, before: boolean): Maybe<DoubleIterator<Glyph>> {
+        let iter = source_iter.clone();
         let found_iter = iter.findForward((glyph: ToNode) => {
             let match = false;
             glyph.getNode().caseOf({
@@ -79,14 +107,18 @@ class ClickHandler implements Handler {
                 found_iter.prev();
             }
             // If we found the value, we can set the iterator to this one.
-            this.iterator = Maybe.just(found_iter);
+            return Maybe.just(found_iter);
         } else {
-            this.iterator = Maybe.nothing();
+            return Maybe.nothing();
         }
     }
 
     getNewIterators(): Maybe< DoubleIterator<Glyph> > {
-        return this.iterator;
+        return this.start_iter;
+    }
+
+    getEndIterator(): Maybe<DoubleIterator<Glyph> > {
+        return this.end_iter;
     }
 }
 

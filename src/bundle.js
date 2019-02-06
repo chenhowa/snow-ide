@@ -19400,7 +19400,7 @@ var Cursor = /** @class */ (function () {
 }());
 exports.default = Cursor;
 
-},{"jquery":1,"string-map":111}],103:[function(require,module,exports){
+},{"jquery":1,"string-map":112}],103:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -19532,7 +19532,7 @@ var EditorDeleter = /** @class */ (function () {
 }());
 exports.EditorDeleter = EditorDeleter;
 
-},{"editor/glyph":106,"jquery":1,"string-map":111}],104:[function(require,module,exports){
+},{"editor/glyph":106,"jquery":1,"string-map":112}],104:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -19626,7 +19626,7 @@ function findPreviousNewline(source_iter) {
 }
 exports.findPreviousNewline = findPreviousNewline;
 
-},{"string-map":111,"tsmonad":99}],105:[function(require,module,exports){
+},{"string-map":112,"tsmonad":99}],105:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -19643,12 +19643,13 @@ var renderer_1 = require("editor/renderer");
 var deleter_1 = require("editor/deleter");
 var click_handler_1 = __importDefault(require("editor/handlers/click-handler"));
 var keydown_handler_1 = __importDefault(require("editor/handlers/keydown-handler"));
+var keypress_map_1 = require("editor/keypress-map");
 var Editor = /** @class */ (function () {
     function Editor(editor_id) {
         this.cursor = new cursor_1.default();
         this.renderer = new renderer_1.EditorRenderer();
         this.deleter = new deleter_1.EditorDeleter(this.renderer);
-        this.clicker = new click_handler_1.default(this.cursor);
+        this.keypress_map = new keypress_map_1.EditorKeyPressMap();
         this.cursor = new cursor_1.default();
         if (editor_id) {
             this.editor = jquery_1.default(editor_id);
@@ -19657,8 +19658,10 @@ var Editor = /** @class */ (function () {
             this.editor = jquery_1.default('#editor');
         }
         this.glyphs = new linked_list_1.LinkedList();
-        this.glyph_iter = this.glyphs.makeFrontIterator();
-        this.keydowner = new keydown_handler_1.default(this.renderer, this.deleter, this.cursor, this.editor.get(0));
+        this.start_glyph_iter = this.glyphs.makeFrontIterator();
+        this.end_glyph_iter = this.glyphs.makeFrontIterator();
+        this.keydowner = new keydown_handler_1.default(this.renderer, this.deleter, this.cursor, this.editor.get(0), this.keypress_map);
+        this.clicker = new click_handler_1.default(this.cursor, this.editor.get(0));
         if (this.valid()) {
             this.reset();
         }
@@ -19667,13 +19670,23 @@ var Editor = /** @class */ (function () {
         this.editor.empty();
         this.editor.attr('spellcheck', 'false');
         this.glyphs.empty();
-        this.glyph_iter = this.glyphs.makeFrontIterator();
-        this.glyph_iter.insertAfter(new glyph_1.Glyph('\n', new glyph_1.GlyphStyle()));
-        this.glyph_iter.next();
-        this.glyph_iter.insertAfter(new glyph_1.Glyph('a', new glyph_1.GlyphStyle()));
-        this.glyph_iter.next(); // We stay pointing at 'a', so cursor should be between a and b
-        this.glyph_iter.insertAfter(new glyph_1.Glyph('b', new glyph_1.GlyphStyle()));
+        this.end_glyph_iter = this.glyphs.makeFrontIterator();
+        this.end_glyph_iter.insertAfter(new glyph_1.Glyph('\n', new glyph_1.GlyphStyle()));
+        this.end_glyph_iter.next();
+        this.end_glyph_iter.insertAfter(new glyph_1.Glyph('a', new glyph_1.GlyphStyle()));
+        this.end_glyph_iter.next(); // We stay pointing at 'a', so cursor should be between a and b
+        this.start_glyph_iter = this.end_glyph_iter.clone();
+        this.end_glyph_iter.insertAfter(new glyph_1.Glyph('b', new glyph_1.GlyphStyle()));
         this.rerender();
+    };
+    Editor.prototype.rerender = function () {
+        this.editor.empty();
+        var iterator = this.glyphs.makeFrontIterator();
+        while (iterator.hasNext()) {
+            iterator.next();
+            this.renderer.render(iterator, this.editor.get(0));
+        }
+        this.updateCursorToCurrent(); // Initially is between a and b!
     };
     Editor.prototype.getDocument = function () {
         return this.glyphs.asArray().map(function (glyph) {
@@ -19689,24 +19702,24 @@ var Editor = /** @class */ (function () {
         var _this = this;
         // Render initial state of document.
         this.rerender();
+        var keyupObs = rxjs_1.fromEvent(this.editor, 'keyup');
+        var keyupSub = keyupObs.subscribe({
+            next: function (event) {
+                var key = event.key;
+                switch (key) {
+                    case "Control": {
+                        _this.keypress_map.Control = false;
+                    }
+                }
+            },
+            error: function (err) { },
+            complete: function () { }
+        });
         var keydownObs = rxjs_1.fromEvent(this.editor, 'keydown');
         var keydownSub = keydownObs.subscribe({
             next: function (event) {
-                _this.keydowner.handle(event, _this.glyph_iter.clone());
-                _this.keydowner.getNewIterators().caseOf({
-                    just: function (iter) {
-                        _this.glyph_iter = iter;
-                    },
-                    nothing: function () {
-                        _this.glyph_iter = _this.glyphs.makeFrontIterator();
-                        if (_this.glyph_iter.hasNext()) {
-                            _this.glyph_iter.next();
-                        }
-                        else {
-                            throw new Error("Empty list. Need newline");
-                        }
-                    }
-                });
+                _this.keydowner.handle(event, _this.end_glyph_iter.clone());
+                _this._updateIteratorsFromHandler(_this.keydowner);
                 _this.updateCursorToCurrent();
             },
             error: function (err) { },
@@ -19716,20 +19729,7 @@ var Editor = /** @class */ (function () {
         var clickSub = clickObs.subscribe({
             next: function (event) {
                 _this.clicker.handle(event, _this.glyphs.makeFrontIterator());
-                _this.clicker.getNewIterators().caseOf({
-                    just: function (iter) {
-                        _this.glyph_iter = iter;
-                    },
-                    nothing: function () {
-                        _this.glyph_iter = _this.glyphs.makeFrontIterator();
-                        if (_this.glyph_iter.hasNext()) {
-                            _this.glyph_iter.next();
-                        }
-                        else {
-                            throw new Error("Empty list. Need newline");
-                        }
-                    }
-                });
+                _this._updateIteratorsFromHandler(_this.clicker);
                 _this.updateCursorToCurrent();
             },
             error: function (err) { },
@@ -19743,64 +19743,166 @@ var Editor = /** @class */ (function () {
             complete: function () { }
         });
     };
-    Editor.prototype.rerender = function () {
-        this.editor.empty();
-        var iterator = this.glyphs.makeFrontIterator();
-        while (iterator.hasNext()) {
-            iterator.next();
-            this.renderer.render(iterator, this.editor.get(0));
-        }
-        this.updateCursorToCurrent(); // Initially is between a and b!
+    Editor.prototype._updateIteratorsFromHandler = function (handler) {
+        var _this = this;
+        console.log("start");
+        handler.getNewIterators().caseOf({
+            just: function (iter) {
+                iter.get().caseOf({
+                    just: function (glyph) {
+                        console.log(glyph);
+                    },
+                    nothing: function () {
+                        console.log("actually nothing");
+                    }
+                });
+                _this.start_glyph_iter = iter;
+            },
+            nothing: function () {
+                console.log("nothing");
+                _this.start_glyph_iter = _this.glyphs.makeFrontIterator();
+                if (_this.start_glyph_iter.hasNext()) {
+                    _this.start_glyph_iter.next();
+                }
+                else {
+                    throw new Error("Empty list. Need newline");
+                }
+            }
+        });
+        console.log("end");
+        handler.getEndIterator().caseOf({
+            just: function (iter) {
+                iter.get().caseOf({
+                    just: function (glyph) {
+                        console.log(glyph);
+                    },
+                    nothing: function () {
+                        console.log("actually nothing");
+                    }
+                });
+                _this.end_glyph_iter = iter;
+            },
+            nothing: function () {
+                console.log("nothing");
+                _this.end_glyph_iter = _this.start_glyph_iter.clone();
+            }
+        });
     };
     /**
-     * @description Updates cursor to be right after character of this.glyph_iter
+     * @description Updates cursor to be right after character of this.glyph_iter.
+     *              For visual feedback only.
      */
     Editor.prototype.updateCursorToCurrent = function () {
-        this.updateCursor(this.glyph_iter);
+        this.updateCursor(this.start_glyph_iter, this.end_glyph_iter);
     };
     /**
      * @description Updates cursor to be RIGHT AFTER character that iterator is pointing to.
      *              THIS IS FOR VISUAL FEEDBACK ONLY. Cursor placement is inaccurate and tricky. Don't use for data manip.
-     * @param iter
+     * @param source_start
+     * @param source_end
      */
-    Editor.prototype.updateCursor = function (iter) {
+    Editor.prototype.updateCursor = function (source_start, source_end) {
         var _this = this;
         // THIS IS FOR VISUAL FEEDBACK TO USER ONLY.
         // Using the cursor for direct insert is error prone, as it may be misplaced.
-        iter.get().caseOf({
-            just: function (glyph) {
-                if (glyph.glyph === "\n") {
-                    glyph.getNode().caseOf({
-                        just: function (newlineNode) {
-                            var glyphNode = jquery_1.default(newlineNode).children(string_map_1.default.glyphSelector()).first();
-                            if (glyphNode.length > 0) {
-                                _this.cursor.moveCursorToNodeBoundary(glyphNode.get(0), false);
-                            }
-                            else {
-                                throw new Error("DID NOT FIND A HIDDEN SPAN IN LINE DIV");
-                            }
-                        },
-                        nothing: function () { }
-                    });
+        var start = source_start.clone();
+        var end = source_end.clone();
+        if (start.equals(end)) {
+            // If both start and end point to the same glyph, we collapse the cursor to one.
+            end.get().caseOf({
+                just: function (glyph) {
+                    if (glyph.glyph === string_map_1.default.newline) {
+                        glyph.getNode().caseOf({
+                            just: function (newlineNode) {
+                                var glyphNode = jquery_1.default(newlineNode).children(string_map_1.default.glyphSelector()).first();
+                                if (glyphNode.length > 0) {
+                                    _this.cursor.moveCursorToNodeBoundary(glyphNode.get(0), false);
+                                }
+                                else {
+                                    throw new Error("DID NOT FIND A HIDDEN SPAN IN LINE DIV");
+                                }
+                            },
+                            nothing: function () { }
+                        });
+                    }
+                    else {
+                        // Otherwise we just move cursor to node, if it has been rendered.
+                        glyph.getNode().caseOf({
+                            just: function (spanNode) {
+                                _this.cursor.moveCursorToNodeBoundary(spanNode, false);
+                            },
+                            nothing: function () { }
+                        });
+                    }
+                },
+                nothing: function () {
+                    // This should only happen when end_glyph_iter is at front sentinel..
+                    // we attempt to repair state.
+                    var temp = _this.glyphs.makeFrontIterator();
+                    if (temp.hasNext()) {
+                        temp.next();
+                        _this.start_glyph_iter = temp.clone();
+                        _this.end_glyph_iter = temp.clone();
+                        _this.updateCursor(_this.start_glyph_iter, _this.end_glyph_iter);
+                    }
+                    else {
+                        throw new Error("Found empty glyph. Could not move cursor to it. Could not repair");
+                    }
                 }
-                else {
-                    // Otherwise we just move cursor to node, if it has been rendered.
-                    glyph.getNode().caseOf({
-                        just: function (spanNode) {
-                            _this.cursor.moveCursorToNodeBoundary(spanNode, false);
-                        },
-                        nothing: function () { }
-                    });
+            });
+        }
+        else {
+            // If start and end are not equal, we ASSUME that start is before end,
+            // and we update the selection to reflect this. We also
+            // assume, for now, that start and end are guaranteed to be pointing
+            // to valid nodes (not sentinel and not empty);
+            var start_glyph = start.grab();
+            var end_glyph = end.grab();
+            console.log("START ANCHOR");
+            console.log(start_glyph);
+            console.log("END ANCHOR");
+            console.log(end_glyph);
+            this.cursor.selection.empty();
+            var range_1 = new Range();
+            start_glyph.getNode().caseOf({
+                just: function (start_node) {
+                    console.log("Set start");
+                    console.log(start_node);
+                    if (jquery_1.default(start_node).hasClass(string_map_1.default.lineName())) {
+                        var firstGlyph = jquery_1.default(start_node).children(string_map_1.default.glyphSelector()).first();
+                        if (firstGlyph.length > 0) {
+                            start_node = firstGlyph.get(0);
+                        }
+                        else {
+                            throw new Error("line's first span does not exist");
+                        }
+                    }
+                    range_1.setStart(start_node, start_node.childNodes.length);
+                },
+                nothing: function () {
+                    // For now, do nothing.
                 }
-            },
-            nothing: function () {
-                // This should only happen when glyph_iter is at front sentinel..
-                if (iter.hasNext()) {
-                    iter.next();
-                    _this.updateCursor(iter);
+            });
+            end_glyph.getNode().caseOf({
+                just: function (end_node) {
+                    console.log("Set end");
+                    console.log(end_node);
+                    if (jquery_1.default(end_node).hasClass(string_map_1.default.lineName())) {
+                        var firstGlyph = jquery_1.default(end_node).children(string_map_1.default.glyphSelector()).first();
+                        if (firstGlyph.length > 0) {
+                            end_node = firstGlyph.get(0);
+                        }
+                        else {
+                            throw new Error("line's first span does not exist");
+                        }
+                    }
+                    range_1.setEnd(end_node, end_node.childNodes.length);
+                },
+                nothing: function () {
                 }
-            }
-        });
+            });
+            this.cursor.selection.addRange(range_1);
+        }
     };
     Editor.new = function (editor_id) {
         var editor = new Editor(editor_id);
@@ -19815,7 +19917,7 @@ var Editor = /** @class */ (function () {
 }());
 exports.default = Editor;
 
-},{"data_structures/linked-list":101,"editor/cursor":102,"editor/deleter":103,"editor/glyph":106,"editor/handlers/click-handler":107,"editor/handlers/keydown-handler":108,"editor/renderer":109,"jquery":1,"rxjs":2,"string-map":111,"tsmonad":99}],106:[function(require,module,exports){
+},{"data_structures/linked-list":101,"editor/cursor":102,"editor/deleter":103,"editor/glyph":106,"editor/handlers/click-handler":107,"editor/handlers/keydown-handler":108,"editor/keypress-map":109,"editor/renderer":110,"jquery":1,"rxjs":2,"string-map":112,"tsmonad":99}],106:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -19879,7 +19981,7 @@ var GlyphStyle = /** @class */ (function () {
 }());
 exports.GlyphStyle = GlyphStyle;
 
-},{"jquery":1,"string-map":111,"tsmonad":99}],107:[function(require,module,exports){
+},{"jquery":1,"string-map":112,"tsmonad":99}],107:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -19893,11 +19995,21 @@ var jquery_1 = __importDefault(require("jquery"));
     Can return the iterator in case the editor should also save the resultant iterator.
 */
 var ClickHandler = /** @class */ (function () {
-    function ClickHandler(cursor) {
-        this.iterator = tsmonad_1.Maybe.nothing();
+    function ClickHandler(cursor, editor) {
+        this.end_iter = tsmonad_1.Maybe.nothing();
+        this.start_iter = tsmonad_1.Maybe.nothing();
         this.cursor = cursor;
+        this.editor = editor;
     }
-    ClickHandler.prototype.handle = function (event, iter) {
+    ClickHandler.prototype.handle = function (event, source_iter) {
+        var iter = source_iter.clone();
+        if (this.cursor.selection.containsNode(this.editor, false)) {
+            console.log("CONTAINS NODE");
+            // If the entire editor is selected for some reason, do nothing except collapse to end iterator.
+            this.end_iter = tsmonad_1.Maybe.just(iter.clone());
+            this.start_iter = tsmonad_1.Maybe.just(iter.clone());
+            return;
+        }
         /* In click handler, set the position of the iterator according to
            where the cursor is now located. Three possibilities of where the cursor now is:
             1. in a text node.
@@ -19908,40 +20020,53 @@ var ClickHandler = /** @class */ (function () {
         if (this.cursor.isCollapsed()) {
             var node = this.cursor.selection.anchorNode;
             var before = this.cursor.selection.anchorOffset === 0;
-            if (node.nodeType === 3) {
-                this._handleTextNode(node, iter, before);
-            }
-            else if (jquery_1.default(node).hasClass(string_map_1.default.glyphName()) || jquery_1.default(node).hasClass(string_map_1.default.lineName())) {
-                this._handleStandardNode(node, iter, before);
-            }
-            else if (jquery_1.default(node).hasClass(string_map_1.default.editorName())) {
-                // If this happens, let caller decide what to do with this.
-                this.iterator = tsmonad_1.Maybe.nothing();
-            }
-            else {
-                throw new Error("Unhandled selection node in ClickHandler");
-            }
+            this.start_iter = this._getIterator(node, before, iter);
+            this.end_iter = this._getIterator(node, before, iter);
         }
         else {
-            this.iterator = tsmonad_1.Maybe.nothing();
+            // If the selection is NOT collapsed and is entirely within the editor, we can try to set the start and end iterators.
+            var start_node = this.cursor.selection.anchorNode;
+            var before_start = this.cursor.selection.anchorOffset === 0;
+            this.start_iter = this._getIterator(start_node, before_start, iter);
+            var end_node = this.cursor.selection.focusNode;
+            var before_end = this.cursor.selection.focusOffset === 0;
+            this.end_iter = this._getIterator(end_node, before_end, iter);
+        }
+        event.preventDefault();
+    };
+    ClickHandler.prototype._getIterator = function (node, before, source_iter) {
+        var iter = source_iter.clone();
+        if (node.nodeType === 3) {
+            return this._handleTextNode(node, iter, before);
+        }
+        else if (jquery_1.default(node).hasClass(string_map_1.default.glyphName()) || jquery_1.default(node).hasClass(string_map_1.default.lineName())) {
+            return this._handleStandardNode(node, iter, before);
+        }
+        else if (jquery_1.default(node).hasClass(string_map_1.default.editorName())) {
+            // If this happens, let caller decide what to do with this.
+            return tsmonad_1.Maybe.nothing();
+        }
+        else {
+            throw new Error("Unhandled selection node in ClickHandler");
         }
     };
-    ClickHandler.prototype._handleTextNode = function (node, iter, before) {
+    ClickHandler.prototype._handleTextNode = function (node, source_iter, before) {
         //If text node, search for the span.
+        var iter = source_iter.clone();
         var glyph = jquery_1.default(node).parents(string_map_1.default.glyphSelector()).first();
         var line = jquery_1.default(node).parents(string_map_1.default.lineSelector()).first();
-        var targetNode = glyph.get(0);
         if (glyph.length > 0) {
-            this._handleStandardNode(glyph.get(0), iter, before);
+            return this._handleStandardNode(glyph.get(0), iter, before);
         }
         else if (line.length > 0) {
-            this._handleStandardNode(line.get(0), iter, before);
+            return this._handleStandardNode(line.get(0), iter, before);
         }
         else {
-            this.iterator = tsmonad_1.Maybe.nothing();
+            return tsmonad_1.Maybe.nothing();
         }
     };
-    ClickHandler.prototype._handleStandardNode = function (node, iter, before) {
+    ClickHandler.prototype._handleStandardNode = function (node, source_iter, before) {
+        var iter = source_iter.clone();
         var found_iter = iter.findForward(function (glyph) {
             var match = false;
             glyph.getNode().caseOf({
@@ -19957,20 +20082,23 @@ var ClickHandler = /** @class */ (function () {
                 found_iter.prev();
             }
             // If we found the value, we can set the iterator to this one.
-            this.iterator = tsmonad_1.Maybe.just(found_iter);
+            return tsmonad_1.Maybe.just(found_iter);
         }
         else {
-            this.iterator = tsmonad_1.Maybe.nothing();
+            return tsmonad_1.Maybe.nothing();
         }
     };
     ClickHandler.prototype.getNewIterators = function () {
-        return this.iterator;
+        return this.start_iter;
+    };
+    ClickHandler.prototype.getEndIterator = function () {
+        return this.end_iter;
     };
     return ClickHandler;
 }());
 exports.default = ClickHandler;
 
-},{"jquery":1,"string-map":111,"tsmonad":99}],108:[function(require,module,exports){
+},{"jquery":1,"string-map":112,"tsmonad":99}],108:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -19981,17 +20109,38 @@ var glyph_1 = require("editor/glyph");
 var string_map_1 = __importDefault(require("string-map"));
 var editor_utils_1 = require("editor/editor-utils");
 var KeydownHandler = /** @class */ (function () {
-    function KeydownHandler(renderer, deleter, cursor, editor) {
+    function KeydownHandler(renderer, deleter, cursor, editor, map) {
         this.renderer = renderer;
         this.deleter = deleter;
         this.iterator = tsmonad_1.Maybe.nothing();
         this.cursor = cursor;
         this.editor = editor;
+        this.keypress_map = map;
     }
     KeydownHandler.prototype.handle = function (event, source_iter) {
-        this.iterator = tsmonad_1.Maybe.just(source_iter.clone()); // By default, don't move the iterator.
         var iter = source_iter.clone();
+        this.iterator = tsmonad_1.Maybe.just(source_iter.clone()); // By default, don't move the iterator.        
         var key = event.key;
+        if (key === "Control") {
+            this.keypress_map.Control = true;
+            return;
+        }
+        if (this._controlPressed()) {
+            this._handleKeyWithControl(event, key, iter);
+        }
+        else {
+            this._handleKeyAlone(event, key, iter);
+        }
+    };
+    KeydownHandler.prototype._controlPressed = function () {
+        return this.keypress_map.Control;
+    };
+    KeydownHandler.prototype._handleKeyWithControl = function (event, key, iter) {
+        // If control was pressed, do nothing? Does that let default happen?
+        // TODO: Allow operations of copy, paste, etc.
+        console.log("HANDLING WITH CONTROL");
+    };
+    KeydownHandler.prototype._handleKeyAlone = function (event, key, iter) {
         if (this._isChar(key)) {
             if (this.cursor.isCollapsed()) {
                 this._insertGlyph(key, iter);
@@ -20201,11 +20350,25 @@ var KeydownHandler = /** @class */ (function () {
     KeydownHandler.prototype.getNewIterators = function () {
         return this.iterator;
     };
+    KeydownHandler.prototype.getEndIterator = function () {
+        return this.iterator;
+    };
     return KeydownHandler;
 }());
 exports.default = KeydownHandler;
 
-},{"editor/editor-utils":104,"editor/glyph":106,"string-map":111,"tsmonad":99}],109:[function(require,module,exports){
+},{"editor/editor-utils":104,"editor/glyph":106,"string-map":112,"tsmonad":99}],109:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var EditorKeyPressMap = /** @class */ (function () {
+    function EditorKeyPressMap() {
+        this.Control = false;
+    }
+    return EditorKeyPressMap;
+}());
+exports.EditorKeyPressMap = EditorKeyPressMap;
+
+},{}],110:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20453,7 +20616,7 @@ var EditorRenderer = /** @class */ (function () {
 }());
 exports.EditorRenderer = EditorRenderer;
 
-},{"jquery":1,"string-map":111}],110:[function(require,module,exports){
+},{"jquery":1,"string-map":112}],111:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20484,7 +20647,7 @@ jquery_1.default(document).ready(function () {
     });
 });
 
-},{"./editor/editor":105,"jquery":1}],111:[function(require,module,exports){
+},{"./editor/editor":105,"jquery":1}],112:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var voca_1 = require("voca");
@@ -20539,4 +20702,4 @@ var Strings = {
 };
 exports.default = Strings;
 
-},{"voca":100}]},{},[110]);
+},{"voca":100}]},{},[111]);

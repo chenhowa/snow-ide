@@ -8,17 +8,38 @@ var glyph_1 = require("editor/glyph");
 var string_map_1 = __importDefault(require("string-map"));
 var editor_utils_1 = require("editor/editor-utils");
 var KeydownHandler = /** @class */ (function () {
-    function KeydownHandler(renderer, deleter, cursor, editor) {
+    function KeydownHandler(renderer, deleter, cursor, editor, map) {
         this.renderer = renderer;
         this.deleter = deleter;
         this.iterator = tsmonad_1.Maybe.nothing();
         this.cursor = cursor;
         this.editor = editor;
+        this.keypress_map = map;
     }
     KeydownHandler.prototype.handle = function (event, source_iter) {
-        this.iterator = tsmonad_1.Maybe.just(source_iter.clone()); // By default, don't move the iterator.
         var iter = source_iter.clone();
+        this.iterator = tsmonad_1.Maybe.just(source_iter.clone()); // By default, don't move the iterator.        
         var key = event.key;
+        if (key === "Control") {
+            this.keypress_map.Control = true;
+            return;
+        }
+        if (this._controlPressed()) {
+            this._handleKeyWithControl(event, key, iter);
+        }
+        else {
+            this._handleKeyAlone(event, key, iter);
+        }
+    };
+    KeydownHandler.prototype._controlPressed = function () {
+        return this.keypress_map.Control;
+    };
+    KeydownHandler.prototype._handleKeyWithControl = function (event, key, iter) {
+        // If control was pressed, do nothing? Does that let default happen?
+        // TODO: Allow operations of copy, paste, etc.
+        console.log("HANDLING WITH CONTROL");
+    };
+    KeydownHandler.prototype._handleKeyAlone = function (event, key, iter) {
         if (this._isChar(key)) {
             if (this.cursor.isCollapsed()) {
                 this._insertGlyph(key, iter);
@@ -226,6 +247,9 @@ var KeydownHandler = /** @class */ (function () {
         }
     };
     KeydownHandler.prototype.getNewIterators = function () {
+        return this.iterator;
+    };
+    KeydownHandler.prototype.getEndIterator = function () {
         return this.iterator;
     };
     return KeydownHandler;

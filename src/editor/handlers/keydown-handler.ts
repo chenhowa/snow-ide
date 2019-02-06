@@ -8,6 +8,7 @@ import { DeleteRenderer } from "editor/deleter";
 import Cursor from "editor/cursor";
 import Strings from "string-map";
 import { getDistanceFromLineStart, findPreviousNewline } from "editor/editor-utils";
+import { KeyPressMap } from "editor/keypress-map";
 
 class KeydownHandler implements Handler {
     renderer: Renderer;
@@ -15,19 +16,44 @@ class KeydownHandler implements Handler {
     iterator: Maybe<DoubleIterator<Glyph>>
     cursor: Cursor;
     editor: Node;
-    constructor(renderer: Renderer, deleter: DeleteRenderer, cursor: Cursor, editor: Node) {
+    keypress_map: KeyPressMap;
+    constructor(renderer: Renderer, deleter: DeleteRenderer, cursor: Cursor, editor: Node, map: KeyPressMap) {
         this.renderer = renderer;
         this.deleter = deleter;
         this.iterator = Maybe.nothing();
         this.cursor = cursor;
         this.editor = editor;
+        this.keypress_map = map;
     }
 
     handle(event: any, source_iter: DoubleIterator<Glyph>) {
-        this.iterator = Maybe.just(source_iter.clone()); // By default, don't move the iterator.
-
         let iter = source_iter.clone();
+        this.iterator = Maybe.just(source_iter.clone()); // By default, don't move the iterator.        
         let key: string = event.key;
+
+        if(key === "Control") {
+            this.keypress_map.Control = true;
+            return;
+        }
+
+        if(this._controlPressed()) {
+            this._handleKeyWithControl(event, key, iter);
+        } else {
+            this._handleKeyAlone(event, key, iter);
+        }
+    }
+
+    _controlPressed() {
+        return this.keypress_map.Control;
+    }
+
+    _handleKeyWithControl(event: any, key: string, iter: DoubleIterator<Glyph>) {
+        // If control was pressed, do nothing? Does that let default happen?
+        // TODO: Allow operations of copy, paste, etc.
+        console.log("HANDLING WITH CONTROL");
+    }
+
+    _handleKeyAlone(event: any, key: string, iter: DoubleIterator<Glyph>) {
         if(this._isChar(key)) {
             if(this.cursor.isCollapsed()) {
                 this._insertGlyph(key, iter);
@@ -234,6 +260,10 @@ class KeydownHandler implements Handler {
     }
 
     getNewIterators() : Maybe< DoubleIterator<Glyph> > {
+        return this.iterator;
+    }
+
+    getEndIterator(): Maybe< DoubleIterator<Glyph> > {
         return this.iterator;
     }
 

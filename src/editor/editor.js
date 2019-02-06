@@ -14,12 +14,13 @@ var renderer_1 = require("editor/renderer");
 var deleter_1 = require("editor/deleter");
 var click_handler_1 = __importDefault(require("editor/handlers/click-handler"));
 var keydown_handler_1 = __importDefault(require("editor/handlers/keydown-handler"));
+var keypress_map_1 = require("editor/keypress-map");
 var Editor = /** @class */ (function () {
     function Editor(editor_id) {
         this.cursor = new cursor_1.default();
         this.renderer = new renderer_1.EditorRenderer();
         this.deleter = new deleter_1.EditorDeleter(this.renderer);
-        this.clicker = new click_handler_1.default(this.cursor);
+        this.keypress_map = new keypress_map_1.EditorKeyPressMap();
         this.cursor = new cursor_1.default();
         if (editor_id) {
             this.editor = jquery_1.default(editor_id);
@@ -28,8 +29,10 @@ var Editor = /** @class */ (function () {
             this.editor = jquery_1.default('#editor');
         }
         this.glyphs = new linked_list_1.LinkedList();
-        this.glyph_iter = this.glyphs.makeFrontIterator();
-        this.keydowner = new keydown_handler_1.default(this.renderer, this.deleter, this.cursor, this.editor.get(0));
+        this.start_glyph_iter = this.glyphs.makeFrontIterator();
+        this.end_glyph_iter = this.glyphs.makeFrontIterator();
+        this.keydowner = new keydown_handler_1.default(this.renderer, this.deleter, this.cursor, this.editor.get(0), this.keypress_map);
+        this.clicker = new click_handler_1.default(this.cursor, this.editor.get(0));
         if (this.valid()) {
             this.reset();
         }
@@ -38,13 +41,23 @@ var Editor = /** @class */ (function () {
         this.editor.empty();
         this.editor.attr('spellcheck', 'false');
         this.glyphs.empty();
-        this.glyph_iter = this.glyphs.makeFrontIterator();
-        this.glyph_iter.insertAfter(new glyph_1.Glyph('\n', new glyph_1.GlyphStyle()));
-        this.glyph_iter.next();
-        this.glyph_iter.insertAfter(new glyph_1.Glyph('a', new glyph_1.GlyphStyle()));
-        this.glyph_iter.next(); // We stay pointing at 'a', so cursor should be between a and b
-        this.glyph_iter.insertAfter(new glyph_1.Glyph('b', new glyph_1.GlyphStyle()));
+        this.end_glyph_iter = this.glyphs.makeFrontIterator();
+        this.end_glyph_iter.insertAfter(new glyph_1.Glyph('\n', new glyph_1.GlyphStyle()));
+        this.end_glyph_iter.next();
+        this.end_glyph_iter.insertAfter(new glyph_1.Glyph('a', new glyph_1.GlyphStyle()));
+        this.end_glyph_iter.next(); // We stay pointing at 'a', so cursor should be between a and b
+        this.start_glyph_iter = this.end_glyph_iter.clone();
+        this.end_glyph_iter.insertAfter(new glyph_1.Glyph('b', new glyph_1.GlyphStyle()));
         this.rerender();
+    };
+    Editor.prototype.rerender = function () {
+        this.editor.empty();
+        var iterator = this.glyphs.makeFrontIterator();
+        while (iterator.hasNext()) {
+            iterator.next();
+            this.renderer.render(iterator, this.editor.get(0));
+        }
+        this.updateCursorToCurrent(); // Initially is between a and b!
     };
     Editor.prototype.getDocument = function () {
         return this.glyphs.asArray().map(function (glyph) {
@@ -60,24 +73,24 @@ var Editor = /** @class */ (function () {
         var _this = this;
         // Render initial state of document.
         this.rerender();
+        var keyupObs = rxjs_1.fromEvent(this.editor, 'keyup');
+        var keyupSub = keyupObs.subscribe({
+            next: function (event) {
+                var key = event.key;
+                switch (key) {
+                    case "Control": {
+                        _this.keypress_map.Control = false;
+                    }
+                }
+            },
+            error: function (err) { },
+            complete: function () { }
+        });
         var keydownObs = rxjs_1.fromEvent(this.editor, 'keydown');
         var keydownSub = keydownObs.subscribe({
             next: function (event) {
-                _this.keydowner.handle(event, _this.glyph_iter.clone());
-                _this.keydowner.getNewIterators().caseOf({
-                    just: function (iter) {
-                        _this.glyph_iter = iter;
-                    },
-                    nothing: function () {
-                        _this.glyph_iter = _this.glyphs.makeFrontIterator();
-                        if (_this.glyph_iter.hasNext()) {
-                            _this.glyph_iter.next();
-                        }
-                        else {
-                            throw new Error("Empty list. Need newline");
-                        }
-                    }
-                });
+                _this.keydowner.handle(event, _this.end_glyph_iter.clone());
+                _this._updateIteratorsFromHandler(_this.keydowner);
                 _this.updateCursorToCurrent();
             },
             error: function (err) { },
@@ -87,20 +100,7 @@ var Editor = /** @class */ (function () {
         var clickSub = clickObs.subscribe({
             next: function (event) {
                 _this.clicker.handle(event, _this.glyphs.makeFrontIterator());
-                _this.clicker.getNewIterators().caseOf({
-                    just: function (iter) {
-                        _this.glyph_iter = iter;
-                    },
-                    nothing: function () {
-                        _this.glyph_iter = _this.glyphs.makeFrontIterator();
-                        if (_this.glyph_iter.hasNext()) {
-                            _this.glyph_iter.next();
-                        }
-                        else {
-                            throw new Error("Empty list. Need newline");
-                        }
-                    }
-                });
+                _this._updateIteratorsFromHandler(_this.clicker);
                 _this.updateCursorToCurrent();
             },
             error: function (err) { },
@@ -114,64 +114,166 @@ var Editor = /** @class */ (function () {
             complete: function () { }
         });
     };
-    Editor.prototype.rerender = function () {
-        this.editor.empty();
-        var iterator = this.glyphs.makeFrontIterator();
-        while (iterator.hasNext()) {
-            iterator.next();
-            this.renderer.render(iterator, this.editor.get(0));
-        }
-        this.updateCursorToCurrent(); // Initially is between a and b!
+    Editor.prototype._updateIteratorsFromHandler = function (handler) {
+        var _this = this;
+        console.log("start");
+        handler.getNewIterators().caseOf({
+            just: function (iter) {
+                iter.get().caseOf({
+                    just: function (glyph) {
+                        console.log(glyph);
+                    },
+                    nothing: function () {
+                        console.log("actually nothing");
+                    }
+                });
+                _this.start_glyph_iter = iter;
+            },
+            nothing: function () {
+                console.log("nothing");
+                _this.start_glyph_iter = _this.glyphs.makeFrontIterator();
+                if (_this.start_glyph_iter.hasNext()) {
+                    _this.start_glyph_iter.next();
+                }
+                else {
+                    throw new Error("Empty list. Need newline");
+                }
+            }
+        });
+        console.log("end");
+        handler.getEndIterator().caseOf({
+            just: function (iter) {
+                iter.get().caseOf({
+                    just: function (glyph) {
+                        console.log(glyph);
+                    },
+                    nothing: function () {
+                        console.log("actually nothing");
+                    }
+                });
+                _this.end_glyph_iter = iter;
+            },
+            nothing: function () {
+                console.log("nothing");
+                _this.end_glyph_iter = _this.start_glyph_iter.clone();
+            }
+        });
     };
     /**
-     * @description Updates cursor to be right after character of this.glyph_iter
+     * @description Updates cursor to be right after character of this.glyph_iter.
+     *              For visual feedback only.
      */
     Editor.prototype.updateCursorToCurrent = function () {
-        this.updateCursor(this.glyph_iter);
+        this.updateCursor(this.start_glyph_iter, this.end_glyph_iter);
     };
     /**
      * @description Updates cursor to be RIGHT AFTER character that iterator is pointing to.
      *              THIS IS FOR VISUAL FEEDBACK ONLY. Cursor placement is inaccurate and tricky. Don't use for data manip.
-     * @param iter
+     * @param source_start
+     * @param source_end
      */
-    Editor.prototype.updateCursor = function (iter) {
+    Editor.prototype.updateCursor = function (source_start, source_end) {
         var _this = this;
         // THIS IS FOR VISUAL FEEDBACK TO USER ONLY.
         // Using the cursor for direct insert is error prone, as it may be misplaced.
-        iter.get().caseOf({
-            just: function (glyph) {
-                if (glyph.glyph === "\n") {
-                    glyph.getNode().caseOf({
-                        just: function (newlineNode) {
-                            var glyphNode = jquery_1.default(newlineNode).children(string_map_1.default.glyphSelector()).first();
-                            if (glyphNode.length > 0) {
-                                _this.cursor.moveCursorToNodeBoundary(glyphNode.get(0), false);
-                            }
-                            else {
-                                throw new Error("DID NOT FIND A HIDDEN SPAN IN LINE DIV");
-                            }
-                        },
-                        nothing: function () { }
-                    });
+        var start = source_start.clone();
+        var end = source_end.clone();
+        if (start.equals(end)) {
+            // If both start and end point to the same glyph, we collapse the cursor to one.
+            end.get().caseOf({
+                just: function (glyph) {
+                    if (glyph.glyph === string_map_1.default.newline) {
+                        glyph.getNode().caseOf({
+                            just: function (newlineNode) {
+                                var glyphNode = jquery_1.default(newlineNode).children(string_map_1.default.glyphSelector()).first();
+                                if (glyphNode.length > 0) {
+                                    _this.cursor.moveCursorToNodeBoundary(glyphNode.get(0), false);
+                                }
+                                else {
+                                    throw new Error("DID NOT FIND A HIDDEN SPAN IN LINE DIV");
+                                }
+                            },
+                            nothing: function () { }
+                        });
+                    }
+                    else {
+                        // Otherwise we just move cursor to node, if it has been rendered.
+                        glyph.getNode().caseOf({
+                            just: function (spanNode) {
+                                _this.cursor.moveCursorToNodeBoundary(spanNode, false);
+                            },
+                            nothing: function () { }
+                        });
+                    }
+                },
+                nothing: function () {
+                    // This should only happen when end_glyph_iter is at front sentinel..
+                    // we attempt to repair state.
+                    var temp = _this.glyphs.makeFrontIterator();
+                    if (temp.hasNext()) {
+                        temp.next();
+                        _this.start_glyph_iter = temp.clone();
+                        _this.end_glyph_iter = temp.clone();
+                        _this.updateCursor(_this.start_glyph_iter, _this.end_glyph_iter);
+                    }
+                    else {
+                        throw new Error("Found empty glyph. Could not move cursor to it. Could not repair");
+                    }
                 }
-                else {
-                    // Otherwise we just move cursor to node, if it has been rendered.
-                    glyph.getNode().caseOf({
-                        just: function (spanNode) {
-                            _this.cursor.moveCursorToNodeBoundary(spanNode, false);
-                        },
-                        nothing: function () { }
-                    });
+            });
+        }
+        else {
+            // If start and end are not equal, we ASSUME that start is before end,
+            // and we update the selection to reflect this. We also
+            // assume, for now, that start and end are guaranteed to be pointing
+            // to valid nodes (not sentinel and not empty);
+            var start_glyph = start.grab();
+            var end_glyph = end.grab();
+            console.log("START ANCHOR");
+            console.log(start_glyph);
+            console.log("END ANCHOR");
+            console.log(end_glyph);
+            this.cursor.selection.empty();
+            var range_1 = new Range();
+            start_glyph.getNode().caseOf({
+                just: function (start_node) {
+                    console.log("Set start");
+                    console.log(start_node);
+                    if (jquery_1.default(start_node).hasClass(string_map_1.default.lineName())) {
+                        var firstGlyph = jquery_1.default(start_node).children(string_map_1.default.glyphSelector()).first();
+                        if (firstGlyph.length > 0) {
+                            start_node = firstGlyph.get(0);
+                        }
+                        else {
+                            throw new Error("line's first span does not exist");
+                        }
+                    }
+                    range_1.setStart(start_node, start_node.childNodes.length);
+                },
+                nothing: function () {
+                    // For now, do nothing.
                 }
-            },
-            nothing: function () {
-                // This should only happen when glyph_iter is at front sentinel..
-                if (iter.hasNext()) {
-                    iter.next();
-                    _this.updateCursor(iter);
+            });
+            end_glyph.getNode().caseOf({
+                just: function (end_node) {
+                    console.log("Set end");
+                    console.log(end_node);
+                    if (jquery_1.default(end_node).hasClass(string_map_1.default.lineName())) {
+                        var firstGlyph = jquery_1.default(end_node).children(string_map_1.default.glyphSelector()).first();
+                        if (firstGlyph.length > 0) {
+                            end_node = firstGlyph.get(0);
+                        }
+                        else {
+                            throw new Error("line's first span does not exist");
+                        }
+                    }
+                    range_1.setEnd(end_node, end_node.childNodes.length);
+                },
+                nothing: function () {
                 }
-            }
-        });
+            });
+            this.cursor.selection.addRange(range_1);
+        }
     };
     Editor.new = function (editor_id) {
         var editor = new Editor(editor_id);

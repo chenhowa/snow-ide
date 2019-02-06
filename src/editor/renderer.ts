@@ -16,11 +16,13 @@ class EditorRenderer implements Renderer {
     }
 
     /**
-     * @description Rerenders what iterator is pointing at. Useful for difficult to render things like newline insertions.
-     * @param iter 
-     * @param editor 
+     * @description Rerenders what iterator is pointing at. Useful for difficult to render things like 
+     *              newline insertions.
+     * @param iter  - Not modified
+     * @param editor  - Modified.
      */
-    rerender(iter: DoubleIterator<ToNode>, editor: Node): void {
+    rerender(source_iter: DoubleIterator<ToNode>, editor: Node): void {
+        let iter = source_iter.clone();
         iter.get().caseOf({
             just: (glyph) => {
                 glyph.getNode().caseOf({
@@ -127,10 +129,11 @@ class EditorRenderer implements Renderer {
 
     /**
      * @description Renders the node within the editor. Will destroy existing representations if they exist.
-     * @param iter 
-     * @param editor 
+     * @param iter - Not modified.
+     * @param editor - modified.
      */
-    render(iter: DoubleIterator<ToNode>, editor: Node): void {
+    render(source_iter: DoubleIterator<ToNode>, editor: Node): void {
+        let iter = source_iter.clone();
         iter.get().caseOf({
             just: (glyph) => {
                 // We have something to render.
@@ -152,7 +155,6 @@ class EditorRenderer implements Renderer {
         */
         let newNode = $(node);
         if(newNode.hasClass(Strings.lineName())) {
-            console.log("RENDERING LINE");
             this._renderLine(iter, node, editor);
         } else if (newNode.hasClass(Strings.glyphName()) ) {
             this._renderGlyph(iter, node, editor);
@@ -181,9 +183,13 @@ class EditorRenderer implements Renderer {
                                 //Found line. We will insert after this line.
                                 found_valid_prev = true;
                                 $(newline).insertAfter(oldline);
+                            } else {
+                                console.log('did not find valid oldline');
                             }
                         },
-                        nothing: () => {}
+                        nothing: () => {
+                            console.log("no node to render. What do?");
+                        }
                     })
                 },
                 nothing: () => {}
@@ -192,7 +198,12 @@ class EditorRenderer implements Renderer {
 
         if(!found_valid_prev) {
             // If the previous step did not succeed, we can only insert at start of editor.
-            editor.appendChild(newline);
+            let firstLine = $(editor).children(Strings.lineSelector()).first();
+            if(firstLine.length > 0) {
+                $(newline).insertBefore(firstLine);
+            } else {
+                editor.appendChild(newline);
+            }
         }
     }
 
@@ -229,7 +240,9 @@ class EditorRenderer implements Renderer {
                                 $(new_glyph).insertAfter(old_glyph);
                             }
                         },
-                        nothing: () => {}
+                        nothing: () => {
+                            console.log("No glyph to render. What do?");
+                        }
                     })
                 },
                 nothing: () => {}

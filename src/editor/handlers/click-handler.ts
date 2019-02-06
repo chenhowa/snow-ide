@@ -21,8 +21,6 @@ class ClickHandler implements Handler {
     }
 
     handle(event: any, iter: DoubleIterator<Glyph>) {
-        console.log(event);
-        console.log(this.cursor.selection);
 
         /* In click handler, set the position of the iterator according to 
            where the cursor is now located. Three possibilities of where the cursor now is:
@@ -36,20 +34,16 @@ class ClickHandler implements Handler {
             let before = this.cursor.selection.anchorOffset === 0;
 
             if(node.nodeType === 3) {
-                console.log("text node");
                 this._handleTextNode(node, iter, before);
             } else if ($(node).hasClass(Strings.glyphName()) || $(node).hasClass(Strings.lineName())) {
-                console.log("standard node");
                 this._handleStandardNode(node, iter, before);
             } else if ($(node).hasClass(Strings.editorName())) {
                 // If this happens, let caller decide what to do with this.
-                console.log("else 2");
                 this.iterator = Maybe.nothing();
             } else {
                 throw new Error("Unhandled selection node in ClickHandler");
             }
         } else {
-            console.log("else 1");
             this.iterator = Maybe.nothing();
         }
     }
@@ -60,13 +54,10 @@ class ClickHandler implements Handler {
         let line = $(node).parents(Strings.lineSelector()).first();
         let targetNode = glyph.get(0);
         if(glyph.length > 0) {
-            console.log("text glyph");
             this._handleStandardNode(glyph.get(0), iter, before);
         } else if (line.length > 0) {
-            console.log ("text line");
             this._handleStandardNode(line.get(0), iter, before);
         } else {
-            console.log("text not found");
             this.iterator = Maybe.nothing();
         }
     }
@@ -84,14 +75,12 @@ class ClickHandler implements Handler {
         });
 
         if(found_iter.isValid()) {
-            console.log("found");
             if(before && found_iter.hasPrev()) {
                 found_iter.prev();
             }
             // If we found the value, we can set the iterator to this one.
             this.iterator = Maybe.just(found_iter);
         } else {
-            console.log("not found");
             this.iterator = Maybe.nothing();
         }
     }

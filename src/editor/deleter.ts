@@ -1,12 +1,12 @@
 
-import { Glyph, ToNode, GlyphStyle } from "editor/glyph";
+import { Glyph, GlyphStyle } from "editor/glyph";
 import { DoubleIterator } from "data_structures/linked-list";
 import { Renderer } from "editor/renderer";
 import Strings from "string-map";
 import $ from "jquery";
 
 interface DeleteRenderer {
-    deleteAndRender(iter: DoubleIterator<ToNode>, editor: Node, direction: boolean): void;
+    deleteAndRender(iter: DoubleIterator<Glyph>, editor: Node, direction: boolean): DoubleIterator<Glyph>;
 }
 
 
@@ -16,32 +16,44 @@ class EditorDeleter {
         this.renderer = renderer;
     }
 
-    deleteAndRender(iter: DoubleIterator<ToNode>, editor: Node, direction: boolean): void {
-        iter.get().caseOf({
+    deleteAndRender(source_iter: DoubleIterator<Glyph>, editor: Node, direction: boolean): DoubleIterator<Glyph> {
+        let iter = source_iter.clone();
+        let return_iter = iter.get().caseOf({
             just: (glyph) => {
-                glyph.getNode().caseOf({
+                return glyph.getNode().caseOf({
                     just: (node) => {
-                        this._deleteGlyphAndRerender(iter, node, editor, direction);
+                        return this._deleteGlyphAndRerender(iter, node, editor, direction);
                     },
                     nothing: () => {
                         // If node was not rendered, nothing to do but remove the cell.
                         iter.remove(direction);
+                        return iter.clone();
                     }
                 });
             },
             nothing: () => {
                 // The cell is empty. Might as well delete it.
                 iter.remove(direction);
+                return iter.clone();
             }
         });
+
+        return return_iter;
     }
 
-    _deleteGlyphAndRerender(iter: DoubleIterator<ToNode>, node: Node, editor: Node, direction: boolean) {
+    _deleteGlyphAndRerender(source_iter: DoubleIterator<Glyph>, node: Node, editor: Node, direction: boolean) : DoubleIterator<Glyph> {
         let deadNode = $(node);
+        let isLine = deadNode.hasClass(Strings.lineName());
+        let isGlyph = deadNode.hasClass(Strings.glyphName());
+
+        let iter = source_iter.clone();
+
+        // Get rid of node from screen and from list.
+        deadNode.remove();
         iter.remove(direction);
 
-        if(deadNode.hasClass(Strings.lineName())) {
-            deadNode.remove();
+        // Rerender document parts that require it.
+        if(isLine) {
             // If we are deleting a line, we derender everything in this line and previous line, and then rerender
             // previous line and remainder of this line.
             let deleteIterator = iter.clone();
@@ -116,13 +128,13 @@ class EditorDeleter {
                 this.renderer.render(renderIterator, editor);
             }
 
-        } else if (deadNode.hasClass(Strings.glyphName())) {
-            // If we are just deleting a glyph node, all we do is destroy it.
-            // No need to rerender.
-            deadNode.remove();
+        } else if (isGlyph) {
+            // No need to do anything. Deleted glyph and removed rendered node earlier.
         } else {
             throw new Error("Unhandled node being deleted");
         }
+
+        return iter.clone();
     }
 }
 

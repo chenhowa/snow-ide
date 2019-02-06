@@ -1,10 +1,9 @@
 import {repeat} from "voca";
 
 var Strings = {
-    tab: 'Tab',
+    tab: '\t',
     tabString: function() {
         return repeat(' ', 4);
-        return '    ';
     },
     tabName: function() {
         return 'tab';
@@ -46,6 +45,13 @@ var Strings = {
     },
     newlineSelector: function() {
         return "." + this.newlineName();
+    },
+
+    arrow: {
+        left: 'ArrowLeft',
+        right: 'ArrowRight',
+        up: 'ArrowUp',
+        down: 'ArrowDown'
     }
 
 }

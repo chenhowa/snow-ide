@@ -16,8 +16,6 @@ var ClickHandler = /** @class */ (function () {
         this.cursor = cursor;
     }
     ClickHandler.prototype.handle = function (event, iter) {
-        console.log(event);
-        console.log(this.cursor.selection);
         /* In click handler, set the position of the iterator according to
            where the cursor is now located. Three possibilities of where the cursor now is:
             1. in a text node.
@@ -29,16 +27,13 @@ var ClickHandler = /** @class */ (function () {
             var node = this.cursor.selection.anchorNode;
             var before = this.cursor.selection.anchorOffset === 0;
             if (node.nodeType === 3) {
-                console.log("text node");
                 this._handleTextNode(node, iter, before);
             }
             else if (jquery_1.default(node).hasClass(string_map_1.default.glyphName()) || jquery_1.default(node).hasClass(string_map_1.default.lineName())) {
-                console.log("standard node");
                 this._handleStandardNode(node, iter, before);
             }
             else if (jquery_1.default(node).hasClass(string_map_1.default.editorName())) {
                 // If this happens, let caller decide what to do with this.
-                console.log("else 2");
                 this.iterator = tsmonad_1.Maybe.nothing();
             }
             else {
@@ -46,7 +41,6 @@ var ClickHandler = /** @class */ (function () {
             }
         }
         else {
-            console.log("else 1");
             this.iterator = tsmonad_1.Maybe.nothing();
         }
     };
@@ -56,15 +50,12 @@ var ClickHandler = /** @class */ (function () {
         var line = jquery_1.default(node).parents(string_map_1.default.lineSelector()).first();
         var targetNode = glyph.get(0);
         if (glyph.length > 0) {
-            console.log("text glyph");
             this._handleStandardNode(glyph.get(0), iter, before);
         }
         else if (line.length > 0) {
-            console.log("text line");
             this._handleStandardNode(line.get(0), iter, before);
         }
         else {
-            console.log("text not found");
             this.iterator = tsmonad_1.Maybe.nothing();
         }
     };
@@ -80,7 +71,6 @@ var ClickHandler = /** @class */ (function () {
             return match;
         });
         if (found_iter.isValid()) {
-            console.log("found");
             if (before && found_iter.hasPrev()) {
                 found_iter.prev();
             }
@@ -88,7 +78,6 @@ var ClickHandler = /** @class */ (function () {
             this.iterator = tsmonad_1.Maybe.just(found_iter);
         }
         else {
-            console.log("not found");
             this.iterator = tsmonad_1.Maybe.nothing();
         }
     };

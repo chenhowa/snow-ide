@@ -9,12 +9,14 @@ var EditorRenderer = /** @class */ (function () {
     function EditorRenderer() {
     }
     /**
-     * @description Rerenders what iterator is pointing at. Useful for difficult to render things like newline insertions.
-     * @param iter
-     * @param editor
+     * @description Rerenders what iterator is pointing at. Useful for difficult to render things like
+     *              newline insertions.
+     * @param iter  - Not modified
+     * @param editor  - Modified.
      */
-    EditorRenderer.prototype.rerender = function (iter, editor) {
+    EditorRenderer.prototype.rerender = function (source_iter, editor) {
         var _this = this;
+        var iter = source_iter.clone();
         iter.get().caseOf({
             just: function (glyph) {
                 glyph.getNode().caseOf({
@@ -112,11 +114,12 @@ var EditorRenderer = /** @class */ (function () {
     };
     /**
      * @description Renders the node within the editor. Will destroy existing representations if they exist.
-     * @param iter
-     * @param editor
+     * @param iter - Not modified.
+     * @param editor - modified.
      */
-    EditorRenderer.prototype.render = function (iter, editor) {
+    EditorRenderer.prototype.render = function (source_iter, editor) {
         var _this = this;
+        var iter = source_iter.clone();
         iter.get().caseOf({
             just: function (glyph) {
                 // We have something to render.
@@ -137,7 +140,6 @@ var EditorRenderer = /** @class */ (function () {
         */
         var newNode = jquery_1.default(node);
         if (newNode.hasClass(string_map_1.default.lineName())) {
-            console.log("RENDERING LINE");
             this._renderLine(iter, node, editor);
         }
         else if (newNode.hasClass(string_map_1.default.glyphName())) {
@@ -167,8 +169,13 @@ var EditorRenderer = /** @class */ (function () {
                                 found_valid_prev = true;
                                 jquery_1.default(newline).insertAfter(oldline);
                             }
+                            else {
+                                console.log('did not find valid oldline');
+                            }
                         },
-                        nothing: function () { }
+                        nothing: function () {
+                            console.log("no node to render. What do?");
+                        }
                     });
                 },
                 nothing: function () { }
@@ -176,7 +183,13 @@ var EditorRenderer = /** @class */ (function () {
         }
         if (!found_valid_prev) {
             // If the previous step did not succeed, we can only insert at start of editor.
-            editor.appendChild(newline);
+            var firstLine = jquery_1.default(editor).children(string_map_1.default.lineSelector()).first();
+            if (firstLine.length > 0) {
+                jquery_1.default(newline).insertBefore(firstLine);
+            }
+            else {
+                editor.appendChild(newline);
+            }
         }
     };
     EditorRenderer.prototype._renderGlyph = function (iter, new_glyph, editor) {
@@ -214,7 +227,9 @@ var EditorRenderer = /** @class */ (function () {
                                 jquery_1.default(new_glyph).insertAfter(old_glyph);
                             }
                         },
-                        nothing: function () { }
+                        nothing: function () {
+                            console.log("No glyph to render. What do?");
+                        }
                     });
                 },
                 nothing: function () { }

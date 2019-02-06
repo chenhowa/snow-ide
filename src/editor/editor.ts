@@ -11,15 +11,8 @@ import { DeleteRenderer, EditorDeleter } from "editor/deleter";
 
 import Handler from "editor/handlers/handler";
 import ClickHandler from "editor/handlers/click-handler";
+import KeydownHandler from "editor/handlers/keydown-handler";
 
-
-/*
-    TODO : Ensure click leads to correct iterator. It currently does not.
-
-    TODO : Always have all the lines created, with the accompanying lines.
-           Only show them from the first line to the farthest line that
-           has text.
-*/
 
 class Editor {
     glyphs: List<Glyph>;
@@ -29,6 +22,7 @@ class Editor {
     renderer: Renderer = new EditorRenderer();
     deleter: DeleteRenderer = new EditorDeleter(this.renderer);
     clicker: Handler = new ClickHandler(this.cursor);
+    keydowner: Handler;
 
     static new = function(editor_id?: string): Maybe<Editor> {
         let editor: Editor = new Editor(editor_id);
@@ -49,6 +43,7 @@ class Editor {
 
         this.glyphs = new LinkedList();
         this.glyph_iter = this.glyphs.makeFrontIterator();
+        this.keydowner = new KeydownHandler(this.renderer, this.deleter, this.cursor, this.editor.get(0));
         
         if(this.valid()) {
             this.reset();
@@ -78,20 +73,6 @@ class Editor {
         return this.editor.length !== 0;
     }
 
-    isChar(key: string): boolean {
-        return key.length === 1;
-    }
-
-    isArrowKey(key: string): boolean {
-        let keys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'];
-        for(let i = 0; i < keys.length; i++) {
-            if(key === keys[i]) {
-                return true;
-            }
-        }
-        return false; 
-    }
-
     run() {
         // We assume that a glyph that glyph_iter points to is the one that would be removed by BACKSPACE.
         // Hence the cursor will be IN FRONT of it.
@@ -102,38 +83,21 @@ class Editor {
         let keydownObs = fromEvent(this.editor, 'keydown');
         let keydownSub = keydownObs.subscribe({
             next: (event: any) => {
-                let key: string = event.key;
-                console.log("key: " +  key);
-                console.log(event);
-                if(this.isChar(key)) {
-                    if(this.cursor.isCollapsed()) {
-                        this.insertGlyph(key);
-                        this.renderCurrentGlyph();
-                        this.updateCursorToCurrent();
-                        event.preventDefault();
+                this.keydowner.handle(event, this.glyph_iter.clone());
+                this.keydowner.getNewIterators().caseOf({
+                    just: (iter) => {
+                        this.glyph_iter = iter;
+                    },
+                    nothing: () => {
+                        this.glyph_iter = this.glyphs.makeFrontIterator();
+                        if(this.glyph_iter.hasNext()) {
+                            this.glyph_iter.next();
+                        } else {
+                            throw new Error("Empty list. Need newline");
+                        }
                     }
-                } else if (key === 'Backspace') {
-                    if(this.cursor.isCollapsed()) {
-                        this.deleteCurrentGlyphAndRerender(false);
-                        event.preventDefault();
-                    }
-                } else if (key === 'Enter') {
-                    this.insertGlyph("\n");
-                    // Renders glyph by rerendering current line and new line.
-                    this.rerenderCurrentGlyph();
-                    event.preventDefault();
-                } else if (key === 'Tab') {
-                    console.log('tab');
-                    // TODO. Insert 4 \t glyphs to represent each space in a tab.
-                    // This allows you to render each as a <span class='tab'> </span>
-                    this.insertGlyph("\t");
-                    event.preventDefault();
-                } else if (this.isArrowKey(key)) {
-                    // TODO. Move iterator to correct destination and then rerender the cursor.
-
-                    this.updateCursorToCurrent();
-                }
-
+                });
+                this.updateCursorToCurrent();
             },
             error: (err) => {},
             complete: () => {}
@@ -177,55 +141,10 @@ class Editor {
         let iterator = this.glyphs.makeFrontIterator();
         while(iterator.hasNext()) {
             iterator.next();
-            this.renderGlyph(iterator);
+            this.renderer.render(iterator, this.editor.get(0));
         }
 
         this.updateCursorToCurrent(); // Initially is between a and b!
-    }
-
-    insertGlyph(char: string) {
-        this.glyph_iter.insertAfter(new Glyph(char, new GlyphStyle()));
-        this.glyph_iter.next();
-    }
-
-    /**
-     * @description -- deletes the current glyph and rerenders document
-     * @param forward boolean that indicates direction in which to move after deletion.
-     *                true indicates forward, false indicates backward.
-     */
-    deleteCurrentGlyphAndRerender(forward: boolean) {
-        this.deleteGlyphAndRerender(this.glyph_iter, forward);
-    }
-
-    deleteGlyphAndRerender(iter: DoubleIterator<Glyph>, direction: boolean) {
-        this.deleter.deleteAndRender(iter, this.editor.get(0), direction);
-        this.updateCursorToCurrent();
-    }
-
-    rerenderCurrentGlyph() {
-        this.rerenderGlyph(this.glyph_iter);
-    }
-
-    rerenderGlyph(iter: DoubleIterator<Glyph>) {
-        this.renderer.rerender(iter, this.editor.get(0));
-
-        this.updateCursorToCurrent();
-    }
-
-    /**
-     * Renders glyph pointed at by the this.glyph_iter iterator.
-     */
-    renderCurrentGlyph() {
-        this.renderGlyph(this.glyph_iter);
-    }
-
-
-    /**
-     * @desciption - Renders glyph in DOM based on the surrounding nodes.
-     * @param iter 
-     */
-    renderGlyph(iter: DoubleIterator<Glyph>) {
-        this.renderer.render(iter, this.editor.get(0));
     }
 
     /**
@@ -269,7 +188,6 @@ class Editor {
                 }
             },
             nothing: () => {
-                console.log ("updateCursor failed. Iterator did not get glyph");
                 // This should only happen when glyph_iter is at front sentinel..
                 if(iter.hasNext()) {
                     iter.next();

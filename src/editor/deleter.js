@@ -10,31 +10,40 @@ var EditorDeleter = /** @class */ (function () {
     function EditorDeleter(renderer) {
         this.renderer = renderer;
     }
-    EditorDeleter.prototype.deleteAndRender = function (iter, editor, direction) {
+    EditorDeleter.prototype.deleteAndRender = function (source_iter, editor, direction) {
         var _this = this;
-        iter.get().caseOf({
+        var iter = source_iter.clone();
+        var return_iter = iter.get().caseOf({
             just: function (glyph) {
-                glyph.getNode().caseOf({
+                return glyph.getNode().caseOf({
                     just: function (node) {
-                        _this._deleteGlyphAndRerender(iter, node, editor, direction);
+                        return _this._deleteGlyphAndRerender(iter, node, editor, direction);
                     },
                     nothing: function () {
                         // If node was not rendered, nothing to do but remove the cell.
                         iter.remove(direction);
+                        return iter.clone();
                     }
                 });
             },
             nothing: function () {
                 // The cell is empty. Might as well delete it.
                 iter.remove(direction);
+                return iter.clone();
             }
         });
+        return return_iter;
     };
-    EditorDeleter.prototype._deleteGlyphAndRerender = function (iter, node, editor, direction) {
+    EditorDeleter.prototype._deleteGlyphAndRerender = function (source_iter, node, editor, direction) {
         var deadNode = jquery_1.default(node);
+        var isLine = deadNode.hasClass(string_map_1.default.lineName());
+        var isGlyph = deadNode.hasClass(string_map_1.default.glyphName());
+        var iter = source_iter.clone();
+        // Get rid of node from screen and from list.
+        deadNode.remove();
         iter.remove(direction);
-        if (deadNode.hasClass(string_map_1.default.lineName())) {
-            deadNode.remove();
+        // Rerender document parts that require it.
+        if (isLine) {
             // If we are deleting a line, we derender everything in this line and previous line, and then rerender
             // previous line and remainder of this line.
             var deleteIterator_1 = iter.clone();
@@ -108,14 +117,13 @@ var EditorDeleter = /** @class */ (function () {
                 this.renderer.render(renderIterator, editor);
             }
         }
-        else if (deadNode.hasClass(string_map_1.default.glyphName())) {
-            // If we are just deleting a glyph node, all we do is destroy it.
-            // No need to rerender.
-            deadNode.remove();
+        else if (isGlyph) {
+            // No need to do anything. Deleted glyph and removed rendered node earlier.
         }
         else {
             throw new Error("Unhandled node being deleted");
         }
+        return iter.clone();
     };
     return EditorDeleter;
 }());

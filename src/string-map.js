@@ -2,10 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 var voca_1 = require("voca");
 var Strings = {
-    tab: 'Tab',
+    tab: '\t',
     tabString: function () {
         return voca_1.repeat(' ', 4);
-        return '    ';
     },
     tabName: function () {
         return 'tab';
@@ -43,6 +42,12 @@ var Strings = {
     },
     newlineSelector: function () {
         return "." + this.newlineName();
+    },
+    arrow: {
+        left: 'ArrowLeft',
+        right: 'ArrowRight',
+        up: 'ArrowUp',
+        down: 'ArrowDown'
     }
 };
 exports.default = Strings;

@@ -19,11 +19,11 @@ var MouseClickHandler = /** @class */ (function () {
      * @param eventPair Pair of events. First one is for the mousedown. The second is for the mouseup.
      * @param source_iter
      */
-    MouseClickHandler.prototype.handle = function (eventPair, source_iter) {
+    MouseClickHandler.prototype.handle = function (eventPair, source_start_iter, source_end_iter) {
         console.log(eventPair);
         var downTarget = eventPair[0].target;
         var upTarget = eventPair[1].target;
-        var iter = source_iter.clone();
+        var iter = source_start_iter.clone();
         if (!this._inEditor(downTarget) || !this._inEditor(upTarget)) {
             // Return for now if either target is outside the editor. Later we may have to scroll up or down based on upTarget.
             return;
@@ -132,7 +132,7 @@ var MouseClickHandler = /** @class */ (function () {
             return tsmonad_1.Maybe.nothing();
         }
     };
-    MouseClickHandler.prototype.getNewIterators = function () {
+    MouseClickHandler.prototype.getStartIterator = function () {
         return this.start_iter;
     };
     MouseClickHandler.prototype.getEndIterator = function () {

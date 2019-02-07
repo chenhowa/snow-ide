@@ -11,17 +11,20 @@ var KeydownHandler = /** @class */ (function () {
     function KeydownHandler(renderer, deleter, cursor, editor, map) {
         this.renderer = renderer;
         this.deleter = deleter;
-        this.iterator = tsmonad_1.Maybe.nothing();
+        this.start = tsmonad_1.Maybe.nothing();
+        this.end = tsmonad_1.Maybe.nothing();
         this.cursor = cursor;
         this.editor = editor;
         this.keypress_map = map;
     }
-    KeydownHandler.prototype.handle = function (event, source_iter) {
-        var iter = source_iter.clone();
-        this.iterator = tsmonad_1.Maybe.just(source_iter.clone()); // By default, don't move the iterator.        
+    KeydownHandler.prototype.handle = function (event, source_start_iter, source_end_iter) {
+        var iter = source_start_iter.clone();
+        this.start = tsmonad_1.Maybe.just(source_start_iter.clone()); // By default, don't move the iterator.
+        this.end = tsmonad_1.Maybe.just(source_end_iter.clone());
         var key = event.key;
         if (key === "Control") {
             this.keypress_map.Control = true;
+            event.preventDefault(); // Do not want to destroy the selection??
             return;
         }
         if (this._controlPressed()) {
@@ -44,14 +47,14 @@ var KeydownHandler = /** @class */ (function () {
             if (this.cursor.isCollapsed()) {
                 this._insertGlyph(key, iter);
                 this._renderGlyph(iter);
-                this.iterator = tsmonad_1.Maybe.just(iter);
+                this.start = tsmonad_1.Maybe.just(iter);
                 event.preventDefault();
             }
         }
         else if (key === 'Backspace') {
             if (this.cursor.isCollapsed()) {
                 var new_iter = this._deleteGlyphAndRerender(iter, false);
-                this.iterator = tsmonad_1.Maybe.just(new_iter);
+                this.start = tsmonad_1.Maybe.just(new_iter);
                 event.preventDefault();
             }
         }
@@ -60,7 +63,7 @@ var KeydownHandler = /** @class */ (function () {
                 this._insertGlyph(string_map_1.default.newline, iter);
                 // Renders glyph by rerendering current line and new line.
                 this._rerenderGlyph(iter);
-                this.iterator = tsmonad_1.Maybe.just(iter);
+                this.start = tsmonad_1.Maybe.just(iter);
                 event.preventDefault();
             }
         }
@@ -129,13 +132,13 @@ var KeydownHandler = /** @class */ (function () {
         if (key === string_map_1.default.arrow.left) {
             if (iter.hasPrev()) {
                 iter.prev();
-                this.iterator = tsmonad_1.Maybe.just(iter);
+                this.start = tsmonad_1.Maybe.just(iter);
             }
         }
         else if (key === string_map_1.default.arrow.right) {
             if (iter.hasNext()) {
                 iter.next();
-                this.iterator = tsmonad_1.Maybe.just(iter);
+                this.start = tsmonad_1.Maybe.just(iter);
             }
         }
         else if (key === string_map_1.default.arrow.up) {
@@ -191,7 +194,7 @@ var KeydownHandler = /** @class */ (function () {
                     throw new Error("Document did not start with a line!");
                 }
             });
-            this.iterator = tsmonad_1.Maybe.just(final_iter_1);
+            this.start = tsmonad_1.Maybe.just(final_iter_1);
         }
         else if (key === string_map_1.default.arrow.down) {
             // find previous newline to determine distance from line start
@@ -234,7 +237,7 @@ var KeydownHandler = /** @class */ (function () {
                             if (state_1 === "break")
                                 break;
                         }
-                        _this.iterator = tsmonad_1.Maybe.just(iter);
+                        _this.start = tsmonad_1.Maybe.just(iter);
                     }
                     else {
                         // If no next newline, do nothing.
@@ -246,11 +249,11 @@ var KeydownHandler = /** @class */ (function () {
             });
         }
     };
-    KeydownHandler.prototype.getNewIterators = function () {
-        return this.iterator;
+    KeydownHandler.prototype.getStartIterator = function () {
+        return this.start;
     };
     KeydownHandler.prototype.getEndIterator = function () {
-        return this.iterator;
+        return this.start;
     };
     return KeydownHandler;
 }());

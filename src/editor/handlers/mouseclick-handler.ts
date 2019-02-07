@@ -22,11 +22,11 @@ class MouseClickHandler implements Handler {
      * @param eventPair Pair of events. First one is for the mousedown. The second is for the mouseup.
      * @param source_iter 
      */
-    handle(eventPair: any, source_iter: DoubleIterator<Glyph> ) {
+    handle(eventPair: any, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph> ) {
         console.log(eventPair);
         let downTarget = eventPair[0].target;
         let upTarget = eventPair[1].target;
-        let iter = source_iter.clone();
+        let iter = source_start_iter.clone();
 
         if( !this._inEditor(downTarget) || !this._inEditor(upTarget)) {
             // Return for now if either target is outside the editor. Later we may have to scroll up or down based on upTarget.
@@ -141,7 +141,7 @@ class MouseClickHandler implements Handler {
         }
     }
 
-    getNewIterators(): Maybe< DoubleIterator<Glyph> > {
+    getStartIterator(): Maybe< DoubleIterator<Glyph> > {
         return this.start_iter;
     }
 

@@ -13,26 +13,30 @@ import { KeyPressMap } from "editor/keypress-map";
 class KeydownHandler implements Handler {
     renderer: Renderer;
     deleter: DeleteRenderer;
-    iterator: Maybe<DoubleIterator<Glyph>>
+    start: Maybe<DoubleIterator<Glyph>>;
+    end: Maybe<DoubleIterator<Glyph>>;
     cursor: Cursor;
     editor: Node;
     keypress_map: KeyPressMap;
     constructor(renderer: Renderer, deleter: DeleteRenderer, cursor: Cursor, editor: Node, map: KeyPressMap) {
         this.renderer = renderer;
         this.deleter = deleter;
-        this.iterator = Maybe.nothing();
+        this.start = Maybe.nothing();
+        this.end = Maybe.nothing();
         this.cursor = cursor;
         this.editor = editor;
         this.keypress_map = map;
     }
 
-    handle(event: any, source_iter: DoubleIterator<Glyph>) {
-        let iter = source_iter.clone();
-        this.iterator = Maybe.just(source_iter.clone()); // By default, don't move the iterator.        
+    handle(event: any, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>) {
+        let iter = source_start_iter.clone();
+        this.start = Maybe.just(source_start_iter.clone()); // By default, don't move the iterator.
+        this.end = Maybe.just(source_end_iter.clone());
         let key: string = event.key;
 
         if(key === "Control") {
             this.keypress_map.Control = true;
+            event.preventDefault(); // Do not want to destroy the selection??
             return;
         }
 
@@ -58,13 +62,13 @@ class KeydownHandler implements Handler {
             if(this.cursor.isCollapsed()) {
                 this._insertGlyph(key, iter);
                 this._renderGlyph(iter);
-                this.iterator = Maybe.just(iter);
+                this.start = Maybe.just(iter);
                 event.preventDefault();
             }
         } else if (key === 'Backspace') {
             if(this.cursor.isCollapsed()) {
                 let new_iter = this._deleteGlyphAndRerender(iter, false);
-                this.iterator = Maybe.just(new_iter);
+                this.start = Maybe.just(new_iter);
                 event.preventDefault();
             }
         } else if (key === 'Enter') {
@@ -72,7 +76,7 @@ class KeydownHandler implements Handler {
                 this._insertGlyph(Strings.newline, iter);
                 // Renders glyph by rerendering current line and new line.
                 this._rerenderGlyph(iter);
-                this.iterator = Maybe.just(iter);
+                this.start = Maybe.just(iter);
 
                 event.preventDefault();
             }          
@@ -146,12 +150,12 @@ class KeydownHandler implements Handler {
         if(key === Strings.arrow.left) {
             if(iter.hasPrev()) {
                 iter.prev();
-                this.iterator = Maybe.just(iter);
+                this.start = Maybe.just(iter);
             }
         } else if (key === Strings.arrow.right) {
             if(iter.hasNext()) {
                 iter.next();
-                this.iterator = Maybe.just(iter);
+                this.start = Maybe.just(iter);
             }
         } else if (key === Strings.arrow.up) {
             let final_iter = iter.clone();
@@ -208,7 +212,7 @@ class KeydownHandler implements Handler {
                 }
             });
 
-            this.iterator = Maybe.just(final_iter);
+            this.start = Maybe.just(final_iter);
         } else if (key === Strings.arrow.down) {
             // find previous newline to determine distance from line start
             getDistanceFromLineStart(iter).caseOf({
@@ -247,7 +251,7 @@ class KeydownHandler implements Handler {
                                 break;
                             }
                         }
-                        this.iterator = Maybe.just(iter);
+                        this.start = Maybe.just(iter);
                     } else {
                         // If no next newline, do nothing.
                     }
@@ -259,12 +263,12 @@ class KeydownHandler implements Handler {
         }
     }
 
-    getNewIterators() : Maybe< DoubleIterator<Glyph> > {
-        return this.iterator;
+    getStartIterator() : Maybe< DoubleIterator<Glyph> > {
+        return this.start;
     }
 
     getEndIterator(): Maybe< DoubleIterator<Glyph> > {
-        return this.iterator;
+        return this.start;
     }
 
 }

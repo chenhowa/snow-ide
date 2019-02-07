@@ -17,12 +17,12 @@ var ClickHandler = /** @class */ (function () {
         this.cursor = cursor;
         this.editor = editor;
     }
-    ClickHandler.prototype.handle = function (event, source_iter) {
+    ClickHandler.prototype.handle = function (event, source_start_iter, source_end_iter) {
         console.log("CLICKED EDITOR");
         console.log(this.cursor.selection);
         console.log(event);
         console.log(event.target);
-        var iter = source_iter.clone();
+        var iter = source_start_iter.clone();
         if (this.cursor.selection.containsNode(this.editor, false)) {
             console.log("CONTAINS NODE");
             // If the entire editor is selected for some reason, do nothing except collapse to end iterator.
@@ -145,7 +145,7 @@ var ClickHandler = /** @class */ (function () {
             return tsmonad_1.Maybe.nothing();
         }
     };
-    ClickHandler.prototype.getNewIterators = function () {
+    ClickHandler.prototype.getStartIterator = function () {
         return this.start_iter;
     };
     ClickHandler.prototype.getEndIterator = function () {

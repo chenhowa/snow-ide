@@ -19729,7 +19729,7 @@ var Editor = /** @class */ (function () {
         var keydownObs = rxjs_1.fromEvent(this.editor, 'keydown');
         var keydownSub = keydownObs.subscribe({
             next: function (event) {
-                _this.keydowner.handle(event, _this.end_glyph_iter.clone());
+                _this.keydowner.handle(event, _this.start_glyph_iter.clone(), _this.end_glyph_iter.clone());
                 _this._updateIteratorsFromHandler(_this.keydowner);
                 _this.updateCursorToCurrent();
             },
@@ -19755,7 +19755,11 @@ var Editor = /** @class */ (function () {
         var mouseUpSub = mouseUpObs.subscribe({
             next: function (event) {
                 // TODO : Do something on mouseup, in case you mouse up outside of div, but had moused down in.
+                //          -- looks like click doesn't register if you do this.
                 // TODO : Do something on mousedown, in case you mouse down outside of editor but mouse up in.
+                //          -- looks like click doesn't register if you do this.
+                // RESULT TODO : Might need to sync INPUT (backspace, char, tab, enter, etc.) with the selection,
+                //          Since invalid selections can still occur by the two above methods.
             },
             error: function (err) { },
             complete: function () { }
@@ -19764,7 +19768,7 @@ var Editor = /** @class */ (function () {
         var clickSub = clickObs.subscribe({
             next: function (event) {
                 console.log('mouseup');
-                _this.clicker.handle(event, _this.glyphs.makeFrontIterator());
+                _this.clicker.handle(event, _this.glyphs.makeFrontIterator(), _this.glyphs.makeBackIterator());
                 _this._updateIteratorsFromHandler(_this.clicker);
                 _this.updateCursorToCurrent();
             },
@@ -19782,7 +19786,7 @@ var Editor = /** @class */ (function () {
     Editor.prototype._updateIteratorsFromHandler = function (handler) {
         var _this = this;
         console.log("start");
-        handler.getNewIterators().caseOf({
+        handler.getStartIterator().caseOf({
             just: function (iter) {
                 iter.get().caseOf({
                     just: function (glyph) {
@@ -20029,12 +20033,12 @@ var ClickHandler = /** @class */ (function () {
         this.cursor = cursor;
         this.editor = editor;
     }
-    ClickHandler.prototype.handle = function (event, source_iter) {
+    ClickHandler.prototype.handle = function (event, source_start_iter, source_end_iter) {
         console.log("CLICKED EDITOR");
         console.log(this.cursor.selection);
         console.log(event);
         console.log(event.target);
-        var iter = source_iter.clone();
+        var iter = source_start_iter.clone();
         if (this.cursor.selection.containsNode(this.editor, false)) {
             console.log("CONTAINS NODE");
             // If the entire editor is selected for some reason, do nothing except collapse to end iterator.
@@ -20157,7 +20161,7 @@ var ClickHandler = /** @class */ (function () {
             return tsmonad_1.Maybe.nothing();
         }
     };
-    ClickHandler.prototype.getNewIterators = function () {
+    ClickHandler.prototype.getStartIterator = function () {
         return this.start_iter;
     };
     ClickHandler.prototype.getEndIterator = function () {
@@ -20194,17 +20198,20 @@ var KeydownHandler = /** @class */ (function () {
     function KeydownHandler(renderer, deleter, cursor, editor, map) {
         this.renderer = renderer;
         this.deleter = deleter;
-        this.iterator = tsmonad_1.Maybe.nothing();
+        this.start = tsmonad_1.Maybe.nothing();
+        this.end = tsmonad_1.Maybe.nothing();
         this.cursor = cursor;
         this.editor = editor;
         this.keypress_map = map;
     }
-    KeydownHandler.prototype.handle = function (event, source_iter) {
-        var iter = source_iter.clone();
-        this.iterator = tsmonad_1.Maybe.just(source_iter.clone()); // By default, don't move the iterator.        
+    KeydownHandler.prototype.handle = function (event, source_start_iter, source_end_iter) {
+        var iter = source_start_iter.clone();
+        this.start = tsmonad_1.Maybe.just(source_start_iter.clone()); // By default, don't move the iterator.
+        this.end = tsmonad_1.Maybe.just(source_end_iter.clone());
         var key = event.key;
         if (key === "Control") {
             this.keypress_map.Control = true;
+            event.preventDefault(); // Do not want to destroy the selection??
             return;
         }
         if (this._controlPressed()) {
@@ -20227,14 +20234,14 @@ var KeydownHandler = /** @class */ (function () {
             if (this.cursor.isCollapsed()) {
                 this._insertGlyph(key, iter);
                 this._renderGlyph(iter);
-                this.iterator = tsmonad_1.Maybe.just(iter);
+                this.start = tsmonad_1.Maybe.just(iter);
                 event.preventDefault();
             }
         }
         else if (key === 'Backspace') {
             if (this.cursor.isCollapsed()) {
                 var new_iter = this._deleteGlyphAndRerender(iter, false);
-                this.iterator = tsmonad_1.Maybe.just(new_iter);
+                this.start = tsmonad_1.Maybe.just(new_iter);
                 event.preventDefault();
             }
         }
@@ -20243,7 +20250,7 @@ var KeydownHandler = /** @class */ (function () {
                 this._insertGlyph(string_map_1.default.newline, iter);
                 // Renders glyph by rerendering current line and new line.
                 this._rerenderGlyph(iter);
-                this.iterator = tsmonad_1.Maybe.just(iter);
+                this.start = tsmonad_1.Maybe.just(iter);
                 event.preventDefault();
             }
         }
@@ -20312,13 +20319,13 @@ var KeydownHandler = /** @class */ (function () {
         if (key === string_map_1.default.arrow.left) {
             if (iter.hasPrev()) {
                 iter.prev();
-                this.iterator = tsmonad_1.Maybe.just(iter);
+                this.start = tsmonad_1.Maybe.just(iter);
             }
         }
         else if (key === string_map_1.default.arrow.right) {
             if (iter.hasNext()) {
                 iter.next();
-                this.iterator = tsmonad_1.Maybe.just(iter);
+                this.start = tsmonad_1.Maybe.just(iter);
             }
         }
         else if (key === string_map_1.default.arrow.up) {
@@ -20374,7 +20381,7 @@ var KeydownHandler = /** @class */ (function () {
                     throw new Error("Document did not start with a line!");
                 }
             });
-            this.iterator = tsmonad_1.Maybe.just(final_iter_1);
+            this.start = tsmonad_1.Maybe.just(final_iter_1);
         }
         else if (key === string_map_1.default.arrow.down) {
             // find previous newline to determine distance from line start
@@ -20417,7 +20424,7 @@ var KeydownHandler = /** @class */ (function () {
                             if (state_1 === "break")
                                 break;
                         }
-                        _this.iterator = tsmonad_1.Maybe.just(iter);
+                        _this.start = tsmonad_1.Maybe.just(iter);
                     }
                     else {
                         // If no next newline, do nothing.
@@ -20429,11 +20436,11 @@ var KeydownHandler = /** @class */ (function () {
             });
         }
     };
-    KeydownHandler.prototype.getNewIterators = function () {
-        return this.iterator;
+    KeydownHandler.prototype.getStartIterator = function () {
+        return this.start;
     };
     KeydownHandler.prototype.getEndIterator = function () {
-        return this.iterator;
+        return this.start;
     };
     return KeydownHandler;
 }());
@@ -20461,11 +20468,11 @@ var MouseClickHandler = /** @class */ (function () {
      * @param eventPair Pair of events. First one is for the mousedown. The second is for the mouseup.
      * @param source_iter
      */
-    MouseClickHandler.prototype.handle = function (eventPair, source_iter) {
+    MouseClickHandler.prototype.handle = function (eventPair, source_start_iter, source_end_iter) {
         console.log(eventPair);
         var downTarget = eventPair[0].target;
         var upTarget = eventPair[1].target;
-        var iter = source_iter.clone();
+        var iter = source_start_iter.clone();
         if (!this._inEditor(downTarget) || !this._inEditor(upTarget)) {
             // Return for now if either target is outside the editor. Later we may have to scroll up or down based on upTarget.
             return;
@@ -20574,7 +20581,7 @@ var MouseClickHandler = /** @class */ (function () {
             return tsmonad_1.Maybe.nothing();
         }
     };
-    MouseClickHandler.prototype.getNewIterators = function () {
+    MouseClickHandler.prototype.getStartIterator = function () {
         return this.start_iter;
     };
     MouseClickHandler.prototype.getEndIterator = function () {

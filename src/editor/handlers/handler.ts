@@ -3,8 +3,8 @@ import { DoubleIterator } from "data_structures/linked-list";
 import { Glyph } from "editor/glyph";
 
 interface Handler {
-    handle(event: any, iter: DoubleIterator<Glyph>): void;
-    getNewIterators(): Maybe< DoubleIterator<Glyph> >;
+    handle(event: any, start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>): void;
+    getStartIterator(): Maybe< DoubleIterator<Glyph> >;
     getEndIterator(): Maybe< DoubleIterator<Glyph> >;
 }
 

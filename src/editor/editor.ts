@@ -137,7 +137,7 @@ class Editor {
         let keydownSub = keydownObs.subscribe({
             next: (event: any) => {
 
-                this.keydowner.handle(event, this.end_glyph_iter.clone());
+                this.keydowner.handle(event, this.start_glyph_iter.clone(), this.end_glyph_iter.clone());
                 this._updateIteratorsFromHandler(this.keydowner);
                 this.updateCursorToCurrent();
             },
@@ -179,7 +179,7 @@ class Editor {
         let clickSub = clickObs.subscribe({
             next: (event: any) => {
                 console.log('mouseup');
-                this.clicker.handle(event, this.glyphs.makeFrontIterator());
+                this.clicker.handle(event, this.glyphs.makeFrontIterator(), this.glyphs.makeBackIterator());
                 this._updateIteratorsFromHandler(this.clicker);
                 this.updateCursorToCurrent();
             },
@@ -198,7 +198,7 @@ class Editor {
 
     _updateIteratorsFromHandler(handler: Handler) {
         console.log("start");
-        handler.getNewIterators().caseOf({
+        handler.getStartIterator().caseOf({
             just: (iter) => {
                 iter.get().caseOf({
                     just: (glyph) => {

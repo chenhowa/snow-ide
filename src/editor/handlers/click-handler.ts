@@ -23,12 +23,12 @@ class ClickHandler implements Handler {
         this.editor = editor;
     }
 
-    handle(event: any, source_iter: DoubleIterator<Glyph>) {
+    handle(event: any, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>) {
         console.log("CLICKED EDITOR");
         console.log(this.cursor.selection);
         console.log(event);
         console.log(event.target);
-        let iter = source_iter.clone();
+        let iter = source_start_iter.clone();
 
         if(this.cursor.selection.containsNode(this.editor, false)) {
             console.log("CONTAINS NODE");
@@ -156,7 +156,7 @@ class ClickHandler implements Handler {
         }
     }
 
-    getNewIterators(): Maybe< DoubleIterator<Glyph> > {
+    getStartIterator(): Maybe< DoubleIterator<Glyph> > {
         return this.start_iter;
     }
 

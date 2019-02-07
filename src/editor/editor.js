@@ -100,7 +100,7 @@ var Editor = /** @class */ (function () {
         var keydownObs = rxjs_1.fromEvent(this.editor, 'keydown');
         var keydownSub = keydownObs.subscribe({
             next: function (event) {
-                _this.keydowner.handle(event, _this.end_glyph_iter.clone());
+                _this.keydowner.handle(event, _this.start_glyph_iter.clone(), _this.end_glyph_iter.clone());
                 _this._updateIteratorsFromHandler(_this.keydowner);
                 _this.updateCursorToCurrent();
             },
@@ -126,7 +126,11 @@ var Editor = /** @class */ (function () {
         var mouseUpSub = mouseUpObs.subscribe({
             next: function (event) {
                 // TODO : Do something on mouseup, in case you mouse up outside of div, but had moused down in.
+                //          -- looks like click doesn't register if you do this.
                 // TODO : Do something on mousedown, in case you mouse down outside of editor but mouse up in.
+                //          -- looks like click doesn't register if you do this.
+                // RESULT TODO : Might need to sync INPUT (backspace, char, tab, enter, etc.) with the selection,
+                //          Since invalid selections can still occur by the two above methods.
             },
             error: function (err) { },
             complete: function () { }
@@ -135,7 +139,7 @@ var Editor = /** @class */ (function () {
         var clickSub = clickObs.subscribe({
             next: function (event) {
                 console.log('mouseup');
-                _this.clicker.handle(event, _this.glyphs.makeFrontIterator());
+                _this.clicker.handle(event, _this.glyphs.makeFrontIterator(), _this.glyphs.makeBackIterator());
                 _this._updateIteratorsFromHandler(_this.clicker);
                 _this.updateCursorToCurrent();
             },
@@ -153,7 +157,7 @@ var Editor = /** @class */ (function () {
     Editor.prototype._updateIteratorsFromHandler = function (handler) {
         var _this = this;
         console.log("start");
-        handler.getNewIterators().caseOf({
+        handler.getStartIterator().caseOf({
             just: function (iter) {
                 iter.get().caseOf({
                     just: function (glyph) {

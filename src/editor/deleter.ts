@@ -6,7 +6,8 @@ import Strings from "string-map";
 import $ from "jquery";
 
 interface DeleteRenderer {
-    deleteAndRender(iter: DoubleIterator<Glyph>, editor: Node, direction: boolean): DoubleIterator<Glyph>;
+    deleteAndRender(start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>, editor: Node, direction: boolean)
+                                                : Array< DoubleIterator<Glyph> >;
 }
 
 
@@ -16,29 +17,38 @@ class EditorDeleter {
         this.renderer = renderer;
     }
 
-    deleteAndRender(source_iter: DoubleIterator<Glyph>, editor: Node, direction: boolean): DoubleIterator<Glyph> {
-        let iter = source_iter.clone();
-        let return_iter = iter.get().caseOf({
-            just: (glyph) => {
-                return glyph.getNode().caseOf({
-                    just: (node) => {
-                        return this._deleteGlyphAndRerender(iter, node, editor, direction);
-                    },
-                    nothing: () => {
-                        // If node was not rendered, nothing to do but remove the cell.
-                        iter.remove(direction);
-                        return iter.clone();
-                    }
-                });
-            },
-            nothing: () => {
-                // The cell is empty. Might as well delete it.
-                iter.remove(direction);
-                return iter.clone();
-            }
-        });
+    deleteAndRender(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>, editor: Node, direction: boolean)
+                            : Array< DoubleIterator<Glyph> > {
+        let start_iter = source_start_iter.clone();
+        let end_iter = source_end_iter.clone();
+        if(start_iter.equals(end_iter)) {
+            let return_iter = start_iter.get().caseOf({
+                just: (glyph) => {
+                    return glyph.getNode().caseOf({
+                        just: (node) => {
+                            return this._deleteGlyphAndRerender(start_iter, node, editor, direction);
+                        },
+                        nothing: () => {
+                            // If node was not rendered, nothing to do but remove the cell.
+                            start_iter.remove(direction);
+                            return start_iter.clone();
+                        }
+                    });
+                },
+                nothing: () => {
+                    // The cell is empty. Might as well delete it.
+                    start_iter.remove(direction);
+                    return start_iter.clone();
+                }
+            });
 
-        return return_iter;
+            return [return_iter.clone(), return_iter.clone()];
+        } else {
+            // TODO - do something different if the selection is spread out.
+        }
+        
+
+        return [start_iter.clone(), end_iter.clone()];
     }
 
     _deleteGlyphAndRerender(source_iter: DoubleIterator<Glyph>, node: Node, editor: Node, direction: boolean) : DoubleIterator<Glyph> {
@@ -124,8 +134,9 @@ class EditorDeleter {
                 renderIterator.insertAfter(new Glyph("\n", new GlyphStyle()));
             }
             while(!renderIterator.equals(endIterator)) {
+                // rerender all the needed glyphs.
                 renderIterator.next();
-                this.renderer.render(renderIterator, editor);
+                this.renderer.render(renderIterator, renderIterator, editor);
             }
 
         } else if (isGlyph) {

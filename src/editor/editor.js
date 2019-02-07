@@ -55,7 +55,7 @@ var Editor = /** @class */ (function () {
         var iterator = this.glyphs.makeFrontIterator();
         while (iterator.hasNext()) {
             iterator.next();
-            this.renderer.render(iterator, this.editor.get(0));
+            this.renderer.render(iterator, iterator, this.editor.get(0));
         }
         this.updateCursorToCurrent(); // Initially is between a and b!
     };

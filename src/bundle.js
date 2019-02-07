@@ -19413,29 +19413,36 @@ var EditorDeleter = /** @class */ (function () {
     function EditorDeleter(renderer) {
         this.renderer = renderer;
     }
-    EditorDeleter.prototype.deleteAndRender = function (source_iter, editor, direction) {
+    EditorDeleter.prototype.deleteAndRender = function (source_start_iter, source_end_iter, editor, direction) {
         var _this = this;
-        var iter = source_iter.clone();
-        var return_iter = iter.get().caseOf({
-            just: function (glyph) {
-                return glyph.getNode().caseOf({
-                    just: function (node) {
-                        return _this._deleteGlyphAndRerender(iter, node, editor, direction);
-                    },
-                    nothing: function () {
-                        // If node was not rendered, nothing to do but remove the cell.
-                        iter.remove(direction);
-                        return iter.clone();
-                    }
-                });
-            },
-            nothing: function () {
-                // The cell is empty. Might as well delete it.
-                iter.remove(direction);
-                return iter.clone();
-            }
-        });
-        return return_iter;
+        var start_iter = source_start_iter.clone();
+        var end_iter = source_end_iter.clone();
+        if (start_iter.equals(end_iter)) {
+            var return_iter = start_iter.get().caseOf({
+                just: function (glyph) {
+                    return glyph.getNode().caseOf({
+                        just: function (node) {
+                            return _this._deleteGlyphAndRerender(start_iter, node, editor, direction);
+                        },
+                        nothing: function () {
+                            // If node was not rendered, nothing to do but remove the cell.
+                            start_iter.remove(direction);
+                            return start_iter.clone();
+                        }
+                    });
+                },
+                nothing: function () {
+                    // The cell is empty. Might as well delete it.
+                    start_iter.remove(direction);
+                    return start_iter.clone();
+                }
+            });
+            return [return_iter.clone(), return_iter.clone()];
+        }
+        else {
+            // TODO - do something different if the selection is spread out.
+        }
+        return [start_iter.clone(), end_iter.clone()];
     };
     EditorDeleter.prototype._deleteGlyphAndRerender = function (source_iter, node, editor, direction) {
         var deadNode = jquery_1.default(node);
@@ -19516,8 +19523,9 @@ var EditorDeleter = /** @class */ (function () {
                 renderIterator.insertAfter(new glyph_1.Glyph("\n", new glyph_1.GlyphStyle()));
             }
             while (!renderIterator.equals(endIterator)) {
+                // rerender all the needed glyphs.
                 renderIterator.next();
-                this.renderer.render(renderIterator, editor);
+                this.renderer.render(renderIterator, renderIterator, editor);
             }
         }
         else if (isGlyph) {
@@ -19625,6 +19633,24 @@ function findPreviousNewline(source_iter) {
     }
 }
 exports.findPreviousNewline = findPreviousNewline;
+function findNextLineOrLast(source_iter) {
+    var iter = source_iter.clone();
+    var found = false;
+    while (iter.hasNext() && !found) {
+        iter.next();
+        found = iter.get().caseOf({
+            just: function (glyph) {
+                return glyph.glyph === string_map_1.default.newline;
+            },
+            nothing: function () {
+                return false;
+            }
+        });
+    }
+    // Now either we've found the next newline, or the end of the document. Either is fine.
+    return iter;
+}
+exports.findNextLineOrLast = findNextLineOrLast;
 
 },{"string-map":114,"tsmonad":99}],105:[function(require,module,exports){
 "use strict";
@@ -19684,7 +19710,7 @@ var Editor = /** @class */ (function () {
         var iterator = this.glyphs.makeFrontIterator();
         while (iterator.hasNext()) {
             iterator.next();
-            this.renderer.render(iterator, this.editor.get(0));
+            this.renderer.render(iterator, iterator, this.editor.get(0));
         }
         this.updateCursorToCurrent(); // Initially is between a and b!
     };
@@ -20205,7 +20231,8 @@ var KeydownHandler = /** @class */ (function () {
         this.keypress_map = map;
     }
     KeydownHandler.prototype.handle = function (event, source_start_iter, source_end_iter) {
-        var iter = source_start_iter.clone();
+        var start_iter = source_start_iter.clone();
+        var end_iter = source_end_iter.clone();
         this.start = tsmonad_1.Maybe.just(source_start_iter.clone()); // By default, don't move the iterator.
         this.end = tsmonad_1.Maybe.just(source_end_iter.clone());
         var key = event.key;
@@ -20214,57 +20241,58 @@ var KeydownHandler = /** @class */ (function () {
             event.preventDefault(); // Do not want to destroy the selection??
             return;
         }
+        var new_iters;
         if (this._controlPressed()) {
-            this._handleKeyWithControl(event, key, iter);
+            new_iters = this._handleKeyWithControl(event, key, start_iter, end_iter);
         }
         else {
-            this._handleKeyAlone(event, key, iter);
+            new_iters = this._handleKeyAlone(event, key, start_iter, end_iter);
         }
+        this.start = tsmonad_1.Maybe.just(new_iters[0]);
+        this.end = tsmonad_1.Maybe.just(new_iters[1]);
     };
     KeydownHandler.prototype._controlPressed = function () {
         return this.keypress_map.Control;
     };
-    KeydownHandler.prototype._handleKeyWithControl = function (event, key, iter) {
+    KeydownHandler.prototype._handleKeyWithControl = function (event, key, source_start_iter, source_end_iter) {
         // If control was pressed, do nothing? Does that let default happen?
         // TODO: Allow operations of copy, paste, etc.
         console.log("HANDLING WITH CONTROL");
+        return [source_start_iter.clone(), source_end_iter.clone()];
     };
-    KeydownHandler.prototype._handleKeyAlone = function (event, key, iter) {
+    KeydownHandler.prototype._handleKeyAlone = function (event, key, source_start_iter, source_end_iter) {
         if (this._isChar(key)) {
             if (this.cursor.isCollapsed()) {
-                this._insertGlyph(key, iter);
-                this._renderGlyph(iter);
-                this.start = tsmonad_1.Maybe.just(iter);
+                var new_iters = this._insertGlyph(key, source_start_iter, source_end_iter);
+                var start_iter = new_iters[0];
+                this._renderGlyph(start_iter, start_iter); // TODO: render the single glyph by passing in BOTH iterators, as as general case.
                 event.preventDefault();
+                return new_iters;
             }
         }
         else if (key === 'Backspace') {
             if (this.cursor.isCollapsed()) {
-                var new_iter = this._deleteGlyphAndRerender(iter, false);
-                this.start = tsmonad_1.Maybe.just(new_iter);
+                var new_iters = this._deleteGlyphAndRerender(source_start_iter, source_end_iter, false);
                 event.preventDefault();
+                return new_iters;
             }
         }
         else if (key === 'Enter') {
             if (this.cursor.isCollapsed()) {
-                this._insertGlyph(string_map_1.default.newline, iter);
+                var new_iters = this._insertGlyph(string_map_1.default.newline, source_start_iter, source_end_iter);
                 // Renders glyph by rerendering current line and new line.
-                this._rerenderGlyph(iter);
-                this.start = tsmonad_1.Maybe.just(iter);
+                var start_iter = new_iters[0];
+                this._rerenderGlyph(start_iter);
                 event.preventDefault();
+                return new_iters;
             }
-        }
-        else if (key === 'Tab') {
-            // TODO. Insert 4 \t glyphs to represent each space in a tab.
-            // This allows you to render each as a <span class='tab'> </span>
-            this._insertGlyph(string_map_1.default.tab, iter);
-            event.preventDefault();
         }
         else if (this._isArrowKey(key)) {
             // TODO. Move iterator to correct destination and then rerender the cursor.
-            this._handleArrowKey(key, iter);
             event.preventDefault();
+            return this._handleArrowKey(key, source_start_iter, source_end_iter);
         }
+        return [source_start_iter.clone(), source_end_iter.clone()];
     };
     KeydownHandler.prototype._isChar = function (key) {
         return key.length === 1;
@@ -20272,33 +20300,42 @@ var KeydownHandler = /** @class */ (function () {
     /**
      * @description - inserts the char as a glyph, and updates iterator to point at the new glyph.
      * @param char
-     * @param iter
+     * @param start_iter NOT MODIFIED
+     * @param end_iter - NOT MODIFIED
      */
-    KeydownHandler.prototype._insertGlyph = function (char, iter) {
-        iter.insertAfter(new glyph_1.Glyph(char, new glyph_1.GlyphStyle()));
-        iter.next();
+    KeydownHandler.prototype._insertGlyph = function (char, source_start_iter, source_end_iter) {
+        var start_iter = source_start_iter.clone();
+        var end_iter = source_end_iter.clone();
+        if (start_iter.equals(end_iter)) {
+            start_iter.insertAfter(new glyph_1.Glyph(char, new glyph_1.GlyphStyle()));
+            start_iter.next();
+            end_iter.next();
+        }
+        return [start_iter, end_iter];
     };
     /**
-     * @desciption - Renders glyph in DOM based on the surrounding nodes.
-     * @param iter
+     * @desciption - Renders single glyph in DOM based on the surrounding nodes.
+     * @param iter - not modified.
      */
-    KeydownHandler.prototype._renderGlyph = function (iter) {
-        this.renderer.render(iter, this.editor);
+    KeydownHandler.prototype._renderGlyph = function (source_start_iter, source_end_iter) {
+        var start_iter = source_start_iter.clone();
+        var end_iter = source_end_iter.clone();
+        this.renderer.render(start_iter, end_iter, this.editor);
     };
     /**
      * @description - deletes the pointed at glyph and rerenders document
-     * @param iter    NOT MODIFIED. Will modify iterator to move it to correct position.
+     * @param start_iter    NOT MODIFIED. Will modify iterator to move it to correct position.
      * @param direction true if delete and move forward, else go backward.
      */
-    KeydownHandler.prototype._deleteGlyphAndRerender = function (iter, direction) {
-        return this.deleter.deleteAndRender(iter, this.editor, direction);
+    KeydownHandler.prototype._deleteGlyphAndRerender = function (start_iter, end_iter, direction) {
+        return this.deleter.deleteAndRender(start_iter.clone(), end_iter.clone(), this.editor, direction);
     };
     /**
      * @description -- rerenders a glyph.
      * @param iter
      */
     KeydownHandler.prototype._rerenderGlyph = function (iter) {
-        this.renderer.rerender(iter, this.editor);
+        this.renderer.rerender(iter, iter, this.editor);
     };
     KeydownHandler.prototype._isArrowKey = function (key) {
         var keys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'];
@@ -20312,29 +20349,68 @@ var KeydownHandler = /** @class */ (function () {
     /**
      * @description: Use arrow key input to move iterator to correct location.
      * @param key
-     * @param iter
+     * @param source_start_iter
      */
-    KeydownHandler.prototype._handleArrowKey = function (key, iter) {
-        var _this = this;
+    KeydownHandler.prototype._handleArrowKey = function (key, source_start_iter, source_end_iter) {
+        var start_iter = source_start_iter.clone();
+        var end_iter = source_end_iter.clone();
         if (key === string_map_1.default.arrow.left) {
-            if (iter.hasPrev()) {
-                iter.prev();
-                this.start = tsmonad_1.Maybe.just(iter);
-            }
+            return this._arrowLeft(start_iter, end_iter);
         }
         else if (key === string_map_1.default.arrow.right) {
-            if (iter.hasNext()) {
-                iter.next();
-                this.start = tsmonad_1.Maybe.just(iter);
-            }
+            return this._arrowRight(start_iter, end_iter);
         }
         else if (key === string_map_1.default.arrow.up) {
-            var final_iter_1 = iter.clone();
-            editor_utils_1.getDistanceFromLineStart(iter).caseOf({
+            return this._arrowUp(start_iter, end_iter);
+        }
+        else if (key === string_map_1.default.arrow.down) {
+            return this._arrowDown(start_iter, end_iter);
+        }
+        else {
+            throw new Error("NOT AN ARROW KEY");
+        }
+    };
+    KeydownHandler.prototype._arrowLeft = function (source_start_iter, source_end_iter) {
+        var start_iter = source_start_iter.clone();
+        var end_iter = source_end_iter.clone();
+        if (start_iter.equals(end_iter)) {
+            // Back both up by one if possible.
+            if (start_iter.hasPrev()) {
+                start_iter.prev();
+                end_iter = start_iter.clone();
+            }
+        }
+        else {
+            // If selection, collapse end into start (left).
+            end_iter = start_iter.clone();
+        }
+        return [start_iter.clone(), end_iter.clone()];
+    };
+    KeydownHandler.prototype._arrowRight = function (source_start_iter, source_end_iter) {
+        var start_iter = source_start_iter.clone();
+        var end_iter = source_end_iter.clone();
+        if (start_iter.equals(end_iter)) {
+            if (start_iter.hasNext()) {
+                start_iter.next();
+                end_iter = start_iter.clone();
+            }
+        }
+        else {
+            // If selection, collapse start into end (right)
+            start_iter = end_iter.clone();
+        }
+        return [start_iter.clone(), end_iter.clone()];
+    };
+    KeydownHandler.prototype._arrowUp = function (source_start_iter, source_end_iter) {
+        var start_iter = source_start_iter.clone();
+        var end_iter = source_end_iter.clone();
+        if (start_iter.equals(end_iter)) {
+            var final_iter_1 = start_iter.clone();
+            editor_utils_1.getDistanceFromLineStart(start_iter).caseOf({
                 just: function (distance) {
                     var move = false;
                     if (distance === 0) {
-                        editor_utils_1.findPreviousNewline(iter).caseOf({
+                        editor_utils_1.findPreviousNewline(start_iter).caseOf({
                             just: function (new_iter) {
                                 final_iter_1 = new_iter;
                             },
@@ -20342,7 +20418,7 @@ var KeydownHandler = /** @class */ (function () {
                         });
                     }
                     else {
-                        editor_utils_1.findPreviousNewline(iter).caseOf({
+                        editor_utils_1.findPreviousNewline(start_iter).caseOf({
                             just: function (new_iter) {
                                 editor_utils_1.findPreviousNewline(new_iter).caseOf({
                                     just: function (new_iter) {
@@ -20381,31 +20457,33 @@ var KeydownHandler = /** @class */ (function () {
                     throw new Error("Document did not start with a line!");
                 }
             });
-            this.start = tsmonad_1.Maybe.just(final_iter_1);
+            return [final_iter_1.clone(), final_iter_1.clone()];
         }
-        else if (key === string_map_1.default.arrow.down) {
+        else {
+            // If selection, up will just go left.
+            return this._arrowLeft(start_iter, end_iter);
+        }
+    };
+    KeydownHandler.prototype._arrowDown = function (source_start_iter, source_end_iter) {
+        var start_iter = source_start_iter.clone();
+        var end_iter = source_end_iter.clone();
+        if (start_iter.equals(end_iter)) {
             // find previous newline to determine distance from line start
-            editor_utils_1.getDistanceFromLineStart(iter).caseOf({
+            console.log("going down on collapsed");
+            var final_iter_2 = start_iter.clone();
+            editor_utils_1.getDistanceFromLineStart(start_iter).caseOf({
                 just: function (distance) {
-                    // now find start of next line (if any), and then
-                    // walk the distance from the start.
-                    var foundNext = false;
-                    while (iter.hasNext() && !foundNext) {
-                        iter.next();
-                        iter.get().caseOf({
-                            just: function (glyph) {
-                                if (glyph.glyph === string_map_1.default.newline) {
-                                    foundNext = true;
-                                }
-                            },
-                            nothing: function () { }
-                        });
-                    }
+                    var nextOrEndIter = editor_utils_1.findNextLineOrLast(start_iter);
+                    console.log("next or end was ");
+                    console.log(nextOrEndIter.grab());
+                    var foundNext = nextOrEndIter.hasNext();
                     if (foundNext) {
+                        // We found the next new line, or there was no next newline.
+                        final_iter_2 = nextOrEndIter.clone();
                         var _loop_1 = function () {
-                            iter.next();
+                            final_iter_2.next();
                             var tooFar = false;
-                            iter.get().caseOf({
+                            final_iter_2.get().caseOf({
                                 just: function (glyph) {
                                     if (glyph.glyph === string_map_1.default.newline) {
                                         tooFar = true;
@@ -20414,33 +20492,37 @@ var KeydownHandler = /** @class */ (function () {
                                 nothing: function () { }
                             });
                             if (tooFar) {
-                                iter.prev(); // back off from the newline.
+                                final_iter_2.prev(); // back off from the newline.
                                 return "break";
                             }
                         };
-                        // We found the next new line, or there was no next newline.
                         for (var i = 0; i < distance; i++) {
                             var state_1 = _loop_1();
                             if (state_1 === "break")
                                 break;
                         }
-                        _this.start = tsmonad_1.Maybe.just(iter);
                     }
                     else {
-                        // If no next newline, do nothing.
+                        // If no next line, we don't move.
                     }
                 },
                 nothing: function () {
                     throw new Error("doc does not start with newline");
                 }
             });
+            return [final_iter_2.clone(), final_iter_2.clone()];
+        }
+        else {
+            // If selection, will just go right.
+            console.log("DOWN BUT GOING RIGHT");
+            return this._arrowRight(start_iter, end_iter);
         }
     };
     KeydownHandler.prototype.getStartIterator = function () {
         return this.start;
     };
     KeydownHandler.prototype.getEndIterator = function () {
-        return this.start;
+        return this.end;
     };
     return KeydownHandler;
 }());
@@ -20616,27 +20698,34 @@ var EditorRenderer = /** @class */ (function () {
     /**
      * @description Rerenders what iterator is pointing at. Useful for difficult to render things like
      *              newline insertions.
-     * @param iter  - Not modified
+     * @param source_start_iter  - Not modified
+     * @param source_end_iter - Not modified
      * @param editor  - Modified.
      */
-    EditorRenderer.prototype.rerender = function (source_iter, editor) {
+    EditorRenderer.prototype.rerender = function (source_start_iter, source_end_iter, editor) {
         var _this = this;
-        var iter = source_iter.clone();
-        iter.get().caseOf({
-            just: function (glyph) {
-                glyph.getNode().caseOf({
-                    just: function (node) {
-                        _this._rerenderNode(iter, node, editor);
-                    },
-                    nothing: function () {
-                        _this._rerenderNode(iter, glyph.toNode(), editor);
-                    }
-                });
-            },
-            nothing: function () {
-                // Nothing to rerender. So we do nothing.
-            }
-        });
+        var start_iter = source_start_iter.clone();
+        var end_iter = source_end_iter.clone();
+        if (start_iter.equals(end_iter)) {
+            start_iter.get().caseOf({
+                just: function (glyph) {
+                    glyph.getNode().caseOf({
+                        just: function (node) {
+                            _this._rerenderNode(start_iter, node, editor);
+                        },
+                        nothing: function () {
+                            _this._rerenderNode(start_iter, glyph.toNode(), editor);
+                        }
+                    });
+                },
+                nothing: function () {
+                    // Nothing to rerender. So we do nothing.
+                }
+            });
+        }
+        else {
+            // TODO : How to rerender the set of nodes contained within two start and end iterators?
+        }
     };
     EditorRenderer.prototype._rerenderNode = function (iter, node, editor) {
         var newNode = jquery_1.default(node);
@@ -20646,7 +20735,7 @@ var EditorRenderer = /** @class */ (function () {
         else {
             // If we are not rerendering a newline, we will just destroy and rerender the node
             // through the this.render() method.
-            this.render(iter, editor);
+            this.render(iter, iter, editor);
         }
     };
     /**
@@ -20714,27 +20803,52 @@ var EditorRenderer = /** @class */ (function () {
         rerender_iter.prev();
         while (!rerender_iter.equals(end_iter)) {
             rerender_iter.next();
-            this.render(rerender_iter, editor);
+            this.render(rerender_iter, rerender_iter, editor);
         }
     };
     /**
      * @description Renders the node within the editor. Will destroy existing representations if they exist.
-     * @param iter - Not modified.
+     *              Meant for rendering SINGLE NODES. Will not correctly render newlines, for exaple.
+     *              Use rerender instead.
+     * @param start_iter - Not modified.
+     * @param end_iter - Not modified.
      * @param editor - modified.
      */
-    EditorRenderer.prototype.render = function (source_iter, editor) {
+    EditorRenderer.prototype.render = function (source_start_iter, source_end_iter, editor) {
         var _this = this;
-        var iter = source_iter.clone();
-        iter.get().caseOf({
-            just: function (glyph) {
-                // We have something to render.
-                glyph.destroyNode(); // Destroy old representation, if any.
-                _this._renderNode(iter, glyph.toNode(), editor);
-            },
-            nothing: function () {
-                // We have nothing to render. So we do nothing.
+        var start_iter = source_start_iter.clone();
+        var end_iter = source_end_iter.clone();
+        if (start_iter.equals(end_iter)) {
+            start_iter.get().caseOf({
+                just: function (glyph) {
+                    // We have something to render.
+                    glyph.destroyNode(); // Destroy old representation, if any.
+                    _this._renderNode(start_iter, glyph.toNode(), editor);
+                },
+                nothing: function () {
+                    // We have nothing to render. So we do nothing.
+                }
+            });
+        }
+        else {
+            // Render everything to the RIGHT of the start_iter,
+            // up to but NOT PAST the end_iter.
+            while (start_iter.hasNext()) {
+                start_iter.next();
+                start_iter.get().caseOf({
+                    just: function (glyph) {
+                        glyph.destroyNode(),
+                            _this._renderNode(start_iter, glyph.toNode(), editor);
+                    },
+                    nothing: function () {
+                        // We have nothing to render. So we do nothing.
+                    }
+                });
+                if (start_iter.equals(end_iter)) {
+                    break;
+                }
             }
-        });
+        }
     };
     EditorRenderer.prototype._renderNode = function (iter, node, editor) {
         /* Where do we render it? And how? We decide based on the current

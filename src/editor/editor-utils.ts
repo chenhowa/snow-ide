@@ -85,8 +85,28 @@ function findPreviousNewline(source_iter: DoubleIterator<Glyph>): Maybe< DoubleI
     }
 }
 
+function findNextLineOrLast(source_iter: DoubleIterator<Glyph>): DoubleIterator<Glyph> {
+    let iter = source_iter.clone();
+    let found = false;
+    while(iter.hasNext() && !found) {
+        iter.next();
+        found = iter.get().caseOf({ 
+            just: (glyph) => {
+                return glyph.glyph === Strings.newline;
+            },
+            nothing: () => {
+                return false;
+            }
+        });
+    }
+
+    // Now either we've found the next newline, or the end of the document. Either is fine.
+    return iter;
+}
+
 export {
     getDistanceFromNextLine,
     getDistanceFromLineStart,
-    findPreviousNewline
+    findPreviousNewline,
+    findNextLineOrLast
 };

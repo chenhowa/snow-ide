@@ -11,27 +11,34 @@ var EditorRenderer = /** @class */ (function () {
     /**
      * @description Rerenders what iterator is pointing at. Useful for difficult to render things like
      *              newline insertions.
-     * @param iter  - Not modified
+     * @param source_start_iter  - Not modified
+     * @param source_end_iter - Not modified
      * @param editor  - Modified.
      */
-    EditorRenderer.prototype.rerender = function (source_iter, editor) {
+    EditorRenderer.prototype.rerender = function (source_start_iter, source_end_iter, editor) {
         var _this = this;
-        var iter = source_iter.clone();
-        iter.get().caseOf({
-            just: function (glyph) {
-                glyph.getNode().caseOf({
-                    just: function (node) {
-                        _this._rerenderNode(iter, node, editor);
-                    },
-                    nothing: function () {
-                        _this._rerenderNode(iter, glyph.toNode(), editor);
-                    }
-                });
-            },
-            nothing: function () {
-                // Nothing to rerender. So we do nothing.
-            }
-        });
+        var start_iter = source_start_iter.clone();
+        var end_iter = source_end_iter.clone();
+        if (start_iter.equals(end_iter)) {
+            start_iter.get().caseOf({
+                just: function (glyph) {
+                    glyph.getNode().caseOf({
+                        just: function (node) {
+                            _this._rerenderNode(start_iter, node, editor);
+                        },
+                        nothing: function () {
+                            _this._rerenderNode(start_iter, glyph.toNode(), editor);
+                        }
+                    });
+                },
+                nothing: function () {
+                    // Nothing to rerender. So we do nothing.
+                }
+            });
+        }
+        else {
+            // TODO : How to rerender the set of nodes contained within two start and end iterators?
+        }
     };
     EditorRenderer.prototype._rerenderNode = function (iter, node, editor) {
         var newNode = jquery_1.default(node);
@@ -41,7 +48,7 @@ var EditorRenderer = /** @class */ (function () {
         else {
             // If we are not rerendering a newline, we will just destroy and rerender the node
             // through the this.render() method.
-            this.render(iter, editor);
+            this.render(iter, iter, editor);
         }
     };
     /**
@@ -109,27 +116,52 @@ var EditorRenderer = /** @class */ (function () {
         rerender_iter.prev();
         while (!rerender_iter.equals(end_iter)) {
             rerender_iter.next();
-            this.render(rerender_iter, editor);
+            this.render(rerender_iter, rerender_iter, editor);
         }
     };
     /**
      * @description Renders the node within the editor. Will destroy existing representations if they exist.
-     * @param iter - Not modified.
+     *              Meant for rendering SINGLE NODES. Will not correctly render newlines, for exaple.
+     *              Use rerender instead.
+     * @param start_iter - Not modified.
+     * @param end_iter - Not modified.
      * @param editor - modified.
      */
-    EditorRenderer.prototype.render = function (source_iter, editor) {
+    EditorRenderer.prototype.render = function (source_start_iter, source_end_iter, editor) {
         var _this = this;
-        var iter = source_iter.clone();
-        iter.get().caseOf({
-            just: function (glyph) {
-                // We have something to render.
-                glyph.destroyNode(); // Destroy old representation, if any.
-                _this._renderNode(iter, glyph.toNode(), editor);
-            },
-            nothing: function () {
-                // We have nothing to render. So we do nothing.
+        var start_iter = source_start_iter.clone();
+        var end_iter = source_end_iter.clone();
+        if (start_iter.equals(end_iter)) {
+            start_iter.get().caseOf({
+                just: function (glyph) {
+                    // We have something to render.
+                    glyph.destroyNode(); // Destroy old representation, if any.
+                    _this._renderNode(start_iter, glyph.toNode(), editor);
+                },
+                nothing: function () {
+                    // We have nothing to render. So we do nothing.
+                }
+            });
+        }
+        else {
+            // Render everything to the RIGHT of the start_iter,
+            // up to but NOT PAST the end_iter.
+            while (start_iter.hasNext()) {
+                start_iter.next();
+                start_iter.get().caseOf({
+                    just: function (glyph) {
+                        glyph.destroyNode(),
+                            _this._renderNode(start_iter, glyph.toNode(), editor);
+                    },
+                    nothing: function () {
+                        // We have nothing to render. So we do nothing.
+                    }
+                });
+                if (start_iter.equals(end_iter)) {
+                    break;
+                }
             }
-        });
+        }
     };
     EditorRenderer.prototype._renderNode = function (iter, node, editor) {
         /* Where do we render it? And how? We decide based on the current

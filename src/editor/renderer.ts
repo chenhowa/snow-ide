@@ -5,8 +5,8 @@ import Strings from "string-map";
 import $ from "jquery";
 
 interface Renderer {
-    render(iter: DoubleIterator<ToNode>, editor: Node): void;
-    rerender(iter: DoubleIterator<ToNode>, editor: Node): void;
+    render(start_iter: DoubleIterator<ToNode>, end_iter: DoubleIterator<ToNode>, editor: Node): void;
+    rerender(start_iter: DoubleIterator<ToNode>, end_iter: DoubleIterator<ToNode>, editor: Node): void;
 }
 
 
@@ -18,26 +18,35 @@ class EditorRenderer implements Renderer {
     /**
      * @description Rerenders what iterator is pointing at. Useful for difficult to render things like 
      *              newline insertions.
-     * @param iter  - Not modified
+     * @param source_start_iter  - Not modified
+     * @param source_end_iter - Not modified
      * @param editor  - Modified.
      */
-    rerender(source_iter: DoubleIterator<ToNode>, editor: Node): void {
-        let iter = source_iter.clone();
-        iter.get().caseOf({
-            just: (glyph) => {
-                glyph.getNode().caseOf({
-                    just: (node) => {
-                        this._rerenderNode(iter, node, editor);
-                    },
-                    nothing: () => {
-                        this._rerenderNode(iter, glyph.toNode(), editor);
-                    }
-                })
-            },
-            nothing: () => {
-                // Nothing to rerender. So we do nothing.
-            }
-        });
+    rerender(source_start_iter: DoubleIterator<ToNode>, source_end_iter: DoubleIterator<ToNode>, editor: Node)
+                                                                            : void {
+        let start_iter = source_start_iter.clone();
+        let end_iter = source_end_iter.clone();
+        if(start_iter.equals(end_iter)) {
+            start_iter.get().caseOf({
+                just: (glyph) => {
+                    glyph.getNode().caseOf({
+                        just: (node) => {
+                            this._rerenderNode(start_iter, node, editor);
+                        },
+                        nothing: () => {
+                            this._rerenderNode(start_iter, glyph.toNode(), editor);
+                        }
+                    })
+                },
+                nothing: () => {
+                    // Nothing to rerender. So we do nothing.
+                }
+            });
+        } else {
+            // TODO : How to rerender the set of nodes contained within two start and end iterators?
+            // ANSWER. - from start node, find soonest previous newline (inclusive).
+            //         - from end node, 
+        }
     }
 
     _rerenderNode(iter: DoubleIterator<ToNode>, node: Node, editor: Node) {
@@ -47,7 +56,7 @@ class EditorRenderer implements Renderer {
         } else {
             // If we are not rerendering a newline, we will just destroy and rerender the node
             // through the this.render() method.
-            this.render(iter, editor);
+            this.render(iter, iter, editor);
         }
     }
 
@@ -122,28 +131,53 @@ class EditorRenderer implements Renderer {
         rerender_iter.prev();
         while(!rerender_iter.equals(end_iter)) {
             rerender_iter.next();
-            this.render(rerender_iter, editor);
+            this.render(rerender_iter, rerender_iter, editor);
         }
     }
 
 
     /**
      * @description Renders the node within the editor. Will destroy existing representations if they exist.
-     * @param iter - Not modified.
+     *              Meant for rendering SINGLE NODES. Will not correctly render newlines, for exaple.
+     *              Use rerender instead.
+     * @param start_iter - Not modified.
+     * @param end_iter - Not modified.
      * @param editor - modified.
      */
-    render(source_iter: DoubleIterator<ToNode>, editor: Node): void {
-        let iter = source_iter.clone();
-        iter.get().caseOf({
-            just: (glyph) => {
-                // We have something to render.
-                glyph.destroyNode(); // Destroy old representation, if any.
-                this._renderNode(iter, glyph.toNode(), editor);
-            },
-            nothing: () => {
-                // We have nothing to render. So we do nothing.
+    render(source_start_iter: DoubleIterator<ToNode>, source_end_iter: DoubleIterator<ToNode>, editor: Node)
+                                                            : void {
+        let start_iter = source_start_iter.clone();
+        let end_iter = source_end_iter.clone();
+        if(start_iter.equals(end_iter)) {
+            start_iter.get().caseOf({
+                just: (glyph) => {
+                    // We have something to render.
+                    glyph.destroyNode(); // Destroy old representation, if any.
+                    this._renderNode(start_iter, glyph.toNode(), editor);
+                },
+                nothing: () => {
+                    // We have nothing to render. So we do nothing.
+                }
+            });
+        } else {
+            // Render everything to the RIGHT of the start_iter,
+            // up to but NOT PAST the end_iter.
+            while(start_iter.hasNext()) {
+                start_iter.next();
+                start_iter.get().caseOf({
+                    just: (glyph) => {
+                        glyph.destroyNode(),
+                        this._renderNode(start_iter, glyph.toNode(), editor);
+                    },
+                    nothing: () => {
+                        // We have nothing to render. So we do nothing.
+                    }
+                });
+                if(start_iter.equals(end_iter)) {
+                    break;
+                }
             }
-        });
+        }
     }
 
     _renderNode(iter: DoubleIterator<ToNode>, node: Node, editor: Node) {

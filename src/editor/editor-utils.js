@@ -90,3 +90,21 @@ function findPreviousNewline(source_iter) {
     }
 }
 exports.findPreviousNewline = findPreviousNewline;
+function findNextLineOrLast(source_iter) {
+    var iter = source_iter.clone();
+    var found = false;
+    while (iter.hasNext() && !found) {
+        iter.next();
+        found = iter.get().caseOf({
+            just: function (glyph) {
+                return glyph.glyph === string_map_1.default.newline;
+            },
+            nothing: function () {
+                return false;
+            }
+        });
+    }
+    // Now either we've found the next newline, or the end of the document. Either is fine.
+    return iter;
+}
+exports.findNextLineOrLast = findNextLineOrLast;

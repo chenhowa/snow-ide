@@ -10,29 +10,36 @@ var EditorDeleter = /** @class */ (function () {
     function EditorDeleter(renderer) {
         this.renderer = renderer;
     }
-    EditorDeleter.prototype.deleteAndRender = function (source_iter, editor, direction) {
+    EditorDeleter.prototype.deleteAndRender = function (source_start_iter, source_end_iter, editor, direction) {
         var _this = this;
-        var iter = source_iter.clone();
-        var return_iter = iter.get().caseOf({
-            just: function (glyph) {
-                return glyph.getNode().caseOf({
-                    just: function (node) {
-                        return _this._deleteGlyphAndRerender(iter, node, editor, direction);
-                    },
-                    nothing: function () {
-                        // If node was not rendered, nothing to do but remove the cell.
-                        iter.remove(direction);
-                        return iter.clone();
-                    }
-                });
-            },
-            nothing: function () {
-                // The cell is empty. Might as well delete it.
-                iter.remove(direction);
-                return iter.clone();
-            }
-        });
-        return return_iter;
+        var start_iter = source_start_iter.clone();
+        var end_iter = source_end_iter.clone();
+        if (start_iter.equals(end_iter)) {
+            var return_iter = start_iter.get().caseOf({
+                just: function (glyph) {
+                    return glyph.getNode().caseOf({
+                        just: function (node) {
+                            return _this._deleteGlyphAndRerender(start_iter, node, editor, direction);
+                        },
+                        nothing: function () {
+                            // If node was not rendered, nothing to do but remove the cell.
+                            start_iter.remove(direction);
+                            return start_iter.clone();
+                        }
+                    });
+                },
+                nothing: function () {
+                    // The cell is empty. Might as well delete it.
+                    start_iter.remove(direction);
+                    return start_iter.clone();
+                }
+            });
+            return [return_iter.clone(), return_iter.clone()];
+        }
+        else {
+            // TODO - do something different if the selection is spread out.
+        }
+        return [start_iter.clone(), end_iter.clone()];
     };
     EditorDeleter.prototype._deleteGlyphAndRerender = function (source_iter, node, editor, direction) {
         var deadNode = jquery_1.default(node);
@@ -113,8 +120,9 @@ var EditorDeleter = /** @class */ (function () {
                 renderIterator.insertAfter(new glyph_1.Glyph("\n", new glyph_1.GlyphStyle()));
             }
             while (!renderIterator.equals(endIterator)) {
+                // rerender all the needed glyphs.
                 renderIterator.next();
-                this.renderer.render(renderIterator, editor);
+                this.renderer.render(renderIterator, renderIterator, editor);
             }
         }
         else if (isGlyph) {

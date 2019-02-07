@@ -66,6 +66,10 @@ function getDistanceFromLineStart(source_iter: DoubleIterator<Glyph>): Maybe<num
     }
 }
 
+/**
+ * @description Returns an iterator to previous newline if found. Otherwise returns Nothign.
+ * @param source_iter - not modified
+ */
 function findPreviousNewline(source_iter: DoubleIterator<Glyph>): Maybe< DoubleIterator<Glyph> > {
     let iter = source_iter.clone();
     let found = false;
@@ -104,9 +108,35 @@ function findNextLineOrLast(source_iter: DoubleIterator<Glyph>): DoubleIterator<
     return iter;
 }
 
+function findLineEnd(source_iter: DoubleIterator<Glyph>): DoubleIterator<Glyph> {
+    let iter = source_iter.clone();
+    let found = false;
+    while(iter.hasNext() && !found) {
+        iter.next();
+        found = iter.get().caseOf({ 
+            just: (glyph) => {
+                return glyph.glyph === Strings.newline;
+            },
+            nothing: () => {
+                return false;
+            }
+        });
+    }
+
+    if(found) {
+        // If we found the newline, we want the previous char.
+        iter.prev();
+    } else {
+        // Otherwise the iterator is pointed at the last char in the list.
+    } 
+
+    return iter;
+}
+
 export {
     getDistanceFromNextLine,
     getDistanceFromLineStart,
     findPreviousNewline,
-    findNextLineOrLast
+    findNextLineOrLast,
+    findLineEnd
 };

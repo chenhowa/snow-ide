@@ -19613,6 +19613,10 @@ function getDistanceFromLineStart(source_iter) {
     }
 }
 exports.getDistanceFromLineStart = getDistanceFromLineStart;
+/**
+ * @description Returns an iterator to previous newline if found. Otherwise returns Nothign.
+ * @param source_iter - not modified
+ */
 function findPreviousNewline(source_iter) {
     var iter = source_iter.clone();
     var found = false;
@@ -19651,6 +19655,30 @@ function findNextLineOrLast(source_iter) {
     return iter;
 }
 exports.findNextLineOrLast = findNextLineOrLast;
+function findLineEnd(source_iter) {
+    var iter = source_iter.clone();
+    var found = false;
+    while (iter.hasNext() && !found) {
+        iter.next();
+        found = iter.get().caseOf({
+            just: function (glyph) {
+                return glyph.glyph === string_map_1.default.newline;
+            },
+            nothing: function () {
+                return false;
+            }
+        });
+    }
+    if (found) {
+        // If we found the newline, we want the previous char.
+        iter.prev();
+    }
+    else {
+        // Otherwise the iterator is pointed at the last char in the list.
+    }
+    return iter;
+}
+exports.findLineEnd = findLineEnd;
 
 },{"string-map":114,"tsmonad":99}],105:[function(require,module,exports){
 "use strict";
@@ -20473,13 +20501,12 @@ var KeydownHandler = /** @class */ (function () {
             var final_iter_2 = start_iter.clone();
             editor_utils_1.getDistanceFromLineStart(start_iter).caseOf({
                 just: function (distance) {
-                    var nextOrEndIter = editor_utils_1.findNextLineOrLast(start_iter);
-                    console.log("next or end was ");
-                    console.log(nextOrEndIter.grab());
-                    var foundNext = nextOrEndIter.hasNext();
+                    var line_end_iter = editor_utils_1.findLineEnd(start_iter);
+                    var foundNext = line_end_iter.hasNext();
                     if (foundNext) {
                         // We found the next new line, or there was no next newline.
-                        final_iter_2 = nextOrEndIter.clone();
+                        final_iter_2 = line_end_iter.clone();
+                        final_iter_2.next();
                         var _loop_1 = function () {
                             final_iter_2.next();
                             var tooFar = false;
@@ -20692,6 +20719,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var string_map_1 = __importDefault(require("string-map"));
 var jquery_1 = __importDefault(require("jquery"));
+var editor_utils_1 = require("editor/editor-utils");
 var EditorRenderer = /** @class */ (function () {
     function EditorRenderer() {
     }
@@ -20725,6 +20753,37 @@ var EditorRenderer = /** @class */ (function () {
         }
         else {
             // TODO : How to rerender the set of nodes contained within two start and end iterators?
+            // ANSWER. - from start node + 1, find soonest previous newline (inclusive).
+            //         - from end node, from next newline (or EOF).
+            //      Then rerender starting from the previous newline to ONE BEFORE the next newline
+            start_iter.next();
+            var prev_line_iter_1 = editor_utils_1.findPreviousNewline(start_iter).caseOf({
+                just: function (iter) {
+                    return iter;
+                },
+                nothing: function () {
+                    return start_iter.clone();
+                }
+            });
+            var end_of_line_iter = editor_utils_1.findLineEnd(end_iter);
+            while (prev_line_iter_1.isValid()) {
+                prev_line_iter_1.get().caseOf({
+                    just: function (glyph) {
+                        _this.render(prev_line_iter_1, prev_line_iter_1, editor);
+                    },
+                    nothing: function () {
+                        // Nothing to render.
+                    }
+                });
+                if (prev_line_iter_1.equals(end_of_line_iter)) {
+                    // If we've rendered up to the end of line, we're done.
+                    break;
+                }
+                else {
+                    // Otherwise continue trying rendering.
+                    prev_line_iter_1.next();
+                }
+            }
         }
     };
     EditorRenderer.prototype._rerenderNode = function (iter, node, editor) {
@@ -20743,8 +20802,8 @@ var EditorRenderer = /** @class */ (function () {
      * @param iter // iterator pointing at the newline to rerender.
      * @param editor
      */
-    EditorRenderer.prototype._rerenderLine = function (iter, editor) {
-        // TODO: Fix bug. Presseing enter in a 3 line text deletes the next-next line.
+    EditorRenderer.prototype._rerenderLine = function (source_iter, editor) {
+        var iter = source_iter.clone();
         // destroy rerendering newline, if it exists.
         iter.get().caseOf({
             just: function (glyph) {
@@ -20753,62 +20812,29 @@ var EditorRenderer = /** @class */ (function () {
             nothing: function () {
             }
         });
-        var back_iter = iter.clone();
-        var foundPrevLine = false;
-        while (back_iter.hasPrev() && !foundPrevLine) {
-            back_iter.prev();
-            back_iter.get().caseOf({
-                just: function (glyph) {
-                    glyph.getNode().caseOf({
-                        just: function (node) {
-                            foundPrevLine = jquery_1.default(node).hasClass(string_map_1.default.lineName());
-                            glyph.destroyNode();
-                        },
-                        nothing: function () {
-                            // Nothing to destroy. Do nothing.
-                        }
-                    });
-                },
-                nothing: function () {
-                    // Nothing to rerender. Do nothing.
-                }
-            });
-        }
-        var forward_iter = iter.clone();
-        var foundNextLine = false;
-        while (forward_iter.hasNext() && !foundNextLine) {
-            forward_iter.next();
-            forward_iter.get().caseOf({
-                just: function (glyph) {
-                    glyph.getNode().caseOf({
-                        just: function (node) {
-                            foundNextLine = jquery_1.default(node).hasClass(string_map_1.default.lineName());
-                        },
-                        nothing: function () {
-                            // Nothing to destroy. Do nothing.
-                        }
-                    });
-                },
-                nothing: function () {
-                    // Nothing to destroy.
-                }
-            });
-        }
-        var end_iter = forward_iter.clone();
-        if (foundNextLine) {
-            end_iter.prev(); // Rerendering will end and include this iterator, and NOT the next newline.
-        }
-        //Prepare to rerender.
-        var rerender_iter = back_iter.clone();
-        rerender_iter.prev();
-        while (!rerender_iter.equals(end_iter)) {
-            rerender_iter.next();
-            this.render(rerender_iter, rerender_iter, editor);
+        var prev_line_iter = editor_utils_1.findPreviousNewline(iter).caseOf({
+            just: function (prev) {
+                return prev;
+            },
+            nothing: function () {
+                return iter.clone();
+            }
+        });
+        var line_end_iter = editor_utils_1.findLineEnd(iter);
+        while (prev_line_iter.isValid()) {
+            this.render(prev_line_iter, prev_line_iter, editor);
+            if (prev_line_iter.equals(line_end_iter)) {
+                break;
+            }
+            else {
+                prev_line_iter.next();
+            }
         }
     };
     /**
      * @description Renders the node within the editor. Will destroy existing representations if they exist.
-     *              Meant for rendering SINGLE NODES. Will not correctly render newlines, for exaple.
+     *              Meant for rendering SINGLE NODES, regardless of surrounding context.
+     *              Will not correctly render newly inserted newlines, for exaple.
      *              Use rerender instead.
      * @param start_iter - Not modified.
      * @param end_iter - Not modified.
@@ -20964,7 +20990,7 @@ var EditorRenderer = /** @class */ (function () {
 }());
 exports.EditorRenderer = EditorRenderer;
 
-},{"jquery":1,"string-map":114}],113:[function(require,module,exports){
+},{"editor/editor-utils":104,"jquery":1,"string-map":114}],113:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };

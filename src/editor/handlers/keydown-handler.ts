@@ -10,7 +10,8 @@ import Strings from "string-map";
 import { 
     getDistanceFromLineStart, 
     findPreviousNewline,
-    findNextLineOrLast } from "editor/editor-utils";
+    findLineEnd,
+} from "editor/editor-utils";
 import { KeyPressMap } from "editor/keypress-map";
 
 class KeydownHandler implements Handler {
@@ -300,14 +301,13 @@ class KeydownHandler implements Handler {
             let final_iter = start_iter.clone();
             getDistanceFromLineStart(start_iter).caseOf({
                 just: (distance) => {
-                    let nextOrEndIter = findNextLineOrLast(start_iter);
-                    console.log("next or end was ")
-                    console.log(nextOrEndIter.grab());
-                    let foundNext = nextOrEndIter.hasNext();
+                    let line_end_iter = findLineEnd(start_iter);
+                    let foundNext = line_end_iter.hasNext();
 
                     if(foundNext) {
                         // We found the next new line, or there was no next newline.
-                        final_iter = nextOrEndIter.clone();
+                        final_iter = line_end_iter.clone();
+                        final_iter.next();
                         for(var i = 0; i < distance; i++) {
                             final_iter.next();
                             let tooFar = false;

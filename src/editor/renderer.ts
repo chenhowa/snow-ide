@@ -1,12 +1,15 @@
 
-import { ToNode } from "editor/glyph";
+import { Glyph } from "editor/glyph";
 import { DoubleIterator } from "data_structures/linked-list";
 import Strings from "string-map";
 import $ from "jquery";
+import {
+    findPreviousNewline,
+    findLineEnd } from "editor/editor-utils";
 
 interface Renderer {
-    render(start_iter: DoubleIterator<ToNode>, end_iter: DoubleIterator<ToNode>, editor: Node): void;
-    rerender(start_iter: DoubleIterator<ToNode>, end_iter: DoubleIterator<ToNode>, editor: Node): void;
+    render(start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>, editor: Node): void;
+    rerender(start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>, editor: Node): void;
 }
 
 
@@ -22,7 +25,7 @@ class EditorRenderer implements Renderer {
      * @param source_end_iter - Not modified
      * @param editor  - Modified.
      */
-    rerender(source_start_iter: DoubleIterator<ToNode>, source_end_iter: DoubleIterator<ToNode>, editor: Node)
+    rerender(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>, editor: Node)
                                                                             : void {
         let start_iter = source_start_iter.clone();
         let end_iter = source_end_iter.clone();
@@ -44,12 +47,42 @@ class EditorRenderer implements Renderer {
             });
         } else {
             // TODO : How to rerender the set of nodes contained within two start and end iterators?
-            // ANSWER. - from start node, find soonest previous newline (inclusive).
-            //         - from end node, 
+            // ANSWER. - from start node + 1, find soonest previous newline (inclusive).
+            //         - from end node, from next newline (or EOF).
+            //      Then rerender starting from the previous newline to ONE BEFORE the next newline
+            start_iter.next();
+            let prev_line_iter: DoubleIterator<Glyph> = findPreviousNewline(start_iter).caseOf({
+                just: (iter) => {
+                    return iter;
+                },
+                nothing: () => {
+                    return start_iter.clone();
+                }
+            });
+
+            let end_of_line_iter: DoubleIterator<Glyph> = findLineEnd(end_iter);
+            while(prev_line_iter.isValid()) {
+                prev_line_iter.get().caseOf({
+                    just: (glyph) => {
+                        this.render(prev_line_iter, prev_line_iter, editor);
+                    },
+                    nothing: () => {
+                        // Nothing to render.
+                    }
+                })
+
+                if(prev_line_iter.equals(end_of_line_iter)) {
+                    // If we've rendered up to the end of line, we're done.
+                    break;
+                } else {
+                    // Otherwise continue trying rendering.
+                    prev_line_iter.next();
+                }
+            }
         }
     }
 
-    _rerenderNode(iter: DoubleIterator<ToNode>, node: Node, editor: Node) {
+    _rerenderNode(iter: DoubleIterator<Glyph>, node: Node, editor: Node) {
         let newNode = $(node);
         if(newNode.hasClass(Strings.lineName())) {
             this._rerenderLine(iter, editor);
@@ -65,8 +98,8 @@ class EditorRenderer implements Renderer {
      * @param iter // iterator pointing at the newline to rerender.
      * @param editor 
      */
-    _rerenderLine(iter: DoubleIterator<ToNode>, editor: Node) {
-        // TODO: Fix bug. Presseing enter in a 3 line text deletes the next-next line.
+    _rerenderLine(source_iter: DoubleIterator<Glyph>, editor: Node) {
+        let iter = source_iter.clone();
 
         // destroy rerendering newline, if it exists.
         iter.get().caseOf({
@@ -78,73 +111,38 @@ class EditorRenderer implements Renderer {
             }
         })
 
-        let back_iter = iter.clone();
-        let foundPrevLine = false;
-        while(back_iter.hasPrev() && !foundPrevLine) {
-            back_iter.prev();
-            back_iter.get().caseOf({
-                just: (glyph) => {
-                    glyph.getNode().caseOf({
-                        just: (node) => {
-                            foundPrevLine = $(node).hasClass(Strings.lineName())
-                            glyph.destroyNode();
-                        },
-                        nothing: () => {
-                            // Nothing to destroy. Do nothing.
-                        }
-                    })
-                },
-                nothing: () => {
-                    // Nothing to rerender. Do nothing.
-                }
-            })
-        }
+        let prev_line_iter = findPreviousNewline(iter).caseOf({
+            just: (prev) => {
+                return prev;
+            },
+            nothing: () => {
+                return iter.clone();
+            }
+        });
 
-        let forward_iter = iter.clone();
-        let foundNextLine = false;
-        while(forward_iter.hasNext() && !foundNextLine) {
-            forward_iter.next();
-            forward_iter.get().caseOf({
-                just: (glyph) => {
-                    glyph.getNode().caseOf({
-                        just: (node) => {
-                            foundNextLine = $(node).hasClass(Strings.lineName());
-                        },
-                        nothing: () => {
-                            // Nothing to destroy. Do nothing.
-                        }
-                    })
-                },
-                nothing: () => {
-                    // Nothing to destroy.
-                }
-            });
-        }
+        let line_end_iter = findLineEnd(iter);
+        while(prev_line_iter.isValid()) {
+            this.render(prev_line_iter, prev_line_iter, editor);
 
-        let end_iter = forward_iter.clone();
-        if(foundNextLine) {
-            end_iter.prev(); // Rerendering will end and include this iterator, and NOT the next newline.
-        }
-
-        //Prepare to rerender.
-        let rerender_iter = back_iter.clone();
-        rerender_iter.prev();
-        while(!rerender_iter.equals(end_iter)) {
-            rerender_iter.next();
-            this.render(rerender_iter, rerender_iter, editor);
+            if(prev_line_iter.equals(line_end_iter)) {
+                break;
+            } else {
+                prev_line_iter.next();
+            }
         }
     }
 
 
     /**
      * @description Renders the node within the editor. Will destroy existing representations if they exist.
-     *              Meant for rendering SINGLE NODES. Will not correctly render newlines, for exaple.
+     *              Meant for rendering SINGLE NODES, regardless of surrounding context. 
+     *              Will not correctly render newly inserted newlines, for exaple.
      *              Use rerender instead.
      * @param start_iter - Not modified.
      * @param end_iter - Not modified.
      * @param editor - modified.
      */
-    render(source_start_iter: DoubleIterator<ToNode>, source_end_iter: DoubleIterator<ToNode>, editor: Node)
+    render(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>, editor: Node)
                                                             : void {
         let start_iter = source_start_iter.clone();
         let end_iter = source_end_iter.clone();
@@ -180,7 +178,7 @@ class EditorRenderer implements Renderer {
         }
     }
 
-    _renderNode(iter: DoubleIterator<ToNode>, node: Node, editor: Node) {
+    _renderNode(iter: DoubleIterator<Glyph>, node: Node, editor: Node) {
         /* Where do we render it? And how? We decide based on the current
             character and the previous character. We have several cases:
 
@@ -195,7 +193,7 @@ class EditorRenderer implements Renderer {
         }
     }
 
-    _renderLine(iter: DoubleIterator<ToNode>, newline: Node, editor: Node) {
+    _renderLine(iter: DoubleIterator<Glyph>, newline: Node, editor: Node) {
         //1. Current is newline. Then we insert after current line, or if that is not found, we assume editor is empty and append.
         let scan_iter = iter.clone();
         let found_valid_prev = false;
@@ -241,7 +239,7 @@ class EditorRenderer implements Renderer {
         }
     }
 
-    _renderGlyph(iter: DoubleIterator<ToNode>, new_glyph: Node, editor: Node) {
+    _renderGlyph(iter: DoubleIterator<Glyph>, new_glyph: Node, editor: Node) {
         //2. Current is NOT newline. Then we insert in current line (after prev glyph), or if that is not found, we insert after previous glyph.
         let scan_iter = iter.clone();
         let found_valid_prev = false;

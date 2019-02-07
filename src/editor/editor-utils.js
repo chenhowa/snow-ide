@@ -70,6 +70,10 @@ function getDistanceFromLineStart(source_iter) {
     }
 }
 exports.getDistanceFromLineStart = getDistanceFromLineStart;
+/**
+ * @description Returns an iterator to previous newline if found. Otherwise returns Nothign.
+ * @param source_iter - not modified
+ */
 function findPreviousNewline(source_iter) {
     var iter = source_iter.clone();
     var found = false;
@@ -108,3 +112,27 @@ function findNextLineOrLast(source_iter) {
     return iter;
 }
 exports.findNextLineOrLast = findNextLineOrLast;
+function findLineEnd(source_iter) {
+    var iter = source_iter.clone();
+    var found = false;
+    while (iter.hasNext() && !found) {
+        iter.next();
+        found = iter.get().caseOf({
+            just: function (glyph) {
+                return glyph.glyph === string_map_1.default.newline;
+            },
+            nothing: function () {
+                return false;
+            }
+        });
+    }
+    if (found) {
+        // If we found the newline, we want the previous char.
+        iter.prev();
+    }
+    else {
+        // Otherwise the iterator is pointed at the last char in the list.
+    }
+    return iter;
+}
+exports.findLineEnd = findLineEnd;

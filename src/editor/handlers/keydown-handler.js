@@ -260,13 +260,12 @@ var KeydownHandler = /** @class */ (function () {
             var final_iter_2 = start_iter.clone();
             editor_utils_1.getDistanceFromLineStart(start_iter).caseOf({
                 just: function (distance) {
-                    var nextOrEndIter = editor_utils_1.findNextLineOrLast(start_iter);
-                    console.log("next or end was ");
-                    console.log(nextOrEndIter.grab());
-                    var foundNext = nextOrEndIter.hasNext();
+                    var line_end_iter = editor_utils_1.findLineEnd(start_iter);
+                    var foundNext = line_end_iter.hasNext();
                     if (foundNext) {
                         // We found the next new line, or there was no next newline.
-                        final_iter_2 = nextOrEndIter.clone();
+                        final_iter_2 = line_end_iter.clone();
+                        final_iter_2.next();
                         var _loop_1 = function () {
                             final_iter_2.next();
                             var tooFar = false;

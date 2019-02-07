@@ -18,6 +18,8 @@ var ClickHandler = /** @class */ (function () {
         this.editor = editor;
     }
     ClickHandler.prototype.handle = function (event, source_iter) {
+        console.log(event);
+        console.log(event.target);
         var iter = source_iter.clone();
         if (this.cursor.selection.containsNode(this.editor, false)) {
             console.log("CONTAINS NODE");
@@ -34,19 +36,56 @@ var ClickHandler = /** @class */ (function () {
             4. in the editor node.
         */
         if (this.cursor.isCollapsed()) {
+            console.log("COLLAPSED");
             var node = this.cursor.selection.anchorNode;
             var before = this.cursor.selection.anchorOffset === 0;
             this.start_iter = this._getIterator(node, before, iter);
             this.end_iter = this._getIterator(node, before, iter);
         }
         else {
+            console.log("SPREAD OUT");
             // If the selection is NOT collapsed and is entirely within the editor, we can try to set the start and end iterators.
             var start_node = this.cursor.selection.anchorNode;
             var before_start = this.cursor.selection.anchorOffset === 0;
-            this.start_iter = this._getIterator(start_node, before_start, iter);
+            var start_iter = this._getIterator(start_node, before_start, iter);
+            var first_distance_1 = 0;
+            start_iter.caseOf({
+                just: function (iterator) {
+                    var it = iterator.clone();
+                    while (it.hasPrev()) {
+                        it.prev();
+                        first_distance_1 += 1;
+                    }
+                },
+                nothing: function () { }
+            });
             var end_node = this.cursor.selection.focusNode;
             var before_end = this.cursor.selection.focusOffset === 0;
-            this.end_iter = this._getIterator(end_node, before_end, iter);
+            var end_iter = this._getIterator(end_node, before_end, iter);
+            var second_distance_1 = 0;
+            end_iter.caseOf({
+                just: function (iterator) {
+                    var it = iterator.clone();
+                    while (it.hasPrev()) {
+                        it.prev();
+                        second_distance_1 += 1;
+                    }
+                },
+                nothing: function () { }
+            });
+            // Set which is actually start and end by the distance to start of the document.
+            if (first_distance_1 <= second_distance_1) {
+                //First is first
+                console.log("FIRST");
+                this.start_iter = start_iter;
+                this.end_iter = end_iter;
+            }
+            else {
+                // Second is first.
+                console.log("SECOND");
+                this.start_iter = end_iter;
+                this.end_iter = start_iter;
+            }
         }
         event.preventDefault();
     };

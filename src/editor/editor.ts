@@ -262,19 +262,11 @@ class Editor {
             let start_glyph = start.grab();
             let end_glyph = end.grab();
 
-            console.log("START ANCHOR");
-            console.log(start_glyph);
-
-            console.log("END ANCHOR");
-            console.log(end_glyph);
-
             this.cursor.selection.empty();
             let range = new Range();
 
             start_glyph.getNode().caseOf({
                 just: (start_node) => {
-                    console.log("Set start");
-                    console.log(start_node);
                     if($(start_node).hasClass(Strings.lineName())) {
                         let firstGlyph = $(start_node).children(Strings.glyphSelector()).first();
                         if(firstGlyph.length > 0 ) {
@@ -292,8 +284,6 @@ class Editor {
 
             end_glyph.getNode().caseOf({
                 just: (end_node) => {
-                    console.log("Set end");
-                    console.log(end_node);
                     if($(end_node).hasClass(Strings.lineName())) {
                         let firstGlyph = $(end_node).children(Strings.glyphSelector()).first();
                         if(firstGlyph.length > 0 ) {

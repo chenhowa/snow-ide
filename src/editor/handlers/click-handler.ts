@@ -24,6 +24,8 @@ class ClickHandler implements Handler {
     }
 
     handle(event: any, source_iter: DoubleIterator<Glyph>) {
+        console.log(event);
+        console.log(event.target);
         let iter = source_iter.clone();
 
         if(this.cursor.selection.containsNode(this.editor, false)) {
@@ -42,20 +44,59 @@ class ClickHandler implements Handler {
             4. in the editor node.
         */
         if(this.cursor.isCollapsed()) {
+            console.log("COLLAPSED");
             let node = this.cursor.selection.anchorNode;
             let before = this.cursor.selection.anchorOffset === 0;
 
             this.start_iter = this._getIterator(node, before, iter);
             this.end_iter = this._getIterator(node, before, iter);
         } else {
+            console.log("SPREAD OUT");
+
             // If the selection is NOT collapsed and is entirely within the editor, we can try to set the start and end iterators.
             let start_node = this.cursor.selection.anchorNode;
             let before_start = this.cursor.selection.anchorOffset === 0;
-            this.start_iter = this._getIterator(start_node, before_start, iter);
+            let start_iter = this._getIterator(start_node, before_start, iter);
+            let first_distance = 0;
+            start_iter.caseOf({
+                just: (iterator) => {
+                    let it = iterator.clone();
+                    while(it.hasPrev()) {
+                        it.prev();
+                        first_distance += 1;
+                    }
+                },
+                nothing: () => {}
+            });
 
             let end_node = this.cursor.selection.focusNode;
             let before_end = this.cursor.selection.focusOffset === 0;
-            this.end_iter = this._getIterator(end_node, before_end, iter);
+            let end_iter = this._getIterator(end_node, before_end, iter);
+            let second_distance = 0;
+            end_iter.caseOf({
+                just: (iterator) => {
+                    let it = iterator.clone();
+                    while(it.hasPrev()) {
+                        it.prev();
+                        second_distance += 1;
+                    }
+                },
+                nothing: () => {}
+            });
+
+            // Set which is actually start and end by the distance to start of the document.
+            if(first_distance <= second_distance) {
+                //First is first
+                console.log("FIRST");
+                this.start_iter = start_iter;
+                this.end_iter = end_iter;
+            } else {
+                // Second is first.
+                console.log("SECOND");
+                this.start_iter = end_iter;
+                this.end_iter = start_iter;
+            }
+
         }
 
         event.preventDefault();

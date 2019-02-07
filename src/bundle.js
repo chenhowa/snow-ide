@@ -19858,16 +19858,10 @@ var Editor = /** @class */ (function () {
             // to valid nodes (not sentinel and not empty);
             var start_glyph = start.grab();
             var end_glyph = end.grab();
-            console.log("START ANCHOR");
-            console.log(start_glyph);
-            console.log("END ANCHOR");
-            console.log(end_glyph);
             this.cursor.selection.empty();
             var range_1 = new Range();
             start_glyph.getNode().caseOf({
                 just: function (start_node) {
-                    console.log("Set start");
-                    console.log(start_node);
                     if (jquery_1.default(start_node).hasClass(string_map_1.default.lineName())) {
                         var firstGlyph = jquery_1.default(start_node).children(string_map_1.default.glyphSelector()).first();
                         if (firstGlyph.length > 0) {
@@ -19885,8 +19879,6 @@ var Editor = /** @class */ (function () {
             });
             end_glyph.getNode().caseOf({
                 just: function (end_node) {
-                    console.log("Set end");
-                    console.log(end_node);
                     if (jquery_1.default(end_node).hasClass(string_map_1.default.lineName())) {
                         var firstGlyph = jquery_1.default(end_node).children(string_map_1.default.glyphSelector()).first();
                         if (firstGlyph.length > 0) {
@@ -20002,6 +19994,8 @@ var ClickHandler = /** @class */ (function () {
         this.editor = editor;
     }
     ClickHandler.prototype.handle = function (event, source_iter) {
+        console.log(event);
+        console.log(event.target);
         var iter = source_iter.clone();
         if (this.cursor.selection.containsNode(this.editor, false)) {
             console.log("CONTAINS NODE");
@@ -20018,19 +20012,56 @@ var ClickHandler = /** @class */ (function () {
             4. in the editor node.
         */
         if (this.cursor.isCollapsed()) {
+            console.log("COLLAPSED");
             var node = this.cursor.selection.anchorNode;
             var before = this.cursor.selection.anchorOffset === 0;
             this.start_iter = this._getIterator(node, before, iter);
             this.end_iter = this._getIterator(node, before, iter);
         }
         else {
+            console.log("SPREAD OUT");
             // If the selection is NOT collapsed and is entirely within the editor, we can try to set the start and end iterators.
             var start_node = this.cursor.selection.anchorNode;
             var before_start = this.cursor.selection.anchorOffset === 0;
-            this.start_iter = this._getIterator(start_node, before_start, iter);
+            var start_iter = this._getIterator(start_node, before_start, iter);
+            var first_distance_1 = 0;
+            start_iter.caseOf({
+                just: function (iterator) {
+                    var it = iterator.clone();
+                    while (it.hasPrev()) {
+                        it.prev();
+                        first_distance_1 += 1;
+                    }
+                },
+                nothing: function () { }
+            });
             var end_node = this.cursor.selection.focusNode;
             var before_end = this.cursor.selection.focusOffset === 0;
-            this.end_iter = this._getIterator(end_node, before_end, iter);
+            var end_iter = this._getIterator(end_node, before_end, iter);
+            var second_distance_1 = 0;
+            end_iter.caseOf({
+                just: function (iterator) {
+                    var it = iterator.clone();
+                    while (it.hasPrev()) {
+                        it.prev();
+                        second_distance_1 += 1;
+                    }
+                },
+                nothing: function () { }
+            });
+            // Set which is actually start and end by the distance to start of the document.
+            if (first_distance_1 <= second_distance_1) {
+                //First is first
+                console.log("FIRST");
+                this.start_iter = start_iter;
+                this.end_iter = end_iter;
+            }
+            else {
+                // Second is first.
+                console.log("SECOND");
+                this.start_iter = end_iter;
+                this.end_iter = start_iter;
+            }
         }
         event.preventDefault();
     };

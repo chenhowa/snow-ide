@@ -229,16 +229,10 @@ var Editor = /** @class */ (function () {
             // to valid nodes (not sentinel and not empty);
             var start_glyph = start.grab();
             var end_glyph = end.grab();
-            console.log("START ANCHOR");
-            console.log(start_glyph);
-            console.log("END ANCHOR");
-            console.log(end_glyph);
             this.cursor.selection.empty();
             var range_1 = new Range();
             start_glyph.getNode().caseOf({
                 just: function (start_node) {
-                    console.log("Set start");
-                    console.log(start_node);
                     if (jquery_1.default(start_node).hasClass(string_map_1.default.lineName())) {
                         var firstGlyph = jquery_1.default(start_node).children(string_map_1.default.glyphSelector()).first();
                         if (firstGlyph.length > 0) {
@@ -256,8 +250,6 @@ var Editor = /** @class */ (function () {
             });
             end_glyph.getNode().caseOf({
                 just: function (end_node) {
-                    console.log("Set end");
-                    console.log(end_node);
                     if (jquery_1.default(end_node).hasClass(string_map_1.default.lineName())) {
                         var firstGlyph = jquery_1.default(end_node).children(string_map_1.default.glyphSelector()).first();
                         if (firstGlyph.length > 0) {

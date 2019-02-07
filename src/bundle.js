@@ -19400,7 +19400,7 @@ var Cursor = /** @class */ (function () {
 }());
 exports.default = Cursor;
 
-},{"jquery":1,"string-map":112}],103:[function(require,module,exports){
+},{"jquery":1,"string-map":114}],103:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -19532,7 +19532,7 @@ var EditorDeleter = /** @class */ (function () {
 }());
 exports.EditorDeleter = EditorDeleter;
 
-},{"editor/glyph":106,"jquery":1,"string-map":112}],104:[function(require,module,exports){
+},{"editor/glyph":106,"jquery":1,"string-map":114}],104:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -19626,7 +19626,7 @@ function findPreviousNewline(source_iter) {
 }
 exports.findPreviousNewline = findPreviousNewline;
 
-},{"string-map":112,"tsmonad":99}],105:[function(require,module,exports){
+},{"string-map":114,"tsmonad":99}],105:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -19641,8 +19641,7 @@ var rxjs_1 = require("rxjs");
 var string_map_1 = __importDefault(require("string-map"));
 var renderer_1 = require("editor/renderer");
 var deleter_1 = require("editor/deleter");
-var click_handler_1 = __importDefault(require("editor/handlers/click-handler"));
-var keydown_handler_1 = __importDefault(require("editor/handlers/keydown-handler"));
+var handlers_1 = require("editor/handlers/handlers");
 var keypress_map_1 = require("editor/keypress-map");
 var Editor = /** @class */ (function () {
     function Editor(editor_id) {
@@ -19660,8 +19659,9 @@ var Editor = /** @class */ (function () {
         this.glyphs = new linked_list_1.LinkedList();
         this.start_glyph_iter = this.glyphs.makeFrontIterator();
         this.end_glyph_iter = this.glyphs.makeFrontIterator();
-        this.keydowner = new keydown_handler_1.default(this.renderer, this.deleter, this.cursor, this.editor.get(0), this.keypress_map);
-        this.clicker = new click_handler_1.default(this.cursor, this.editor.get(0));
+        this.keydowner = new handlers_1.KeydownHandler(this.renderer, this.deleter, this.cursor, this.editor.get(0), this.keypress_map);
+        this.clicker = new handlers_1.ClickHandler(this.cursor, this.editor.get(0));
+        this.mouse_clicker = new handlers_1.MouseClickHandler(this.cursor, this.editor.get(0));
         if (this.valid()) {
             this.reset();
         }
@@ -19702,6 +19702,17 @@ var Editor = /** @class */ (function () {
         var _this = this;
         // Render initial state of document.
         this.rerender();
+        /*let mouseDownUpObs = merge(fromEvent(this.editor, 'mousedown'), fromEvent(this.editor, 'mouseup')).pipe(pairwise());
+        let mouseDownUpSub = mouseDownUpObs.subscribe({
+            next: (eventPair: Array<any>) => {
+                this.mouse_clicker.handle(eventPair, this.glyphs.makeFrontIterator());
+                this._updateIteratorsFromHandler(this.mouse_clicker);
+                this.updateCursorToCurrent();
+
+            },
+            error: (err) => { },
+            complete: () => {}
+        });*/
         var keyupObs = rxjs_1.fromEvent(this.editor, 'keyup');
         var keyupSub = keyupObs.subscribe({
             next: function (event) {
@@ -19725,9 +19736,34 @@ var Editor = /** @class */ (function () {
             error: function (err) { },
             complete: function () { }
         });
+        var mouseDownObs = rxjs_1.fromEvent(this.editor, 'mousedown');
+        var mouseDownSub = mouseDownObs.subscribe({
+            next: function (event) {
+                // Need to collapse selection on mouse down because otherwise it breaks a bunch of other shit
+                // in chrome.
+                console.log("MOUSE DOWN");
+                if (_this.cursor.isSelection()) {
+                    // If is selection, start mousedown by collapsing the selection.
+                    console.log("ABOUT TO COLLAPSE SELECTION");
+                    _this.cursor.selection.removeAllRanges();
+                }
+            },
+            error: function (err) { },
+            complete: function () { }
+        });
+        var mouseUpObs = rxjs_1.fromEvent(this.editor, 'mouseup');
+        var mouseUpSub = mouseUpObs.subscribe({
+            next: function (event) {
+                // TODO : Do something on mouseup, in case you mouse up outside of div, but had moused down in.
+                // TODO : Do something on mousedown, in case you mouse down outside of editor but mouse up in.
+            },
+            error: function (err) { },
+            complete: function () { }
+        });
         var clickObs = rxjs_1.fromEvent(this.editor, 'click');
         var clickSub = clickObs.subscribe({
             next: function (event) {
+                console.log('mouseup');
                 _this.clicker.handle(event, _this.glyphs.makeFrontIterator());
                 _this._updateIteratorsFromHandler(_this.clicker);
                 _this.updateCursorToCurrent();
@@ -19909,7 +19945,7 @@ var Editor = /** @class */ (function () {
 }());
 exports.default = Editor;
 
-},{"data_structures/linked-list":101,"editor/cursor":102,"editor/deleter":103,"editor/glyph":106,"editor/handlers/click-handler":107,"editor/handlers/keydown-handler":108,"editor/keypress-map":109,"editor/renderer":110,"jquery":1,"rxjs":2,"string-map":112,"tsmonad":99}],106:[function(require,module,exports){
+},{"data_structures/linked-list":101,"editor/cursor":102,"editor/deleter":103,"editor/glyph":106,"editor/handlers/handlers":108,"editor/keypress-map":111,"editor/renderer":112,"jquery":1,"rxjs":2,"string-map":114,"tsmonad":99}],106:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -19973,7 +20009,7 @@ var GlyphStyle = /** @class */ (function () {
 }());
 exports.GlyphStyle = GlyphStyle;
 
-},{"jquery":1,"string-map":112,"tsmonad":99}],107:[function(require,module,exports){
+},{"jquery":1,"string-map":114,"tsmonad":99}],107:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -19994,6 +20030,8 @@ var ClickHandler = /** @class */ (function () {
         this.editor = editor;
     }
     ClickHandler.prototype.handle = function (event, source_iter) {
+        console.log("CLICKED EDITOR");
+        console.log(this.cursor.selection);
         console.log(event);
         console.log(event.target);
         var iter = source_iter.clone();
@@ -20129,7 +20167,20 @@ var ClickHandler = /** @class */ (function () {
 }());
 exports.default = ClickHandler;
 
-},{"jquery":1,"string-map":112,"tsmonad":99}],108:[function(require,module,exports){
+},{"jquery":1,"string-map":114,"tsmonad":99}],108:[function(require,module,exports){
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var click_handler_1 = __importDefault(require("editor/handlers/click-handler"));
+exports.ClickHandler = click_handler_1.default;
+var keydown_handler_1 = __importDefault(require("editor/handlers/keydown-handler"));
+exports.KeydownHandler = keydown_handler_1.default;
+var mouseclick_handler_1 = __importDefault(require("editor/handlers/mouseclick-handler"));
+exports.MouseClickHandler = mouseclick_handler_1.default;
+
+},{"editor/handlers/click-handler":107,"editor/handlers/keydown-handler":109,"editor/handlers/mouseclick-handler":110}],109:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20388,7 +20439,152 @@ var KeydownHandler = /** @class */ (function () {
 }());
 exports.default = KeydownHandler;
 
-},{"editor/editor-utils":104,"editor/glyph":106,"string-map":112,"tsmonad":99}],109:[function(require,module,exports){
+},{"editor/editor-utils":104,"editor/glyph":106,"string-map":114,"tsmonad":99}],110:[function(require,module,exports){
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var tsmonad_1 = require("tsmonad");
+var string_map_1 = __importDefault(require("string-map"));
+var jquery_1 = __importDefault(require("jquery"));
+var MouseClickHandler = /** @class */ (function () {
+    function MouseClickHandler(cursor, editor) {
+        this.end_iter = tsmonad_1.Maybe.nothing();
+        this.start_iter = tsmonad_1.Maybe.nothing();
+        this.cursor = cursor;
+        this.editor = editor;
+    }
+    /**
+     * @todo 1. ENFORCE THAT EVENT PAIR IS DOWN FIRST, THEN UP.
+     *       2. COMPARE SPANS WITH CURSOR SELECTION
+     * @param eventPair Pair of events. First one is for the mousedown. The second is for the mouseup.
+     * @param source_iter
+     */
+    MouseClickHandler.prototype.handle = function (eventPair, source_iter) {
+        console.log(eventPair);
+        var downTarget = eventPair[0].target;
+        var upTarget = eventPair[1].target;
+        var iter = source_iter.clone();
+        if (!this._inEditor(downTarget) || !this._inEditor(upTarget)) {
+            // Return for now if either target is outside the editor. Later we may have to scroll up or down based on upTarget.
+            return;
+        }
+        if (downTarget === upTarget) {
+            // We clicked up and down on the same target.
+            // But what the browser thinks we clicked is not nearly as accurate as what selection was made.
+        }
+        else {
+            // If we didn't click up and down on the same target
+            // We need to calculate selection. But this blows up when a selection is already made
+        }
+        var first_iter = this._getIterator(downTarget, iter);
+        var first_distance = 0;
+        first_iter.caseOf({
+            just: function (iterator) {
+                var it = iterator.clone();
+                while (it.hasPrev()) {
+                    it.prev();
+                    first_distance += 1;
+                }
+            },
+            nothing: function () { }
+        });
+        var second_iter = this._getIterator(upTarget, iter);
+        var second_distance = 0;
+        second_iter.caseOf({
+            just: function (iterator) {
+                var it = iterator.clone();
+                while (it.hasPrev()) {
+                    it.prev();
+                    second_distance += 1;
+                }
+            },
+            nothing: function () { }
+        });
+        // Set which is actually start and end by the distance to start of the document.
+        if (first_distance <= second_distance) {
+            //First is first
+            console.log("FIRST");
+            this.start_iter = first_iter;
+            this.end_iter = second_iter;
+        }
+        else {
+            // Second is first.
+            console.log("SECOND");
+            this.start_iter = second_iter;
+            this.end_iter = second_iter;
+        }
+    };
+    MouseClickHandler.prototype._inEditor = function (target) {
+        if (target === this.editor) {
+            return false;
+        }
+        return this.editor.contains(target);
+    };
+    MouseClickHandler.prototype._getIterator = function (node, source_iter) {
+        var iter = source_iter.clone();
+        if (node.nodeType === 3) {
+            return this._handleTextNode(node, iter);
+        }
+        else if (jquery_1.default(node).hasClass(string_map_1.default.glyphName()) || jquery_1.default(node).hasClass(string_map_1.default.lineName())) {
+            return this._handleStandardNode(node, iter);
+        }
+        else if (jquery_1.default(node).hasClass(string_map_1.default.editorName())) {
+            // If this happens, let caller decide what to do with this.
+            return tsmonad_1.Maybe.nothing();
+        }
+        else {
+            throw new Error("Unhandled selection node in ClickHandler");
+        }
+    };
+    MouseClickHandler.prototype._handleTextNode = function (node, source_iter) {
+        //If text node, search for the span.
+        var iter = source_iter.clone();
+        var glyph = jquery_1.default(node).parents(string_map_1.default.glyphSelector()).first();
+        var line = jquery_1.default(node).parents(string_map_1.default.lineSelector()).first();
+        if (glyph.length > 0) {
+            return this._handleStandardNode(glyph.get(0), iter);
+        }
+        else if (line.length > 0) {
+            return this._handleStandardNode(line.get(0), iter);
+        }
+        else {
+            return tsmonad_1.Maybe.nothing();
+        }
+    };
+    MouseClickHandler.prototype._handleStandardNode = function (node, source_iter) {
+        var iter = source_iter.clone();
+        var found_iter = iter.findForward(function (glyph) {
+            var match = false;
+            glyph.getNode().caseOf({
+                just: function (glyphNode) {
+                    match = node === glyphNode;
+                },
+                nothing: function () { }
+            });
+            return match;
+        });
+        found_iter.prev();
+        if (found_iter.isValid()) {
+            // If we found the value, we can set the iterator to this one.
+            return tsmonad_1.Maybe.just(found_iter);
+        }
+        else {
+            return tsmonad_1.Maybe.nothing();
+        }
+    };
+    MouseClickHandler.prototype.getNewIterators = function () {
+        return this.start_iter;
+    };
+    MouseClickHandler.prototype.getEndIterator = function () {
+        return this.end_iter;
+    };
+    return MouseClickHandler;
+}());
+exports.default = MouseClickHandler;
+
+},{"jquery":1,"string-map":114,"tsmonad":99}],111:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var EditorKeyPressMap = /** @class */ (function () {
@@ -20399,7 +20595,7 @@ var EditorKeyPressMap = /** @class */ (function () {
 }());
 exports.EditorKeyPressMap = EditorKeyPressMap;
 
-},{}],110:[function(require,module,exports){
+},{}],112:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20647,7 +20843,7 @@ var EditorRenderer = /** @class */ (function () {
 }());
 exports.EditorRenderer = EditorRenderer;
 
-},{"jquery":1,"string-map":112}],111:[function(require,module,exports){
+},{"jquery":1,"string-map":114}],113:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20678,7 +20874,7 @@ jquery_1.default(document).ready(function () {
     });
 });
 
-},{"./editor/editor":105,"jquery":1}],112:[function(require,module,exports){
+},{"./editor/editor":105,"jquery":1}],114:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var voca_1 = require("voca");
@@ -20733,4 +20929,4 @@ var Strings = {
 };
 exports.default = Strings;
 
-},{"voca":100}]},{},[111]);
+},{"voca":100}]},{},[113]);

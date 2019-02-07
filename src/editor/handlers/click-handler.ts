@@ -24,6 +24,8 @@ class ClickHandler implements Handler {
     }
 
     handle(event: any, source_iter: DoubleIterator<Glyph>) {
+        console.log("CLICKED EDITOR");
+        console.log(this.cursor.selection);
         console.log(event);
         console.log(event.target);
         let iter = source_iter.clone();

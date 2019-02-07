@@ -12,8 +12,7 @@ var rxjs_1 = require("rxjs");
 var string_map_1 = __importDefault(require("string-map"));
 var renderer_1 = require("editor/renderer");
 var deleter_1 = require("editor/deleter");
-var click_handler_1 = __importDefault(require("editor/handlers/click-handler"));
-var keydown_handler_1 = __importDefault(require("editor/handlers/keydown-handler"));
+var handlers_1 = require("editor/handlers/handlers");
 var keypress_map_1 = require("editor/keypress-map");
 var Editor = /** @class */ (function () {
     function Editor(editor_id) {
@@ -31,8 +30,9 @@ var Editor = /** @class */ (function () {
         this.glyphs = new linked_list_1.LinkedList();
         this.start_glyph_iter = this.glyphs.makeFrontIterator();
         this.end_glyph_iter = this.glyphs.makeFrontIterator();
-        this.keydowner = new keydown_handler_1.default(this.renderer, this.deleter, this.cursor, this.editor.get(0), this.keypress_map);
-        this.clicker = new click_handler_1.default(this.cursor, this.editor.get(0));
+        this.keydowner = new handlers_1.KeydownHandler(this.renderer, this.deleter, this.cursor, this.editor.get(0), this.keypress_map);
+        this.clicker = new handlers_1.ClickHandler(this.cursor, this.editor.get(0));
+        this.mouse_clicker = new handlers_1.MouseClickHandler(this.cursor, this.editor.get(0));
         if (this.valid()) {
             this.reset();
         }
@@ -73,6 +73,17 @@ var Editor = /** @class */ (function () {
         var _this = this;
         // Render initial state of document.
         this.rerender();
+        /*let mouseDownUpObs = merge(fromEvent(this.editor, 'mousedown'), fromEvent(this.editor, 'mouseup')).pipe(pairwise());
+        let mouseDownUpSub = mouseDownUpObs.subscribe({
+            next: (eventPair: Array<any>) => {
+                this.mouse_clicker.handle(eventPair, this.glyphs.makeFrontIterator());
+                this._updateIteratorsFromHandler(this.mouse_clicker);
+                this.updateCursorToCurrent();
+
+            },
+            error: (err) => { },
+            complete: () => {}
+        });*/
         var keyupObs = rxjs_1.fromEvent(this.editor, 'keyup');
         var keyupSub = keyupObs.subscribe({
             next: function (event) {
@@ -96,9 +107,34 @@ var Editor = /** @class */ (function () {
             error: function (err) { },
             complete: function () { }
         });
+        var mouseDownObs = rxjs_1.fromEvent(this.editor, 'mousedown');
+        var mouseDownSub = mouseDownObs.subscribe({
+            next: function (event) {
+                // Need to collapse selection on mouse down because otherwise it breaks a bunch of other shit
+                // in chrome.
+                console.log("MOUSE DOWN");
+                if (_this.cursor.isSelection()) {
+                    // If is selection, start mousedown by collapsing the selection.
+                    console.log("ABOUT TO COLLAPSE SELECTION");
+                    _this.cursor.selection.removeAllRanges();
+                }
+            },
+            error: function (err) { },
+            complete: function () { }
+        });
+        var mouseUpObs = rxjs_1.fromEvent(this.editor, 'mouseup');
+        var mouseUpSub = mouseUpObs.subscribe({
+            next: function (event) {
+                // TODO : Do something on mouseup, in case you mouse up outside of div, but had moused down in.
+                // TODO : Do something on mousedown, in case you mouse down outside of editor but mouse up in.
+            },
+            error: function (err) { },
+            complete: function () { }
+        });
         var clickObs = rxjs_1.fromEvent(this.editor, 'click');
         var clickSub = clickObs.subscribe({
             next: function (event) {
+                console.log('mouseup');
                 _this.clicker.handle(event, _this.glyphs.makeFrontIterator());
                 _this._updateIteratorsFromHandler(_this.clicker);
                 _this.updateCursorToCurrent();

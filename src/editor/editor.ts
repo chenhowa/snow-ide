@@ -1,17 +1,20 @@
 import { Maybe } from "tsmonad";
-import { splice, repeat } from 'voca';
 import $ from "jquery";
 import Cursor from 'editor/cursor';
 import { Glyph, ToNode, GlyphStyle } from 'editor/glyph';
 import { LinkedList, List, DoubleIterator } from 'data_structures/linked-list';
-import { fromEvent } from 'rxjs';
+import { fromEvent, merge } from 'rxjs';
+import { pairwise } from "rxjs/operators";
 import Strings from "string-map";
 import { Renderer, EditorRenderer } from "editor/renderer";
 import { DeleteRenderer, EditorDeleter } from "editor/deleter";
 
-import Handler from "editor/handlers/handler";
-import ClickHandler from "editor/handlers/click-handler";
-import KeydownHandler from "editor/handlers/keydown-handler";
+import { 
+    Handler, 
+    ClickHandler, 
+    KeydownHandler,
+    MouseClickHandler
+} from "editor/handlers/handlers";
 
 import { KeyPressMap, EditorKeyPressMap } from "editor/keypress-map";
 
@@ -27,6 +30,7 @@ class Editor {
     clicker: Handler;
     keypress_map: KeyPressMap = new EditorKeyPressMap();
     keydowner: Handler;
+    mouse_clicker: Handler;
 
     static new = function(editor_id?: string): Maybe<Editor> {
         let editor: Editor = new Editor(editor_id);
@@ -53,6 +57,7 @@ class Editor {
                             this.cursor, this.editor.get(0), this.keypress_map
         );
         this.clicker = new ClickHandler(this.cursor, this.editor.get(0));
+        this.mouse_clicker = new MouseClickHandler(this.cursor, this.editor.get(0));
         
         if(this.valid()) {
             this.reset();
@@ -102,6 +107,18 @@ class Editor {
         // Render initial state of document.
         this.rerender();
 
+        /*let mouseDownUpObs = merge(fromEvent(this.editor, 'mousedown'), fromEvent(this.editor, 'mouseup')).pipe(pairwise());
+        let mouseDownUpSub = mouseDownUpObs.subscribe({
+            next: (eventPair: Array<any>) => {
+                this.mouse_clicker.handle(eventPair, this.glyphs.makeFrontIterator());
+                this._updateIteratorsFromHandler(this.mouse_clicker);
+                this.updateCursorToCurrent();
+
+            },
+            error: (err) => { },
+            complete: () => {}
+        });*/
+
         let keyupObs = fromEvent(this.editor, 'keyup');
         let keyupSub = keyupObs.subscribe({
             next: (event: any) => {
@@ -128,9 +145,40 @@ class Editor {
             complete: () => {}
         });
 
+        let mouseDownObs = fromEvent(this.editor, 'mousedown');
+        let mouseDownSub = mouseDownObs.subscribe({
+            next: (event: any) => {
+                // Need to collapse selection on mouse down because otherwise it breaks a bunch of other shit
+                // in chrome.
+                console.log("MOUSE DOWN");
+                if(this.cursor.isSelection()) {
+                    // If is selection, start mousedown by collapsing the selection.
+                    console.log("ABOUT TO COLLAPSE SELECTION");
+                    this.cursor.selection.removeAllRanges();
+                }
+            },
+            error: (err) => { },
+            complete: () => { }
+        });
+
+        let mouseUpObs = fromEvent(this.editor, 'mouseup');
+        let mouseUpSub = mouseUpObs.subscribe({
+            next: (event: any) => {
+                // TODO : Do something on mouseup, in case you mouse up outside of div, but had moused down in.
+                //          -- looks like click doesn't register if you do this.
+                // TODO : Do something on mousedown, in case you mouse down outside of editor but mouse up in.
+                //          -- looks like click doesn't register if you do this.
+                // RESULT TODO : Might need to sync INPUT (backspace, char, tab, enter, etc.) with the selection,
+                //          Since invalid selections can still occur by the two above methods.
+            },
+            error: (err) => {},
+            complete: () => {}
+        })
+
         let clickObs = fromEvent(this.editor, 'click');
         let clickSub = clickObs.subscribe({
             next: (event: any) => {
+                console.log('mouseup');
                 this.clicker.handle(event, this.glyphs.makeFrontIterator());
                 this._updateIteratorsFromHandler(this.clicker);
                 this.updateCursorToCurrent();
@@ -225,7 +273,6 @@ class Editor {
                                 } else {
                                     throw new Error("DID NOT FIND A HIDDEN SPAN IN LINE DIV");
                                 }
-                                
                             },  
                             nothing: () => {}
                         });

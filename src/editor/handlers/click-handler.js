@@ -18,6 +18,8 @@ var ClickHandler = /** @class */ (function () {
         this.editor = editor;
     }
     ClickHandler.prototype.handle = function (event, source_iter) {
+        console.log("CLICKED EDITOR");
+        console.log(this.cursor.selection);
         console.log(event);
         console.log(event.target);
         var iter = source_iter.clone();

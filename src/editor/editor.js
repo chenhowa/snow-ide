@@ -34,7 +34,6 @@ var Editor = /** @class */ (function () {
         this.end_glyph_iter = this.glyphs.makeFrontIterator();
         this.keydowner = new handlers_1.KeydownHandler(this.executor, this.cursor, this.editor.get(0), this.keypress_map);
         this.clicker = new handlers_1.ClickHandler(this.cursor, this.editor.get(0));
-        this.mouse_clicker = new handlers_1.MouseClickHandler(this.cursor, this.editor.get(0));
         if (this.valid()) {
             this.reset();
         }

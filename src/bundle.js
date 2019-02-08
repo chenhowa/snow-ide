@@ -19014,6 +19014,47 @@ var LinkedListIterator = /** @class */ (function () {
         this.list = list;
     }
     /**
+     * @description takes a list and inserts all its nodes into the iterator's list.
+     * @param list  - this list is destroyed as a result.
+     * @returns iterator pointing to node AFTER the last inserted node.
+     */
+    LinkedListIterator.prototype.insertListAfter = function (list) {
+        if (this._isBackSentinel()) {
+            throw new Error("Tried to insert list after back sentinel");
+        }
+        var iter = list.makeFrontIterator();
+        var inserter = this.clone();
+        while (iter.hasNext()) {
+            var maybe_node = iter.removeNext(); // remove node from list so we can put it in current list.
+            maybe_node.caseOf({
+                just: function (node) {
+                    // If the node exists, insert it.
+                    inserter.insertNodeAfter(node);
+                    inserter.next();
+                },
+                nothing: function () {
+                }
+            });
+        }
+        // Once done, we return node after all that has been inserted.
+        inserter.next();
+        return inserter;
+    };
+    LinkedListIterator.prototype.insertNodeAfter = function (node) {
+        this.current.next.caseOf({
+            just: function (nextNode) {
+                node.next = tsmonad_1.Maybe.just(nextNode);
+                nextNode.prev = tsmonad_1.Maybe.just(node);
+            },
+            nothing: function () {
+                // If current has no next, we're probably in trouble. We can't really repair in any way.
+                throw new Error("insertNodeAfter: this iterator's list has been corrupted");
+            }
+        });
+        node.prev = tsmonad_1.Maybe.just(this.current);
+        this.current.next = tsmonad_1.Maybe.just(node);
+    };
+    /**
      * @description Finds first occurence at or after this iterator.
      * @param filter
      */
@@ -19209,11 +19250,11 @@ var LinkedListIterator = /** @class */ (function () {
     };
     LinkedListIterator.prototype.removeNext = function () {
         this.next();
-        this.remove(false); // go backward after removing.
+        return this.remove(false); // go backward after removing.
     };
     LinkedListIterator.prototype.removePrev = function () {
         this.prev();
-        this.remove(true); // go forward after removing.
+        return this.remove(true); // go forward after removing.
     };
     LinkedListIterator.prototype.clone = function () {
         return new LinkedListIterator(this.current, this.list);
@@ -19318,7 +19359,6 @@ var Editor = /** @class */ (function () {
         this.end_glyph_iter = this.glyphs.makeFrontIterator();
         this.keydowner = new handlers_1.KeydownHandler(this.executor, this.cursor, this.editor.get(0), this.keypress_map);
         this.clicker = new handlers_1.ClickHandler(this.cursor, this.editor.get(0));
-        this.mouse_clicker = new handlers_1.MouseClickHandler(this.cursor, this.editor.get(0));
         if (this.valid()) {
             this.reset();
         }
@@ -19776,6 +19816,11 @@ var EditorActionExecutor = /** @class */ (function () {
         this.renderer = renderer;
         this.deleter = deleter;
     }
+    EditorActionExecutor.prototype.rerenderRange = function (source_start_iter, source_end_iter) {
+        var start = source_start_iter.clone();
+        var end = source_end_iter.clone();
+        this.renderer.rerender(start, end);
+    };
     EditorActionExecutor.prototype.rerenderAt = function (iter) {
         return this.renderer.rerender(iter, iter);
     };

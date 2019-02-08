@@ -152,23 +152,21 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
             throw new Error("Tried to insert list after back sentinel");
         }
 
-        let iter = list.makeFrontIterator();
+        let remover = list.makeFrontIterator();
         let inserter = this.clone();
-        while(iter.hasNext()) {
-            let maybe_node = iter.removeNext(); // remove node from list so we can put it in current list.
+        while(remover.hasNext()) {
+            let maybe_node = remover.removeNext(); // remove node from list so we can put it in current list.
             maybe_node.caseOf({
                 just: (node) => {
                     // If the node exists, insert it.
                     inserter.insertNodeAfter(node);
                     inserter.next();
                 },
-                nothing: () => {
-
-                }
+                nothing: () => {}
             })
         }
 
-        // Once done, we return node after all that has been inserted.
+        // Once done, we return an iterator to the node ONE AFTER all that has been inserted.
         inserter.next();
         return inserter;
     }

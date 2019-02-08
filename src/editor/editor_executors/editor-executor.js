@@ -6,6 +6,11 @@ var EditorActionExecutor = /** @class */ (function () {
         this.renderer = renderer;
         this.deleter = deleter;
     }
+    EditorActionExecutor.prototype.rerenderRange = function (source_start_iter, source_end_iter) {
+        var start = source_start_iter.clone();
+        var end = source_end_iter.clone();
+        this.renderer.rerender(start, end);
+    };
     EditorActionExecutor.prototype.rerenderAt = function (iter) {
         return this.renderer.rerender(iter, iter);
     };

@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 require("jest");
-var linked_list_1 = require("./linked-list");
+var linked_list_1 = require("data_structures/linked-list");
 describe('Validate insertion behavior', function () {
     describe('from front of list', function () {
         var list = new linked_list_1.LinkedList();
@@ -59,7 +59,7 @@ describe('Validate removal behavior', function () {
     test('remove from front of list', function () {
         var arr = [1, 2, 3];
         var iterator = list.makeFrontIterator();
-        populate_list(list, arr);
+        linked_list_1.populate_list(list, arr);
         var goForward = false;
         var index = 0;
         while (iterator.hasNext()) {
@@ -73,7 +73,7 @@ describe('Validate removal behavior', function () {
     test('remove from back of list', function () {
         var iterator = list.makeBackIterator();
         var arr = [1, 2, 3];
-        populate_list(list, arr);
+        linked_list_1.populate_list(list, arr);
         var index = 2;
         while (iterator.hasPrev()) {
             iterator.prev();
@@ -85,10 +85,21 @@ describe('Validate removal behavior', function () {
     });
     test('empty list like a trash can', function () {
         var arr = [1, 2, 3];
-        populate_list(list, arr);
+        linked_list_1.populate_list(list, arr);
         expect(list.getCount()).toEqual(arr.length);
         list.empty();
         expect(list.getCount()).toEqual(0);
+    });
+});
+describe('validate list insertion', function () {
+    test('empty and full', function () {
+        var empty_list = new linked_list_1.LinkedList();
+        var full_list = new linked_list_1.LinkedList();
+        linked_list_1.populate_list(full_list, [1, 2, 3]);
+        var iter = empty_list.makeFrontIterator();
+        iter.insertListAfter(full_list);
+        expect(empty_list.asArray()).toEqual([1, 2, 3]);
+        expect(full_list.asArray()).toEqual([]);
     });
 });
 function validate_initial_list(list) {
@@ -98,11 +109,4 @@ function validate_initial_list(list) {
     var back_iterator = list.makeBackIterator();
     expect(back_iterator.hasNext()).toBe(false);
     expect(back_iterator.hasPrev()).toBe(false);
-}
-function populate_list(list, arr) {
-    var iterator = list.makeFrontIterator();
-    for (var i = 0; i < arr.length; i++) {
-        iterator.insertAfter(arr[i]);
-        iterator.next(); // since insert does not move iterator.
-    }
 }

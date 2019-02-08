@@ -1,6 +1,25 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var glyph_1 = require("editor/glyph");
+var MockEditorExecutor = /** @class */ (function () {
+    function MockEditorExecutor() {
+    }
+    MockEditorExecutor.prototype.deleteAndRender = function (start_iter, end_iter, direction) {
+        return [start_iter.clone(), end_iter.clone()];
+    };
+    MockEditorExecutor.prototype.insertAndRender = function (char, source_start_iter, source_end_iter) {
+        return [source_start_iter.clone(), source_end_iter.clone()];
+    };
+    MockEditorExecutor.prototype.rerenderAt = function (iter) {
+    };
+    MockEditorExecutor.prototype.insertAndRerender = function (char, source_start_iter, source_end_iter) {
+        return [source_start_iter.clone(), source_end_iter.clone()];
+    };
+    MockEditorExecutor.prototype.rerenderRange = function (start, end) {
+    };
+    return MockEditorExecutor;
+}());
+exports.MockEditorExecutor = MockEditorExecutor;
 var EditorActionExecutor = /** @class */ (function () {
     function EditorActionExecutor(renderer, deleter) {
         this.renderer = renderer;

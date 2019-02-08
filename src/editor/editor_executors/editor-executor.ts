@@ -15,6 +15,32 @@ interface EditorExecutor {
     rerenderRange(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>): void;
 }
 
+class MockEditorExecutor {
+    constructor() {
+
+    }
+
+    deleteAndRender(start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>, direction: boolean)
+                                                : Array< DoubleIterator<Glyph> > {
+                                                    
+        return [start_iter.clone(), end_iter.clone()];
+    }
+    insertAndRender(char: string, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph> )
+                                                : Array<DoubleIterator<Glyph>> {
+        return [source_start_iter.clone(), source_end_iter.clone()];
+    }
+    rerenderAt(iter: DoubleIterator<Glyph>): void {
+
+    }
+    insertAndRerender(char: string, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph> )
+                                                : Array<DoubleIterator<Glyph>> {
+        return [source_start_iter.clone(), source_end_iter.clone()];
+    }
+    rerenderRange(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>): void {
+
+    }
+}
+
 
 class EditorActionExecutor implements EditorExecutor {
     renderer: Renderer;
@@ -109,4 +135,4 @@ class EditorActionExecutor implements EditorExecutor {
     }
 }
 
-export { EditorExecutor, EditorActionExecutor };
+export { EditorExecutor, EditorActionExecutor, MockEditorExecutor };

@@ -48,7 +48,7 @@ class RemoveCommand implements Command {
                         inserter.next();
                     },
                     nothing: () => {
-                        //If there was a node, something is definitely wrong. But we'll try to repair by doing nothing.
+                        //If there was no node, something is definitely wrong. But we'll try to repair by doing nothing.
                     }
                 })
             }
@@ -66,6 +66,10 @@ class RemoveCommand implements Command {
 
         this.end = this.start.insertListAfter(this.list); // puts end at one past the last inserted node
         this.executor.rerenderRange(this.start, this.end); // rerender the inserted nodes.
+    }
+
+    asArray(): Array<Glyph> {
+        return this.list.asArray();
     }
 }
 

@@ -237,18 +237,15 @@ function arrowDown(source_start_iter, source_end_iter) {
     var start_iter = source_start_iter.clone();
     var end_iter = source_end_iter.clone();
     if (start_iter.equals(end_iter)) {
-        console.log("trying to go down");
         // find previous newline to determine distance from line start
         var final_iter_2 = start_iter.clone();
         getDistanceFromLineStart(start_iter).caseOf({
             just: function (distance) {
                 var line_end_iter = findLineEnd(start_iter);
-                console.log(line_end_iter.grab());
                 var foundNext = line_end_iter.hasNext();
                 if (foundNext) {
-                    console.log("found next");
                     // We found the next new line, or there was no next newline.
-                    var tooFar = false;
+                    var tooFar = false; // You go too far if you hit the next next line OR the EOF.
                     final_iter_2 = line_end_iter.clone();
                     final_iter_2.next();
                     for (var i = 0; i < distance; i++) {
@@ -266,11 +263,10 @@ function arrowDown(source_start_iter, source_end_iter) {
                         }
                     }
                     if (tooFar) {
-                        final_iter_2.prev(); // back off from the newline.
+                        final_iter_2.prev(); // back off from the newline OR the EOF if necessary.
                     }
                 }
                 else {
-                    console.log("no next line");
                     // If no next line, we don't move.
                 }
             },
@@ -282,7 +278,6 @@ function arrowDown(source_start_iter, source_end_iter) {
     }
     else {
         // If selection, will just go right.
-        console.log("Going right");
         return arrowRight(source_start_iter, source_end_iter);
     }
 }

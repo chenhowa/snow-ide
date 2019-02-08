@@ -154,6 +154,7 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
 
         let remover = list.makeFrontIterator();
         let inserter = this.clone();
+        
         while(remover.hasNext()) {
             let maybe_node = remover.removeNext(); // remove node from list so we can put it in current list.
             maybe_node.caseOf({
@@ -162,7 +163,9 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
                     inserter.insertNodeAfter(node);
                     inserter.next();
                 },
-                nothing: () => {}
+                nothing: () => {
+                    throw new Error("NOTHING while in insertListAfter");
+                }
             })
         }
 
@@ -362,6 +365,7 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
                         // Then we have a dangling next. Since current is about to be deleted,
                         // we try to repair.
                         prevNode.next = Maybe.just(thisIterator.list.back_sentinel);
+                        throw new Error("DANGLING NEXT 1");
                     }
                 })
             },
@@ -371,10 +375,12 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
                 thisIterator.current.next.caseOf({
                     just: function(nextNode) {
                         nextNode.prev = Maybe.just(thisIterator.list.front_sentinel);
+                        throw new Error("DANGLING PREV 1");
                     },
                     nothing: function() {
                         // We have neither a prev nor a next. Try to recover by going back to list front.
                         thisIterator.current = thisIterator.list.front_sentinel;
+                        throw new Error("DANGLING BOTH");
                     }
                 });
             }
@@ -490,9 +496,19 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
     }
 }
 
+
+function populate_list<T>(list: List<T>, arr: Array<T>) {
+    let iterator = list.makeFrontIterator();
+    for(var i = 0; i < arr.length; i++) {
+        iterator.insertAfter(arr[i]);
+        iterator.next(); // since insert does not move iterator.
+    }
+}
+
 export { 
     LinkedList, 
     List, 
     ListNode, 
-    DoubleIterator
+    DoubleIterator,
+    populate_list
 };

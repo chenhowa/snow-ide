@@ -19032,7 +19032,9 @@ var LinkedListIterator = /** @class */ (function () {
                     inserter.insertNodeAfter(node);
                     inserter.next();
                 },
-                nothing: function () { }
+                nothing: function () {
+                    throw new Error("NOTHING while in insertListAfter");
+                }
             });
         }
         // Once done, we return an iterator to the node ONE AFTER all that has been inserted.
@@ -19206,6 +19208,7 @@ var LinkedListIterator = /** @class */ (function () {
                         // Then we have a dangling next. Since current is about to be deleted,
                         // we try to repair.
                         prevNode.next = tsmonad_1.Maybe.just(thisIterator.list.back_sentinel);
+                        throw new Error("DANGLING NEXT 1");
                     }
                 });
             },
@@ -19214,10 +19217,12 @@ var LinkedListIterator = /** @class */ (function () {
                 thisIterator.current.next.caseOf({
                     just: function (nextNode) {
                         nextNode.prev = tsmonad_1.Maybe.just(thisIterator.list.front_sentinel);
+                        throw new Error("DANGLING PREV 1");
                     },
                     nothing: function () {
                         // We have neither a prev nor a next. Try to recover by going back to list front.
                         thisIterator.current = thisIterator.list.front_sentinel;
+                        throw new Error("DANGLING BOTH");
                     }
                 });
             }
@@ -19320,6 +19325,14 @@ var LinkedListIterator = /** @class */ (function () {
     };
     return LinkedListIterator;
 }());
+function populate_list(list, arr) {
+    var iterator = list.makeFrontIterator();
+    for (var i = 0; i < arr.length; i++) {
+        iterator.insertAfter(arr[i]);
+        iterator.next(); // since insert does not move iterator.
+    }
+}
+exports.populate_list = populate_list;
 
 },{"tsmonad":99}],102:[function(require,module,exports){
 "use strict";
@@ -19810,6 +19823,25 @@ exports.EditorDeleter = EditorDeleter;
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var glyph_1 = require("editor/glyph");
+var MockEditorExecutor = /** @class */ (function () {
+    function MockEditorExecutor() {
+    }
+    MockEditorExecutor.prototype.deleteAndRender = function (start_iter, end_iter, direction) {
+        return [start_iter.clone(), end_iter.clone()];
+    };
+    MockEditorExecutor.prototype.insertAndRender = function (char, source_start_iter, source_end_iter) {
+        return [source_start_iter.clone(), source_end_iter.clone()];
+    };
+    MockEditorExecutor.prototype.rerenderAt = function (iter) {
+    };
+    MockEditorExecutor.prototype.insertAndRerender = function (char, source_start_iter, source_end_iter) {
+        return [source_start_iter.clone(), source_end_iter.clone()];
+    };
+    MockEditorExecutor.prototype.rerenderRange = function (start, end) {
+    };
+    return MockEditorExecutor;
+}());
+exports.MockEditorExecutor = MockEditorExecutor;
 var EditorActionExecutor = /** @class */ (function () {
     function EditorActionExecutor(renderer, deleter) {
         this.renderer = renderer;
@@ -20123,18 +20155,15 @@ function arrowDown(source_start_iter, source_end_iter) {
     var start_iter = source_start_iter.clone();
     var end_iter = source_end_iter.clone();
     if (start_iter.equals(end_iter)) {
-        console.log("trying to go down");
         // find previous newline to determine distance from line start
         var final_iter_2 = start_iter.clone();
         getDistanceFromLineStart(start_iter).caseOf({
             just: function (distance) {
                 var line_end_iter = findLineEnd(start_iter);
-                console.log(line_end_iter.grab());
                 var foundNext = line_end_iter.hasNext();
                 if (foundNext) {
-                    console.log("found next");
                     // We found the next new line, or there was no next newline.
-                    var tooFar = false;
+                    var tooFar = false; // You go too far if you hit the next next line OR the EOF.
                     final_iter_2 = line_end_iter.clone();
                     final_iter_2.next();
                     for (var i = 0; i < distance; i++) {
@@ -20152,11 +20181,10 @@ function arrowDown(source_start_iter, source_end_iter) {
                         }
                     }
                     if (tooFar) {
-                        final_iter_2.prev(); // back off from the newline.
+                        final_iter_2.prev(); // back off from the newline OR the EOF if necessary.
                     }
                 }
                 else {
-                    console.log("no next line");
                     // If no next line, we don't move.
                 }
             },
@@ -20168,7 +20196,6 @@ function arrowDown(source_start_iter, source_end_iter) {
     }
     else {
         // If selection, will just go right.
-        console.log("Going right");
         return arrowRight(source_start_iter, source_end_iter);
     }
 }

@@ -1,5 +1,5 @@
 import "jest";
-import { LinkedList } from "./linked-list";
+import { LinkedList, populate_list } from "data_structures/linked-list";
 
 
 describe('Validate insertion behavior', () => {
@@ -102,6 +102,23 @@ describe('Validate removal behavior', () => {
     })
 });
 
+describe('validate list insertion', () => {
+
+    test('empty and full', () => {
+        let empty_list = new LinkedList();
+
+        let full_list = new LinkedList();
+        populate_list(full_list, [1, 2, 3]);
+
+        let iter = empty_list.makeFrontIterator();
+        iter.insertListAfter(full_list);
+
+
+        expect(empty_list.asArray()).toEqual([1, 2, 3]);
+        expect(full_list.asArray()).toEqual([]);
+    });
+});
+
 
 function validate_initial_list<T>(list: LinkedList<T>) {
     let front_iterator = list.makeFrontIterator();
@@ -112,12 +129,4 @@ function validate_initial_list<T>(list: LinkedList<T>) {
     let back_iterator = list.makeBackIterator();
     expect(back_iterator.hasNext()).toBe(false);
     expect(back_iterator.hasPrev()).toBe(false);
-}
-
-function populate_list<T>(list: LinkedList<T>, arr: Array<T>) {
-    let iterator = list.makeFrontIterator();
-    for(var i = 0; i < arr.length; i++) {
-        iterator.insertAfter(arr[i]);
-        iterator.next(); // since insert does not move iterator.
-    }
 }

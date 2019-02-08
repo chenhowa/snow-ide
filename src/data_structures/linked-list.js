@@ -103,7 +103,9 @@ var LinkedListIterator = /** @class */ (function () {
                     inserter.insertNodeAfter(node);
                     inserter.next();
                 },
-                nothing: function () { }
+                nothing: function () {
+                    throw new Error("NOTHING while in insertListAfter");
+                }
             });
         }
         // Once done, we return an iterator to the node ONE AFTER all that has been inserted.
@@ -277,6 +279,7 @@ var LinkedListIterator = /** @class */ (function () {
                         // Then we have a dangling next. Since current is about to be deleted,
                         // we try to repair.
                         prevNode.next = tsmonad_1.Maybe.just(thisIterator.list.back_sentinel);
+                        throw new Error("DANGLING NEXT 1");
                     }
                 });
             },
@@ -285,10 +288,12 @@ var LinkedListIterator = /** @class */ (function () {
                 thisIterator.current.next.caseOf({
                     just: function (nextNode) {
                         nextNode.prev = tsmonad_1.Maybe.just(thisIterator.list.front_sentinel);
+                        throw new Error("DANGLING PREV 1");
                     },
                     nothing: function () {
                         // We have neither a prev nor a next. Try to recover by going back to list front.
                         thisIterator.current = thisIterator.list.front_sentinel;
+                        throw new Error("DANGLING BOTH");
                     }
                 });
             }
@@ -391,3 +396,11 @@ var LinkedListIterator = /** @class */ (function () {
     };
     return LinkedListIterator;
 }());
+function populate_list(list, arr) {
+    var iterator = list.makeFrontIterator();
+    for (var i = 0; i < arr.length; i++) {
+        iterator.insertAfter(arr[i]);
+        iterator.next(); // since insert does not move iterator.
+    }
+}
+exports.populate_list = populate_list;

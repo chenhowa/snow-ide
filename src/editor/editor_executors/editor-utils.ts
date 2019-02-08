@@ -239,20 +239,17 @@ function arrowDown(source_start_iter: DoubleIterator<Glyph>, source_end_iter: Do
     let end_iter = source_end_iter.clone();
 
     if(start_iter.equals(end_iter)) {
-        console.log("trying to go down");
         // find previous newline to determine distance from line start
         let final_iter = start_iter.clone();
         getDistanceFromLineStart(start_iter).caseOf({
             just: (distance) => {
                 let line_end_iter = findLineEnd(start_iter);
-                console.log(line_end_iter.grab());
 
                 let foundNext = line_end_iter.hasNext();
 
                 if(foundNext) {
-                    console.log("found next");
                     // We found the next new line, or there was no next newline.
-                    let tooFar = false;
+                    let tooFar = false;  // You go too far if you hit the next next line OR the EOF.
                     final_iter = line_end_iter.clone();
                     final_iter.next();
                     for(var i = 0; i < distance; i++) {
@@ -274,7 +271,6 @@ function arrowDown(source_start_iter: DoubleIterator<Glyph>, source_end_iter: Do
                         final_iter.prev(); // back off from the newline OR the EOF if necessary.
                     }
                 } else {
-                    console.log("no next line");
                     // If no next line, we don't move.
                 }
             },
@@ -286,7 +282,6 @@ function arrowDown(source_start_iter: DoubleIterator<Glyph>, source_end_iter: Do
         return [final_iter.clone(), final_iter.clone()];
     } else {
         // If selection, will just go right.
-        console.log("Going right");
         return arrowRight(source_start_iter, source_end_iter);
     }
 

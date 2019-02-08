@@ -80,6 +80,10 @@ class CommandHistory implements History {
             }
         }
     }
+    
+    getCurrentCommand(): Command {
+        return this.current_command.grab();
+    }
 }
 
 

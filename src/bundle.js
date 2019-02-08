@@ -19022,21 +19022,20 @@ var LinkedListIterator = /** @class */ (function () {
         if (this._isBackSentinel()) {
             throw new Error("Tried to insert list after back sentinel");
         }
-        var iter = list.makeFrontIterator();
+        var remover = list.makeFrontIterator();
         var inserter = this.clone();
-        while (iter.hasNext()) {
-            var maybe_node = iter.removeNext(); // remove node from list so we can put it in current list.
+        while (remover.hasNext()) {
+            var maybe_node = remover.removeNext(); // remove node from list so we can put it in current list.
             maybe_node.caseOf({
                 just: function (node) {
                     // If the node exists, insert it.
                     inserter.insertNodeAfter(node);
                     inserter.next();
                 },
-                nothing: function () {
-                }
+                nothing: function () { }
             });
         }
-        // Once done, we return node after all that has been inserted.
+        // Once done, we return an iterator to the node ONE AFTER all that has been inserted.
         inserter.next();
         return inserter;
     };
@@ -20124,39 +20123,40 @@ function arrowDown(source_start_iter, source_end_iter) {
     var start_iter = source_start_iter.clone();
     var end_iter = source_end_iter.clone();
     if (start_iter.equals(end_iter)) {
+        console.log("trying to go down");
         // find previous newline to determine distance from line start
         var final_iter_2 = start_iter.clone();
         getDistanceFromLineStart(start_iter).caseOf({
             just: function (distance) {
                 var line_end_iter = findLineEnd(start_iter);
+                console.log(line_end_iter.grab());
                 var foundNext = line_end_iter.hasNext();
                 if (foundNext) {
+                    console.log("found next");
                     // We found the next new line, or there was no next newline.
+                    var tooFar = false;
                     final_iter_2 = line_end_iter.clone();
                     final_iter_2.next();
-                    var _loop_1 = function () {
+                    for (var i = 0; i < distance; i++) {
                         final_iter_2.next();
-                        var tooFar = false;
-                        final_iter_2.get().caseOf({
+                        tooFar = final_iter_2.get().caseOf({
                             just: function (glyph) {
-                                if (glyph.glyph === string_map_1.default.newline) {
-                                    tooFar = true;
-                                }
+                                return !final_iter_2.isValid() || glyph.glyph === string_map_1.default.newline;
                             },
-                            nothing: function () { }
+                            nothing: function () {
+                                return !final_iter_2.isValid();
+                            }
                         });
                         if (tooFar) {
-                            final_iter_2.prev(); // back off from the newline.
-                            return "break";
-                        }
-                    };
-                    for (var i = 0; i < distance; i++) {
-                        var state_1 = _loop_1();
-                        if (state_1 === "break")
                             break;
+                        }
+                    }
+                    if (tooFar) {
+                        final_iter_2.prev(); // back off from the newline.
                     }
                 }
                 else {
+                    console.log("no next line");
                     // If no next line, we don't move.
                 }
             },
@@ -20168,6 +20168,7 @@ function arrowDown(source_start_iter, source_end_iter) {
     }
     else {
         // If selection, will just go right.
+        console.log("Going right");
         return arrowRight(source_start_iter, source_end_iter);
     }
 }

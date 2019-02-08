@@ -93,21 +93,20 @@ var LinkedListIterator = /** @class */ (function () {
         if (this._isBackSentinel()) {
             throw new Error("Tried to insert list after back sentinel");
         }
-        var iter = list.makeFrontIterator();
+        var remover = list.makeFrontIterator();
         var inserter = this.clone();
-        while (iter.hasNext()) {
-            var maybe_node = iter.removeNext(); // remove node from list so we can put it in current list.
+        while (remover.hasNext()) {
+            var maybe_node = remover.removeNext(); // remove node from list so we can put it in current list.
             maybe_node.caseOf({
                 just: function (node) {
                     // If the node exists, insert it.
                     inserter.insertNodeAfter(node);
                     inserter.next();
                 },
-                nothing: function () {
-                }
+                nothing: function () { }
             });
         }
-        // Once done, we return node after all that has been inserted.
+        // Once done, we return an iterator to the node ONE AFTER all that has been inserted.
         inserter.next();
         return inserter;
     };

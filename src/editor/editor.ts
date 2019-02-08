@@ -1,10 +1,9 @@
 import { Maybe } from "tsmonad";
 import $ from "jquery";
 import Cursor from 'editor/editor_executors/cursor';
-import { Glyph, ToNode, GlyphStyle } from 'editor/glyph';
+import { Glyph, GlyphStyle } from 'editor/glyph';
 import { LinkedList, List, DoubleIterator } from 'data_structures/linked-list';
-import { fromEvent, merge } from 'rxjs';
-import { pairwise } from "rxjs/operators";
+import { fromEvent } from 'rxjs';
 import Strings from "string-map";
 import { Renderer, EditorRenderer } from "editor/editor_executors/renderer";
 import { DeleteRenderer, EditorDeleter } from "editor/editor_executors/deleter";

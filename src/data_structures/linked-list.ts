@@ -28,7 +28,7 @@ interface DoubleIterator<T> {
     get(): Maybe<T>;
     insertBefore(val: T): void; // inserts before. Does not move iterator.
     insertAfter(val: T): void; // inserts after. Does not move iterator.
-    remove(forward: boolean): void; // Removes current. Then goes to next or prev depending on direction flag.
+    remove(forward: boolean): Maybe< LinkedListNode<T> >; // Removes current. returns node that was removed.
     removeNext(): void; // Removes value after current, if it exists.
     removePrev(): void; // removes node before current, if it exists.
     replace(val: T): void; // Replaces current node's value.
@@ -295,10 +295,10 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
         });
     }
 
-    remove(goForward: boolean): void {
+    remove(goForward: boolean): Maybe< LinkedListNode<T> > {
         if(this._isSentinel()) {
             console.log('Tried to remove sentinel');
-            return;
+            return Maybe.nothing();
         }
 
         let thisIterator = this;
@@ -353,9 +353,11 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
             });
         }
 
-        // Disconnect current so it can be GCed.
+        // Disconnect current
         oldCurrent.next = Maybe.nothing();
         oldCurrent.prev = Maybe.nothing();
+
+        return Maybe.just(oldCurrent);
     }
 
     removeNext(): void {

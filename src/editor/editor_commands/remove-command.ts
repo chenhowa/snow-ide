@@ -42,6 +42,15 @@ class RemoveCommand implements Command {
                 // If we've reached the end, we've processed all the inserted nodes.
                 break;
             } else {
+                scanner.get().caseOf({
+                    just: (glyph) => {
+                        glyph.destroyNode();
+                    },
+                    nothing: () => {
+                        //If no glyph, w/e. We'll try to repair by doing nothing.
+                    }
+                })
+
                 scanner.remove(false).caseOf({
                     just: (node) => {
                         inserter.insertNodeAfter(node);

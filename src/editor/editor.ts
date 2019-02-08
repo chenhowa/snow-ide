@@ -1,13 +1,14 @@
 import { Maybe } from "tsmonad";
 import $ from "jquery";
-import Cursor from 'editor/cursor';
+import Cursor from 'editor/editor_executors/cursor';
 import { Glyph, ToNode, GlyphStyle } from 'editor/glyph';
 import { LinkedList, List, DoubleIterator } from 'data_structures/linked-list';
 import { fromEvent, merge } from 'rxjs';
 import { pairwise } from "rxjs/operators";
 import Strings from "string-map";
-import { Renderer, EditorRenderer } from "editor/renderer";
-import { DeleteRenderer, EditorDeleter } from "editor/deleter";
+import { Renderer, EditorRenderer } from "editor/editor_executors/renderer";
+import { DeleteRenderer, EditorDeleter } from "editor/editor_executors/deleter";
+import { EditorExecutor, EditorActionExecutor } from "editor/editor_executors/editor-executor";
 
 import { 
     Handler, 
@@ -25,8 +26,9 @@ class Editor {
     end_glyph_iter: DoubleIterator<Glyph>;
     editor: JQuery<HTMLElement>;
     cursor: Cursor = new Cursor();
-    renderer: Renderer = new EditorRenderer();
+    renderer: Renderer;
     deleter: DeleteRenderer = new EditorDeleter(this.renderer);
+    executor: EditorExecutor;
     clicker: Handler;
     keypress_map: KeyPressMap = new EditorKeyPressMap();
     keydowner: Handler;
@@ -48,12 +50,13 @@ class Editor {
         } else {
             this.editor = $('#editor');
         }
-
+        this.renderer = new EditorRenderer(this.editor.get(0));
+        this.executor = new EditorActionExecutor(this.renderer, this.deleter);
         this.glyphs = new LinkedList();
         this.start_glyph_iter = this.glyphs.makeFrontIterator();
         this.end_glyph_iter = this.glyphs.makeFrontIterator();
         this.keydowner = new KeydownHandler(
-                            this.renderer, this.deleter, 
+                            this.executor,
                             this.cursor, this.editor.get(0), this.keypress_map
         );
         this.clicker = new ClickHandler(this.cursor, this.editor.get(0));
@@ -84,7 +87,7 @@ class Editor {
         let iterator = this.glyphs.makeFrontIterator();
         while(iterator.hasNext()) {
             iterator.next();
-            this.renderer.render(iterator, iterator, this.editor.get(0));
+            this.renderer.render(iterator, iterator);
         }
 
         this.updateCursorToCurrent(); // Initially is between a and b!
@@ -107,17 +110,16 @@ class Editor {
         // Render initial state of document.
         this.rerender();
 
-        /*let mouseDownUpObs = merge(fromEvent(this.editor, 'mousedown'), fromEvent(this.editor, 'mouseup')).pipe(pairwise());
-        let mouseDownUpSub = mouseDownUpObs.subscribe({
-            next: (eventPair: Array<any>) => {
-                this.mouse_clicker.handle(eventPair, this.glyphs.makeFrontIterator());
-                this._updateIteratorsFromHandler(this.mouse_clicker);
-                this.updateCursorToCurrent();
-
+        let pasteObs = fromEvent(this.editor, 'paste');
+        let pasteSub = pasteObs.subscribe({
+            next: (event: any) => {
+                // get data and supposedly remove non-utf characters.
+                let pasteText = event.originalEvent.clipboardData.getData('text')
+                pasteText = pasteText.replace(/[^\x20-\xFF]/gi, '');
             },
             error: (err) => { },
-            complete: () => {}
-        });*/
+            complete: () => { }
+        });
 
         let keyupObs = fromEvent(this.editor, 'keyup');
         let keyupSub = keyupObs.subscribe({

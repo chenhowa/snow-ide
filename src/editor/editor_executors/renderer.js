@@ -5,9 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var string_map_1 = __importDefault(require("string-map"));
 var jquery_1 = __importDefault(require("jquery"));
-var editor_utils_1 = require("editor/editor-utils");
+var editor_utils_1 = require("editor/editor_executors/editor-utils");
 var EditorRenderer = /** @class */ (function () {
-    function EditorRenderer() {
+    function EditorRenderer(editor) {
+        this.editor = editor;
     }
     /**
      * @description Rerenders what iterator is pointing at. Useful for difficult to render things like
@@ -16,7 +17,7 @@ var EditorRenderer = /** @class */ (function () {
      * @param source_end_iter - Not modified
      * @param editor  - Modified.
      */
-    EditorRenderer.prototype.rerender = function (source_start_iter, source_end_iter, editor) {
+    EditorRenderer.prototype.rerender = function (source_start_iter, source_end_iter) {
         var _this = this;
         var start_iter = source_start_iter.clone();
         var end_iter = source_end_iter.clone();
@@ -43,7 +44,7 @@ var EditorRenderer = /** @class */ (function () {
         while (prev_line_iter.isValid()) {
             prev_line_iter.get().caseOf({
                 just: function (glyph) {
-                    _this.render(prev_line_iter, prev_line_iter, editor);
+                    _this.render(prev_line_iter, prev_line_iter);
                 },
                 nothing: function () {
                     // Nothing to render.
@@ -68,7 +69,7 @@ var EditorRenderer = /** @class */ (function () {
      * @param end_iter - Not modified.
      * @param editor - modified.
      */
-    EditorRenderer.prototype.render = function (source_start_iter, source_end_iter, editor) {
+    EditorRenderer.prototype.render = function (source_start_iter, source_end_iter) {
         var _this = this;
         var start_iter = source_start_iter.clone();
         var end_iter = source_end_iter.clone();
@@ -77,7 +78,7 @@ var EditorRenderer = /** @class */ (function () {
                 just: function (glyph) {
                     // We have something to render.
                     glyph.destroyNode(); // Destroy old representation, if any.
-                    _this._renderNode(start_iter, glyph.toNode(), editor);
+                    _this._renderNode(start_iter, glyph.toNode());
                 },
                 nothing: function () {
                     // We have nothing to render. So we do nothing.
@@ -92,7 +93,7 @@ var EditorRenderer = /** @class */ (function () {
                 start_iter.get().caseOf({
                     just: function (glyph) {
                         glyph.destroyNode(),
-                            _this._renderNode(start_iter, glyph.toNode(), editor);
+                            _this._renderNode(start_iter, glyph.toNode());
                     },
                     nothing: function () {
                         // We have nothing to render. So we do nothing.
@@ -104,7 +105,7 @@ var EditorRenderer = /** @class */ (function () {
             }
         }
     };
-    EditorRenderer.prototype._renderNode = function (iter, node, editor) {
+    EditorRenderer.prototype._renderNode = function (iter, node) {
         /* Where do we render it? And how? We decide based on the current
             character and the previous character. We have several cases:
 
@@ -113,13 +114,13 @@ var EditorRenderer = /** @class */ (function () {
         */
         var newNode = jquery_1.default(node);
         if (newNode.hasClass(string_map_1.default.lineName())) {
-            this._renderLine(iter, node, editor);
+            this._renderLine(iter, node);
         }
         else if (newNode.hasClass(string_map_1.default.glyphName())) {
-            this._renderGlyph(iter, node, editor);
+            this._renderGlyph(iter, node);
         }
     };
-    EditorRenderer.prototype._renderLine = function (iter, newline, editor) {
+    EditorRenderer.prototype._renderLine = function (iter, newline) {
         //1. Current is newline. Then we insert after current line, or if that is not found, we assume editor is empty and append.
         var scan_iter = iter.clone();
         var found_valid_prev = false;
@@ -156,16 +157,16 @@ var EditorRenderer = /** @class */ (function () {
         }
         if (!found_valid_prev) {
             // If the previous step did not succeed, we can only insert at start of editor.
-            var firstLine = jquery_1.default(editor).children(string_map_1.default.lineSelector()).first();
+            var firstLine = jquery_1.default(this.editor).children(string_map_1.default.lineSelector()).first();
             if (firstLine.length > 0) {
                 jquery_1.default(newline).insertBefore(firstLine);
             }
             else {
-                editor.appendChild(newline);
+                this.editor.appendChild(newline);
             }
         }
     };
-    EditorRenderer.prototype._renderGlyph = function (iter, new_glyph, editor) {
+    EditorRenderer.prototype._renderGlyph = function (iter, new_glyph) {
         //2. Current is NOT newline. Then we insert in current line (after prev glyph), or if that is not found, we insert after previous glyph.
         var scan_iter = iter.clone();
         var found_valid_prev = false;
@@ -211,7 +212,7 @@ var EditorRenderer = /** @class */ (function () {
         if (!found_valid_prev) {
             // If the previous step did not succeed, we can only insert at start of editor.
             // REALLY WE SHOULD THROW AN EXCEPTION HERE AND RERENDER THE DOCUMENT.
-            editor.appendChild(new_glyph);
+            this.editor.appendChild(new_glyph);
         }
     };
     return EditorRenderer;

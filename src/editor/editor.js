@@ -5,19 +5,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var tsmonad_1 = require("tsmonad");
 var jquery_1 = __importDefault(require("jquery"));
-var cursor_1 = __importDefault(require("editor/cursor"));
+var cursor_1 = __importDefault(require("editor/editor_executors/cursor"));
 var glyph_1 = require("editor/glyph");
 var linked_list_1 = require("data_structures/linked-list");
 var rxjs_1 = require("rxjs");
 var string_map_1 = __importDefault(require("string-map"));
-var renderer_1 = require("editor/renderer");
-var deleter_1 = require("editor/deleter");
+var renderer_1 = require("editor/editor_executors/renderer");
+var deleter_1 = require("editor/editor_executors/deleter");
+var editor_executor_1 = require("editor/editor_executors/editor-executor");
 var handlers_1 = require("editor/handlers/handlers");
 var keypress_map_1 = require("editor/keypress-map");
 var Editor = /** @class */ (function () {
     function Editor(editor_id) {
         this.cursor = new cursor_1.default();
-        this.renderer = new renderer_1.EditorRenderer();
         this.deleter = new deleter_1.EditorDeleter(this.renderer);
         this.keypress_map = new keypress_map_1.EditorKeyPressMap();
         this.cursor = new cursor_1.default();
@@ -27,10 +27,12 @@ var Editor = /** @class */ (function () {
         else {
             this.editor = jquery_1.default('#editor');
         }
+        this.renderer = new renderer_1.EditorRenderer(this.editor.get(0));
+        this.executor = new editor_executor_1.EditorActionExecutor(this.renderer, this.deleter);
         this.glyphs = new linked_list_1.LinkedList();
         this.start_glyph_iter = this.glyphs.makeFrontIterator();
         this.end_glyph_iter = this.glyphs.makeFrontIterator();
-        this.keydowner = new handlers_1.KeydownHandler(this.renderer, this.deleter, this.cursor, this.editor.get(0), this.keypress_map);
+        this.keydowner = new handlers_1.KeydownHandler(this.executor, this.cursor, this.editor.get(0), this.keypress_map);
         this.clicker = new handlers_1.ClickHandler(this.cursor, this.editor.get(0));
         this.mouse_clicker = new handlers_1.MouseClickHandler(this.cursor, this.editor.get(0));
         if (this.valid()) {
@@ -55,7 +57,7 @@ var Editor = /** @class */ (function () {
         var iterator = this.glyphs.makeFrontIterator();
         while (iterator.hasNext()) {
             iterator.next();
-            this.renderer.render(iterator, iterator, this.editor.get(0));
+            this.renderer.render(iterator, iterator);
         }
         this.updateCursorToCurrent(); // Initially is between a and b!
     };
@@ -73,17 +75,16 @@ var Editor = /** @class */ (function () {
         var _this = this;
         // Render initial state of document.
         this.rerender();
-        /*let mouseDownUpObs = merge(fromEvent(this.editor, 'mousedown'), fromEvent(this.editor, 'mouseup')).pipe(pairwise());
-        let mouseDownUpSub = mouseDownUpObs.subscribe({
-            next: (eventPair: Array<any>) => {
-                this.mouse_clicker.handle(eventPair, this.glyphs.makeFrontIterator());
-                this._updateIteratorsFromHandler(this.mouse_clicker);
-                this.updateCursorToCurrent();
-
+        var pasteObs = rxjs_1.fromEvent(this.editor, 'paste');
+        var pasteSub = pasteObs.subscribe({
+            next: function (event) {
+                // get data and supposedly remove non-utf characters.
+                var pasteText = event.originalEvent.clipboardData.getData('text');
+                pasteText = pasteText.replace(/[^\x20-\xFF]/gi, '');
             },
-            error: (err) => { },
-            complete: () => {}
-        });*/
+            error: function (err) { },
+            complete: function () { }
+        });
         var keyupObs = rxjs_1.fromEvent(this.editor, 'keyup');
         var keyupSub = keyupObs.subscribe({
             next: function (event) {

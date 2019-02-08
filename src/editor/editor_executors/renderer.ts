@@ -5,17 +5,18 @@ import Strings from "string-map";
 import $ from "jquery";
 import {
     findPreviousNewline,
-    findLineEnd } from "editor/editor-utils";
+    findLineEnd } from "editor/editor_executors/editor-utils";
 
 interface Renderer {
-    render(start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>, editor: Node): void;
-    rerender(start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>, editor: Node): void;
+    render(start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>): void;
+    rerender(start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>): void;
 }
 
 
 class EditorRenderer implements Renderer {
-    constructor() {
-
+    editor: Node;
+    constructor(editor: Node) {
+        this.editor = editor;
     }
 
     /**
@@ -25,7 +26,7 @@ class EditorRenderer implements Renderer {
      * @param source_end_iter - Not modified
      * @param editor  - Modified.
      */
-    rerender(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>, editor: Node)
+    rerender(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)
                                                                             : void {
         let start_iter = source_start_iter.clone();
         let end_iter = source_end_iter.clone();
@@ -53,7 +54,7 @@ class EditorRenderer implements Renderer {
         while(prev_line_iter.isValid()) {
             prev_line_iter.get().caseOf({
                 just: (glyph) => {
-                    this.render(prev_line_iter, prev_line_iter, editor);
+                    this.render(prev_line_iter, prev_line_iter);
                 },
                 nothing: () => {
                     // Nothing to render.
@@ -79,7 +80,7 @@ class EditorRenderer implements Renderer {
      * @param end_iter - Not modified.
      * @param editor - modified.
      */
-    render(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>, editor: Node)
+    render(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)
                                                             : void {
         let start_iter = source_start_iter.clone();
         let end_iter = source_end_iter.clone();
@@ -88,7 +89,7 @@ class EditorRenderer implements Renderer {
                 just: (glyph) => {
                     // We have something to render.
                     glyph.destroyNode(); // Destroy old representation, if any.
-                    this._renderNode(start_iter, glyph.toNode(), editor);
+                    this._renderNode(start_iter, glyph.toNode());
                 },
                 nothing: () => {
                     // We have nothing to render. So we do nothing.
@@ -102,7 +103,7 @@ class EditorRenderer implements Renderer {
                 start_iter.get().caseOf({
                     just: (glyph) => {
                         glyph.destroyNode(),
-                        this._renderNode(start_iter, glyph.toNode(), editor);
+                        this._renderNode(start_iter, glyph.toNode());
                     },
                     nothing: () => {
                         // We have nothing to render. So we do nothing.
@@ -115,7 +116,7 @@ class EditorRenderer implements Renderer {
         }
     }
 
-    _renderNode(iter: DoubleIterator<Glyph>, node: Node, editor: Node) {
+    _renderNode(iter: DoubleIterator<Glyph>, node: Node) {
         /* Where do we render it? And how? We decide based on the current
             character and the previous character. We have several cases:
 
@@ -124,13 +125,13 @@ class EditorRenderer implements Renderer {
         */
         let newNode = $(node);
         if(newNode.hasClass(Strings.lineName())) {
-            this._renderLine(iter, node, editor);
+            this._renderLine(iter, node);
         } else if (newNode.hasClass(Strings.glyphName()) ) {
-            this._renderGlyph(iter, node, editor);
+            this._renderGlyph(iter, node);
         }
     }
 
-    _renderLine(iter: DoubleIterator<Glyph>, newline: Node, editor: Node) {
+    _renderLine(iter: DoubleIterator<Glyph>, newline: Node) {
         //1. Current is newline. Then we insert after current line, or if that is not found, we assume editor is empty and append.
         let scan_iter = iter.clone();
         let found_valid_prev = false;
@@ -167,16 +168,16 @@ class EditorRenderer implements Renderer {
 
         if(!found_valid_prev) {
             // If the previous step did not succeed, we can only insert at start of editor.
-            let firstLine = $(editor).children(Strings.lineSelector()).first();
+            let firstLine = $(this.editor).children(Strings.lineSelector()).first();
             if(firstLine.length > 0) {
                 $(newline).insertBefore(firstLine);
             } else {
-                editor.appendChild(newline);
+                this.editor.appendChild(newline);
             }
         }
     }
 
-    _renderGlyph(iter: DoubleIterator<Glyph>, new_glyph: Node, editor: Node) {
+    _renderGlyph(iter: DoubleIterator<Glyph>, new_glyph: Node) {
         //2. Current is NOT newline. Then we insert in current line (after prev glyph), or if that is not found, we insert after previous glyph.
         let scan_iter = iter.clone();
         let found_valid_prev = false;
@@ -221,7 +222,7 @@ class EditorRenderer implements Renderer {
         if(!found_valid_prev) {
             // If the previous step did not succeed, we can only insert at start of editor.
             // REALLY WE SHOULD THROW AN EXCEPTION HERE AND RERENDER THE DOCUMENT.
-            editor.appendChild(new_glyph);
+            this.editor.appendChild(new_glyph);
         }
     }
 }

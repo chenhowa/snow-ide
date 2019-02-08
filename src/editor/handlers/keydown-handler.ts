@@ -3,30 +3,25 @@ import { Maybe } from "tsmonad";
 import { DoubleIterator } from "data_structures/linked-list";
 import { Glyph, GlyphStyle } from "editor/glyph";
 import Handler from "editor/handlers/handler";
-import { Renderer } from "editor/renderer";
-import { DeleteRenderer } from "editor/deleter";
-import Cursor from "editor/cursor";
+import { EditorExecutor } from "editor/editor_executors/editor-executor";
+import Cursor from "editor/editor_executors/cursor";
 import Strings from "string-map";
 import { 
     getDistanceFromLineStart, 
     findPreviousNewline,
     findLineEnd,
-} from "editor/editor-utils";
+} from "editor/editor_executors/editor-utils";
 import { KeyPressMap } from "editor/keypress-map";
 
 class KeydownHandler implements Handler {
-    renderer: Renderer;
-    deleter: DeleteRenderer;
-    start: Maybe<DoubleIterator<Glyph>>;
-    end: Maybe<DoubleIterator<Glyph>>;
+    executor: EditorExecutor;
+    start: Maybe<DoubleIterator<Glyph>> = Maybe.nothing();
+    end: Maybe<DoubleIterator<Glyph>> = Maybe.nothing();
     cursor: Cursor;
     editor: Node;
     keypress_map: KeyPressMap;
-    constructor(renderer: Renderer, deleter: DeleteRenderer, cursor: Cursor, editor: Node, map: KeyPressMap) {
-        this.renderer = renderer;
-        this.deleter = deleter;
-        this.start = Maybe.nothing();
-        this.end = Maybe.nothing();
+    constructor(executor: EditorExecutor, cursor: Cursor, editor: Node, map: KeyPressMap) {
+        this.executor = executor;
         this.cursor = cursor;
         this.editor = editor;
         this.keypress_map = map;
@@ -71,33 +66,20 @@ class KeydownHandler implements Handler {
     _handleKeyAlone(event: any, key: string, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)
                     : Array<DoubleIterator<Glyph>> {
         
+        let start_iter = source_start_iter.clone();
+        let end_iter = source_end_iter.clone();
+        event.preventDefault(); 
         if(this._isChar(key)) {
-            let new_iters: Array<DoubleIterator<Glyph>> = this._insertGlyph(key, source_start_iter, source_end_iter);
-            let start_iter = new_iters[0];
-            this._renderGlyphs(start_iter, start_iter);  // TODO: render the single glyph by passing in BOTH iterators, as as general case.
-            event.preventDefault();
-
-            return new_iters;
+            return this.executor.insertAndRender(key, start_iter, end_iter);
         } else if (key === 'Backspace') {
-            let new_iters: Array<DoubleIterator<Glyph>> = this._deleteGlyphsAndRerender(source_start_iter, source_end_iter, false);
-            event.preventDefault();
-            return new_iters;
+            return this.executor.deleteAndRender(start_iter, end_iter, false);
         } else if (key === 'Enter') {
-            let new_iters: Array<DoubleIterator<Glyph>> = this._insertGlyph(Strings.newline, source_start_iter, source_end_iter);
-            // Renders glyph by rerendering current line and new line.
-            let start_iter = new_iters[0];
-            this._rerenderGlyph(start_iter);
-
-            event.preventDefault();
-
-            return new_iters;  
+            return this.executor.insertAndRerender(Strings.newline, source_start_iter, source_end_iter);  
         } else if (this._isArrowKey(key)) {
             // TODO. Move iterator to correct destination and then rerender the cursor.
-            event.preventDefault();
             return this._handleArrowKey(key, source_start_iter, source_end_iter);
         } else {
             console.log("UNHANDLED KEY " + key);
-            event.preventDefault(); 
         }
 
         return [source_start_iter.clone(), source_end_iter.clone()];
@@ -105,66 +87,6 @@ class KeydownHandler implements Handler {
 
     _isChar(key: string): boolean {
         return key.length === 1;
-    }
-
-    /**
-     * @description - inserts the char as a glyph, and updates iterator to point at the new glyph.
-     *                Handles the case where start iterator and end iterator are not equal.
-     * @param char 
-     * @param start_iter NOT MODIFIED
-     * @param end_iter - NOT MODIFIED
-     */
-    _insertGlyph(char: string, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph> ): Array<DoubleIterator<Glyph>> {
-        let start_iter = source_start_iter.clone();
-        let end_iter = source_end_iter.clone();
-
-
-        if(!start_iter.equals(end_iter)) {
-            // If a selection, delete before inserting.
-            // TODO : figure out direction parameter. It is not needed or used in deleting. Should it be?
-
-            let new_iters = this._deleteGlyphsAndRerender(start_iter, end_iter, false);
-            start_iter = new_iters[0];
-            end_iter = new_iters[1];
-        } 
-
-        start_iter.insertAfter(new Glyph(char, new GlyphStyle()));
-        start_iter.next();
-        end_iter.next(); // keep end in sync with start.
-
-        return [start_iter, end_iter];
-        
-    }
-
-    /**
-     * @desciption - Renders single glyph in DOM IGNORING the surrounding nodes.
-     * @param source_start_iter - not modified. 
-     * @param source_end_iter - not modified.
-     */
-    _renderGlyphs(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>) {
-        let start_iter = source_start_iter.clone();
-        let end_iter = source_end_iter.clone();
-        this.renderer.render(start_iter, end_iter, this.editor);
-    }
-
-    /**
-     * @description - deletes the pointed at glyph and rerenders document
-     * @param start_iter    NOT MODIFIED.
-     * @param end_iter      NOT MODIFIED.
-     * @param direction true if delete and move forward, else go backward.
-     * @returns pair of iterators - first is new start iterator, second is new end iterator.
-     */
-    _deleteGlyphsAndRerender(start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>, direction: boolean)
-                                                                    : Array< DoubleIterator<Glyph> > {
-        return this.deleter.deleteAndRender(start_iter.clone(), end_iter.clone(), this.editor, direction);
-    }
-
-    /**
-     * @description -- rerenders a glyph.
-     * @param iter 
-     */
-    _rerenderGlyph(iter: DoubleIterator<Glyph>) {
-        this.renderer.rerender(iter, iter, this.editor);
     }
 
     _isArrowKey(key: string): boolean {

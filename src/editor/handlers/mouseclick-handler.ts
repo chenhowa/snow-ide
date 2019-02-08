@@ -1,7 +1,7 @@
 import { DoubleIterator } from "data_structures/linked-list";
 import { Glyph, ToNode } from "editor/glyph";
 import { Maybe } from "tsmonad";
-import Cursor from "editor/cursor";
+import Cursor from "editor/editor_executors/cursor";
 import Strings from "string-map";
 import $ from "jquery";
 import Handler from "editor/handlers/handler";

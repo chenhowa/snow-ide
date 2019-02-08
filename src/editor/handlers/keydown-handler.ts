@@ -81,11 +81,9 @@ class KeydownHandler implements Handler {
                 return new_iters;
             }
         } else if (key === 'Backspace') {
-            if(this.cursor.isCollapsed()) {
-                let new_iters: Array<DoubleIterator<Glyph>> = this._deleteGlyphAndRerender(source_start_iter, source_end_iter, false);
-                event.preventDefault();
-                return new_iters;
-            }
+            let new_iters: Array<DoubleIterator<Glyph>> = this._deleteGlyphAndRerender(source_start_iter, source_end_iter, false);
+            event.preventDefault();
+            return new_iters;
         } else if (key === 'Enter') {
             if(this.cursor.isCollapsed()) {
                 let new_iters: Array<DoubleIterator<Glyph>> = this._insertGlyph(Strings.newline, source_start_iter, source_end_iter);
@@ -131,7 +129,7 @@ class KeydownHandler implements Handler {
     }
 
     /**
-     * @desciption - Renders single glyph in DOM based on the surrounding nodes.
+     * @desciption - Renders single glyph in DOM IGNORING the surrounding nodes.
      * @param iter - not modified. 
      */
     _renderGlyph(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>) {

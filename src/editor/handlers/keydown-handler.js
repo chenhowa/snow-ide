@@ -63,6 +63,11 @@ var KeydownHandler = /** @class */ (function () {
                 event.preventDefault();
                 return new_iters;
             }
+            else {
+                var new_iters = this._deleteGlyphAndRerender(source_start_iter, source_end_iter, false);
+                event.preventDefault();
+                return new_iters;
+            }
         }
         else if (key === 'Enter') {
             if (this.cursor.isCollapsed()) {
@@ -101,7 +106,7 @@ var KeydownHandler = /** @class */ (function () {
         return [start_iter, end_iter];
     };
     /**
-     * @desciption - Renders single glyph in DOM based on the surrounding nodes.
+     * @desciption - Renders single glyph in DOM IGNORING the surrounding nodes.
      * @param iter - not modified.
      */
     KeydownHandler.prototype._renderGlyph = function (source_start_iter, source_end_iter) {

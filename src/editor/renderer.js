@@ -20,99 +20,41 @@ var EditorRenderer = /** @class */ (function () {
         var _this = this;
         var start_iter = source_start_iter.clone();
         var end_iter = source_end_iter.clone();
-        if (start_iter.equals(end_iter)) {
-            start_iter.get().caseOf({
-                just: function (glyph) {
-                    glyph.getNode().caseOf({
-                        just: function (node) {
-                            _this._rerenderNode(start_iter, node, editor);
-                        },
-                        nothing: function () {
-                            _this._rerenderNode(start_iter, glyph.toNode(), editor);
-                        }
-                    });
-                },
-                nothing: function () {
-                    // Nothing to rerender. So we do nothing.
-                }
-            });
-        }
-        else {
-            // TODO : How to rerender the set of nodes contained within two start and end iterators?
-            // ANSWER. - from start node + 1, find soonest previous newline (inclusive).
-            //         - from end node, from next newline (or EOF).
-            //      Then rerender starting from the previous newline to ONE BEFORE the next newline
+        // TODO : How to rerender the set of nodes contained within two start and end iterators?
+        // ANSWER. - from start node + 1, find soonest previous newline (inclusive).
+        //         - from end node, from next newline (or EOF).
+        //      Then rerender starting from the previous newline to ONE BEFORE the next newline
+        if (!start_iter.equals(end_iter)) {
             start_iter.next();
-            var prev_line_iter_1 = editor_utils_1.findPreviousNewline(start_iter).caseOf({
-                just: function (iter) {
-                    return iter;
-                },
-                nothing: function () {
-                    return start_iter.clone();
-                }
-            });
-            var end_of_line_iter = editor_utils_1.findLineEnd(end_iter);
-            while (prev_line_iter_1.isValid()) {
-                prev_line_iter_1.get().caseOf({
-                    just: function (glyph) {
-                        _this.render(prev_line_iter_1, prev_line_iter_1, editor);
-                    },
-                    nothing: function () {
-                        // Nothing to render.
-                    }
-                });
-                if (prev_line_iter_1.equals(end_of_line_iter)) {
-                    // If we've rendered up to the end of line, we're done.
-                    break;
-                }
-                else {
-                    // Otherwise continue trying rendering.
-                    prev_line_iter_1.next();
-                }
-            }
-        }
-    };
-    EditorRenderer.prototype._rerenderNode = function (iter, node, editor) {
-        var newNode = jquery_1.default(node);
-        if (newNode.hasClass(string_map_1.default.lineName())) {
-            this._rerenderLine(iter, editor);
         }
         else {
-            // If we are not rerendering a newline, we will just destroy and rerender the node
-            // through the this.render() method.
-            this.render(iter, iter, editor);
+            // If start and end iterators are the same, then they both refer to the same
+            // node that needs to be rerendered. So no need to do anything.
         }
-    };
-    /**
-     *
-     * @param iter // iterator pointing at the newline to rerender.
-     * @param editor
-     */
-    EditorRenderer.prototype._rerenderLine = function (source_iter, editor) {
-        var iter = source_iter.clone();
-        // destroy rerendering newline, if it exists.
-        iter.get().caseOf({
-            just: function (glyph) {
-                glyph.destroyNode();
+        var prev_line_iter = editor_utils_1.findPreviousNewline(start_iter).caseOf({
+            just: function (iter) {
+                return iter;
             },
             nothing: function () {
+                return start_iter.clone();
             }
         });
-        var prev_line_iter = editor_utils_1.findPreviousNewline(iter).caseOf({
-            just: function (prev) {
-                return prev;
-            },
-            nothing: function () {
-                return iter.clone();
-            }
-        });
-        var line_end_iter = editor_utils_1.findLineEnd(iter);
+        var end_of_line_iter = editor_utils_1.findLineEnd(end_iter);
         while (prev_line_iter.isValid()) {
-            this.render(prev_line_iter, prev_line_iter, editor);
-            if (prev_line_iter.equals(line_end_iter)) {
+            prev_line_iter.get().caseOf({
+                just: function (glyph) {
+                    _this.render(prev_line_iter, prev_line_iter, editor);
+                },
+                nothing: function () {
+                    // Nothing to render.
+                }
+            });
+            if (prev_line_iter.equals(end_of_line_iter)) {
+                // If we've rendered up to the end of line, we're done.
                 break;
             }
             else {
+                // Otherwise continue trying rendering.
                 prev_line_iter.next();
             }
         }

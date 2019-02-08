@@ -29,109 +29,46 @@ class EditorRenderer implements Renderer {
                                                                             : void {
         let start_iter = source_start_iter.clone();
         let end_iter = source_end_iter.clone();
-        if(start_iter.equals(end_iter)) {
-            start_iter.get().caseOf({
-                just: (glyph) => {
-                    glyph.getNode().caseOf({
-                        just: (node) => {
-                            this._rerenderNode(start_iter, node, editor);
-                        },
-                        nothing: () => {
-                            this._rerenderNode(start_iter, glyph.toNode(), editor);
-                        }
-                    })
-                },
-                nothing: () => {
-                    // Nothing to rerender. So we do nothing.
-                }
-            });
-        } else {
-            // TODO : How to rerender the set of nodes contained within two start and end iterators?
-            // ANSWER. - from start node + 1, find soonest previous newline (inclusive).
-            //         - from end node, from next newline (or EOF).
-            //      Then rerender starting from the previous newline to ONE BEFORE the next newline
+        // TODO : How to rerender the set of nodes contained within two start and end iterators?
+        // ANSWER. - from start node + 1, find soonest previous newline (inclusive).
+        //         - from end node, from next newline (or EOF).
+        //      Then rerender starting from the previous newline to ONE BEFORE the next newline
+        if(!start_iter.equals(end_iter)) {
             start_iter.next();
-            let prev_line_iter: DoubleIterator<Glyph> = findPreviousNewline(start_iter).caseOf({
-                just: (iter) => {
-                    return iter;
-                },
-                nothing: () => {
-                    return start_iter.clone();
-                }
-            });
-
-            let end_of_line_iter: DoubleIterator<Glyph> = findLineEnd(end_iter);
-            while(prev_line_iter.isValid()) {
-                prev_line_iter.get().caseOf({
-                    just: (glyph) => {
-                        this.render(prev_line_iter, prev_line_iter, editor);
-                    },
-                    nothing: () => {
-                        // Nothing to render.
-                    }
-                })
-
-                if(prev_line_iter.equals(end_of_line_iter)) {
-                    // If we've rendered up to the end of line, we're done.
-                    break;
-                } else {
-                    // Otherwise continue trying rendering.
-                    prev_line_iter.next();
-                }
-            }
-        }
-    }
-
-    _rerenderNode(iter: DoubleIterator<Glyph>, node: Node, editor: Node) {
-        let newNode = $(node);
-        if(newNode.hasClass(Strings.lineName())) {
-            this._rerenderLine(iter, editor);
         } else {
-            // If we are not rerendering a newline, we will just destroy and rerender the node
-            // through the this.render() method.
-            this.render(iter, iter, editor);
+            // If start and end iterators are the same, then they both refer to the same
+            // node that needs to be rerendered. So no need to do anything.
         }
-    }
-
-    /**
-     * 
-     * @param iter // iterator pointing at the newline to rerender.
-     * @param editor 
-     */
-    _rerenderLine(source_iter: DoubleIterator<Glyph>, editor: Node) {
-        let iter = source_iter.clone();
-
-        // destroy rerendering newline, if it exists.
-        iter.get().caseOf({
-            just: (glyph) => {
-                glyph.destroyNode();
+            
+        let prev_line_iter: DoubleIterator<Glyph> = findPreviousNewline(start_iter).caseOf({
+            just: (iter) => {
+                return iter;
             },
             nothing: () => {
-
-            }
-        })
-
-        let prev_line_iter = findPreviousNewline(iter).caseOf({
-            just: (prev) => {
-                return prev;
-            },
-            nothing: () => {
-                return iter.clone();
+                return start_iter.clone();
             }
         });
 
-        let line_end_iter = findLineEnd(iter);
+        let end_of_line_iter: DoubleIterator<Glyph> = findLineEnd(end_iter);
         while(prev_line_iter.isValid()) {
-            this.render(prev_line_iter, prev_line_iter, editor);
+            prev_line_iter.get().caseOf({
+                just: (glyph) => {
+                    this.render(prev_line_iter, prev_line_iter, editor);
+                },
+                nothing: () => {
+                    // Nothing to render.
+                }
+            })
 
-            if(prev_line_iter.equals(line_end_iter)) {
+            if(prev_line_iter.equals(end_of_line_iter)) {
+                // If we've rendered up to the end of line, we're done.
                 break;
             } else {
+                // Otherwise continue trying rendering.
                 prev_line_iter.next();
             }
         }
     }
-
 
     /**
      * @description Renders the node within the editor. Will destroy existing representations if they exist.

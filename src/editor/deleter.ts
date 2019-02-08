@@ -17,36 +17,49 @@ class EditorDeleter {
         this.renderer = renderer;
     }
 
-    deleteAndRender(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>, editor: Node, direction: boolean)
-                            : Array< DoubleIterator<Glyph> > {
+    deleteAndRender(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>, 
+                        editor: Node, direction: boolean)
+                                                            : Array< DoubleIterator<Glyph> > {
+        console.log("DELETING AND RENDERING");
         let start_iter = source_start_iter.clone();
         let end_iter = source_end_iter.clone();
-        if(start_iter.equals(end_iter)) {
-            let return_iter = start_iter.get().caseOf({
-                just: (glyph) => {
-                    return glyph.getNode().caseOf({
-                        just: (node) => {
-                            return this._deleteGlyphAndRerender(start_iter, node, editor, direction);
-                        },
-                        nothing: () => {
-                            // If node was not rendered, nothing to do but remove the cell.
-                            start_iter.remove(direction);
-                            return start_iter.clone();
-                        }
-                    });
-                },
-                nothing: () => {
-                    // The cell is empty. Might as well delete it.
-                    start_iter.remove(direction);
-                    return start_iter.clone();
-                }
-            });
 
-            return [return_iter.clone(), return_iter.clone()];
-        } else {
-            // TODO - do something different if the selection is spread out.
+        // First we remove and destroy nodes until start_iter equals end_iter.
+        // then we remove the node at start_iter == end_iter, and move
+        // in the correct direction. Then we rerender.
+        while(!start_iter.equals(end_iter) && start_iter.hasNext()) {
+            start_iter.next();
+            if(start_iter.equals(end_iter)) {
+                break;
+            } else {
+                start_iter.get().caseOf({
+                    just: (glyph) => {
+                        glyph.destroyNode();
+                    },
+                    nothing: () => {}
+                });
+                start_iter.remove(false);
+            }
         }
-        
+
+        // At this point, start_iter == end_iter. We delete the last glyph that needs to be deleted.
+        start_iter.get().caseOf({
+            just: (glyph) => {
+                glyph.destroyNode();
+            },
+            nothing: () => {}
+        });
+        start_iter.remove(false);
+        // If we need to, we insert a newline before rerendering (we might have deleted
+        // the initial newline in the document)
+        if(!start_iter.isValid()) {
+            start_iter.insertAfter(new Glyph("\n", new GlyphStyle()));
+            start_iter.next();
+        }
+
+        // Now we rerender.
+        end_iter = start_iter.clone(); // restore the validity of end_iter.
+        this.renderer.rerender(start_iter, end_iter, editor);
 
         return [start_iter.clone(), end_iter.clone()];
     }

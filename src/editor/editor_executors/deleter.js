@@ -11,6 +11,7 @@ var EditorDeleter = /** @class */ (function () {
     }
     EditorDeleter.prototype.deleteAndRender = function (source_start_iter, source_end_iter, direction) {
         console.log("DELETING AND RENDERING");
+        console.log(this.renderer);
         var start_iter = source_start_iter.clone();
         var end_iter = source_end_iter.clone();
         // First we remove and destroy nodes until start_iter equals end_iter.

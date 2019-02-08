@@ -26,7 +26,7 @@ class Editor {
     editor: JQuery<HTMLElement>;
     cursor: Cursor = new Cursor();
     renderer: Renderer;
-    deleter: DeleteRenderer = new EditorDeleter(this.renderer);
+    deleter: DeleteRenderer;
     executor: EditorExecutor;
     clicker: Handler;
     keypress_map: KeyPressMap = new EditorKeyPressMap();
@@ -50,6 +50,7 @@ class Editor {
             this.editor = $('#editor');
         }
         this.renderer = new EditorRenderer(this.editor.get(0));
+        this.deleter = new EditorDeleter(this.renderer);
         this.executor = new EditorActionExecutor(this.renderer, this.deleter);
         this.glyphs = new LinkedList();
         this.start_glyph_iter = this.glyphs.makeFrontIterator();
@@ -255,10 +256,13 @@ class Editor {
     updateCursor(source_start: DoubleIterator<Glyph>, source_end: DoubleIterator<Glyph>) {
         // THIS IS FOR VISUAL FEEDBACK TO USER ONLY.
         // Using the cursor for direct insert is error prone, as it may be misplaced.
+        console.log(this.start_glyph_iter.grab());
+        console.log(this.end_glyph_iter.grab());
         let start = source_start.clone();
         let end = source_end.clone();
 
         if(start.equals(end)) {
+            console.log("collapsing");
             // If both start and end point to the same glyph, we collapse the cursor to one.
             end.get().caseOf({
                 just: (glyph) => {
@@ -299,7 +303,9 @@ class Editor {
                     }
                 }
             });
+            console.log(this.cursor.selection);
         } else {
+            console.log("expanding");
             // If start and end are not equal, we ASSUME that start is before end,
             // and we update the selection to reflect this. We also
             // assume, for now, that start and end are guaranteed to be pointing

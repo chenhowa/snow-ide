@@ -221,7 +221,7 @@ var LinkedListIterator = /** @class */ (function () {
     LinkedListIterator.prototype.remove = function (goForward) {
         if (this._isSentinel()) {
             console.log('Tried to remove sentinel');
-            return;
+            return tsmonad_1.Maybe.nothing();
         }
         var thisIterator = this;
         var oldCurrent = this.current; // save the actual node to be deleted.
@@ -273,9 +273,10 @@ var LinkedListIterator = /** @class */ (function () {
                 }
             });
         }
-        // Disconnect current so it can be GCed.
+        // Disconnect current
         oldCurrent.next = tsmonad_1.Maybe.nothing();
         oldCurrent.prev = tsmonad_1.Maybe.nothing();
+        return tsmonad_1.Maybe.just(oldCurrent);
     };
     LinkedListIterator.prototype.removeNext = function () {
         this.next();

@@ -19,7 +19,9 @@ class EditorDeleter {
     deleteAndRender(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>, 
                         direction: boolean)
                                                             : Array< DoubleIterator<Glyph> > {
+
         console.log("DELETING AND RENDERING");
+        console.log(this.renderer);
         let start_iter = source_start_iter.clone();
         let end_iter = source_end_iter.clone();
 

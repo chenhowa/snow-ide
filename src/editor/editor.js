@@ -18,7 +18,6 @@ var keypress_map_1 = require("editor/keypress-map");
 var Editor = /** @class */ (function () {
     function Editor(editor_id) {
         this.cursor = new cursor_1.default();
-        this.deleter = new deleter_1.EditorDeleter(this.renderer);
         this.keypress_map = new keypress_map_1.EditorKeyPressMap();
         this.cursor = new cursor_1.default();
         if (editor_id) {
@@ -28,6 +27,7 @@ var Editor = /** @class */ (function () {
             this.editor = jquery_1.default('#editor');
         }
         this.renderer = new renderer_1.EditorRenderer(this.editor.get(0));
+        this.deleter = new deleter_1.EditorDeleter(this.renderer);
         this.executor = new editor_executor_1.EditorActionExecutor(this.renderer, this.deleter);
         this.glyphs = new linked_list_1.LinkedList();
         this.start_glyph_iter = this.glyphs.makeFrontIterator();
@@ -217,9 +217,12 @@ var Editor = /** @class */ (function () {
         var _this = this;
         // THIS IS FOR VISUAL FEEDBACK TO USER ONLY.
         // Using the cursor for direct insert is error prone, as it may be misplaced.
+        console.log(this.start_glyph_iter.grab());
+        console.log(this.end_glyph_iter.grab());
         var start = source_start.clone();
         var end = source_end.clone();
         if (start.equals(end)) {
+            console.log("collapsing");
             // If both start and end point to the same glyph, we collapse the cursor to one.
             end.get().caseOf({
                 just: function (glyph) {
@@ -262,8 +265,10 @@ var Editor = /** @class */ (function () {
                     }
                 }
             });
+            console.log(this.cursor.selection);
         }
         else {
+            console.log("expanding");
             // If start and end are not equal, we ASSUME that start is before end,
             // and we update the selection to reflect this. We also
             // assume, for now, that start and end are guaranteed to be pointing

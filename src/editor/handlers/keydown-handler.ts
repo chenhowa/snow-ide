@@ -77,12 +77,12 @@ class KeydownHandler implements Handler {
             return this.executor.insertAndRerender(Strings.newline, source_start_iter, source_end_iter);  
         } else if (this._isArrowKey(key)) {
             // TODO. Move iterator to correct destination and then rerender the cursor.
-            return this._handleArrowKey(key, source_start_iter, source_end_iter);
+            return this._handleArrowKey(key, start_iter, end_iter);
         } else {
             console.log("UNHANDLED KEY " + key);
         }
 
-        return [source_start_iter.clone(), source_end_iter.clone()];
+        return [start_iter.clone(), end_iter.clone()];
     }
 
     _isChar(key: string): boolean {

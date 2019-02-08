@@ -19150,7 +19150,7 @@ var LinkedListIterator = /** @class */ (function () {
     LinkedListIterator.prototype.remove = function (goForward) {
         if (this._isSentinel()) {
             console.log('Tried to remove sentinel');
-            return;
+            return tsmonad_1.Maybe.nothing();
         }
         var thisIterator = this;
         var oldCurrent = this.current; // save the actual node to be deleted.
@@ -19202,9 +19202,10 @@ var LinkedListIterator = /** @class */ (function () {
                 }
             });
         }
-        // Disconnect current so it can be GCed.
+        // Disconnect current
         oldCurrent.next = tsmonad_1.Maybe.nothing();
         oldCurrent.prev = tsmonad_1.Maybe.nothing();
+        return tsmonad_1.Maybe.just(oldCurrent);
     };
     LinkedListIterator.prototype.removeNext = function () {
         this.next();
@@ -19301,7 +19302,6 @@ var keypress_map_1 = require("editor/keypress-map");
 var Editor = /** @class */ (function () {
     function Editor(editor_id) {
         this.cursor = new cursor_1.default();
-        this.deleter = new deleter_1.EditorDeleter(this.renderer);
         this.keypress_map = new keypress_map_1.EditorKeyPressMap();
         this.cursor = new cursor_1.default();
         if (editor_id) {
@@ -19311,6 +19311,7 @@ var Editor = /** @class */ (function () {
             this.editor = jquery_1.default('#editor');
         }
         this.renderer = new renderer_1.EditorRenderer(this.editor.get(0));
+        this.deleter = new deleter_1.EditorDeleter(this.renderer);
         this.executor = new editor_executor_1.EditorActionExecutor(this.renderer, this.deleter);
         this.glyphs = new linked_list_1.LinkedList();
         this.start_glyph_iter = this.glyphs.makeFrontIterator();
@@ -19500,9 +19501,12 @@ var Editor = /** @class */ (function () {
         var _this = this;
         // THIS IS FOR VISUAL FEEDBACK TO USER ONLY.
         // Using the cursor for direct insert is error prone, as it may be misplaced.
+        console.log(this.start_glyph_iter.grab());
+        console.log(this.end_glyph_iter.grab());
         var start = source_start.clone();
         var end = source_end.clone();
         if (start.equals(end)) {
+            console.log("collapsing");
             // If both start and end point to the same glyph, we collapse the cursor to one.
             end.get().caseOf({
                 just: function (glyph) {
@@ -19545,8 +19549,10 @@ var Editor = /** @class */ (function () {
                     }
                 }
             });
+            console.log(this.cursor.selection);
         }
         else {
+            console.log("expanding");
             // If start and end are not equal, we ASSUME that start is before end,
             // and we update the selection to reflect this. We also
             // assume, for now, that start and end are guaranteed to be pointing
@@ -19738,6 +19744,7 @@ var EditorDeleter = /** @class */ (function () {
     }
     EditorDeleter.prototype.deleteAndRender = function (source_start_iter, source_end_iter, direction) {
         console.log("DELETING AND RENDERING");
+        console.log(this.renderer);
         var start_iter = source_start_iter.clone();
         var end_iter = source_end_iter.clone();
         // First we remove and destroy nodes until start_iter equals end_iter.
@@ -20527,12 +20534,12 @@ var KeydownHandler = /** @class */ (function () {
         }
         else if (this._isArrowKey(key)) {
             // TODO. Move iterator to correct destination and then rerender the cursor.
-            return this._handleArrowKey(key, source_start_iter, source_end_iter);
+            return this._handleArrowKey(key, start_iter, end_iter);
         }
         else {
             console.log("UNHANDLED KEY " + key);
         }
-        return [source_start_iter.clone(), source_end_iter.clone()];
+        return [start_iter.clone(), end_iter.clone()];
     };
     KeydownHandler.prototype._isChar = function (key) {
         return key.length === 1;

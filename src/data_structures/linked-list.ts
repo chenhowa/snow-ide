@@ -38,6 +38,7 @@ interface DoubleIterator<T> {
     findBackward(filter: (data: T) => boolean): DoubleIterator<T>;
     insertListAfter(list: List<T>): DoubleIterator<T>;
     insertNodeAfter(node: ListNode<T>): void;
+    insertNodeBefore(node: ListNode<T>): void;
 }
 
 
@@ -189,6 +190,20 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
         this.current.next = Maybe.just(node);
     }
 
+    insertNodeBefore(node: ListNode<T>): void {
+        this.current.prev.caseOf({
+            just: (prevNode) => {
+                node.prev = Maybe.just(prevNode);
+                prevNode.next = Maybe.just(node);
+            },
+            nothing: () => {
+                throw new Error("insertNodeBefore: this iterator's list has been corrupted");
+            }       
+        });
+        node.next = Maybe.just(this.current);
+        this.current.prev = Maybe.just(node);
+    }
+
     /**
      * @description Finds first occurence at or after this iterator.
      * @param filter 
@@ -224,8 +239,6 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
      * @param filter 
      */
     findBackward(filter: (data: T) => boolean): DoubleIterator<T> {
-
-
         let iter = this.clone();
         let found = false;
 

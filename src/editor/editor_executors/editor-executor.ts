@@ -3,14 +3,23 @@ import { DoubleIterator } from "data_structures/linked-list";
 import { Renderer } from "editor/editor_executors/renderer";
 import { DeleteRenderer } from "editor/editor_executors/deleter";
 
+import HistorySingleton from "editor/singletons/history-singleton";
+import { 
+    InsertCommand, 
+    RemoveCommand,
+    Command 
+} from "editor/editor_commands/commands";
+
 
 interface EditorExecutor {
     deleteAndRender(start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>, direction: boolean)
                                                 : Array< DoubleIterator<Glyph> >;
-    insertAndRender(char: string, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph> )
+    insertAndRender(char: string, source_start_iter: DoubleIterator<Glyph>, 
+                                            source_end_iter: DoubleIterator<Glyph> )
                                                 : Array<DoubleIterator<Glyph>>;
     rerenderAt(iter: DoubleIterator<Glyph>): void;
-    insertAndRerender(char: string, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph> )
+    insertAndRerender(char: string, source_start_iter: DoubleIterator<Glyph>, 
+                                            source_end_iter: DoubleIterator<Glyph> )
                                                 : Array<DoubleIterator<Glyph>>;
     rerenderRange(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>): void;
 }
@@ -89,7 +98,7 @@ class EditorActionExecutor implements EditorExecutor {
             let new_iters = this._deleteGlyphsAndRerender(start_iter, end_iter, false);
             start_iter = new_iters[0];
             end_iter = new_iters[1];
-        } 
+        }
 
         start_iter.insertAfter(new Glyph(char, new GlyphStyle()));
         start_iter.next();

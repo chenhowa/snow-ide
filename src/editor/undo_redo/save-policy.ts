@@ -1,0 +1,7 @@
+
+
+
+
+interface SavePolicy {
+    shouldSave(): boolean;
+}

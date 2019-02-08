@@ -54,6 +54,9 @@ class RemoveCommand implements Command {
             }
         }
 
+        // Rerender the range now that the stuff has been removed.
+        this.executor.rerenderRange(this.start, this.end);
+
         // Set end to start, to show the command has been done.
         this.end = this.start.clone();
 
@@ -65,7 +68,7 @@ class RemoveCommand implements Command {
         }
 
         this.end = this.start.insertListAfter(this.list); // puts end at one past the last inserted node
-        this.executor.rerenderRange(this.start, this.end); // rerender the inserted nodes.
+        this.executor.rerenderRange(this.start, this.end); // rerender now that the stuff has been inserted.
     }
 
     asArray(): Array<Glyph> {

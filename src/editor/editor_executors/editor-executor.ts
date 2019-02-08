@@ -12,6 +12,7 @@ interface EditorExecutor {
     rerenderAt(iter: DoubleIterator<Glyph>): void;
     insertAndRerender(char: string, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph> )
                                                 : Array<DoubleIterator<Glyph>>;
+    rerenderRange(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>): void;
 }
 
 
@@ -22,6 +23,13 @@ class EditorActionExecutor implements EditorExecutor {
     constructor(renderer: Renderer, deleter: DeleteRenderer) {
         this.renderer = renderer;
         this.deleter = deleter;
+    }
+
+    rerenderRange(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)
+                                                                        : void {
+        let start = source_start_iter.clone();
+        let end = source_end_iter.clone();
+        this.renderer.rerender(start, end);
     }
 
     rerenderAt(iter: DoubleIterator<Glyph>): void {

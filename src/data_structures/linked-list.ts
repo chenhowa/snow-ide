@@ -29,13 +29,15 @@ interface DoubleIterator<T> {
     insertBefore(val: T): void; // inserts before. Does not move iterator.
     insertAfter(val: T): void; // inserts after. Does not move iterator.
     remove(forward: boolean): Maybe< LinkedListNode<T> >; // Removes current. returns node that was removed.
-    removeNext(): void; // Removes value after current, if it exists.
-    removePrev(): void; // removes node before current, if it exists.
+    removeNext(): Maybe< LinkedListNode<T> >; // Removes value after current, if it exists.
+    removePrev(): Maybe< LinkedListNode<T> >; // removes node before current, if it exists.
     replace(val: T): void; // Replaces current node's value.
     grab(): T // throws an error if no value was present in the node.
     equals(other: DoubleIterator<T>) : boolean;
     findForward(filter: (data: T) => boolean): DoubleIterator<T>;
     findBackward(filter: (data: T) => boolean): DoubleIterator<T>;
+    insertListAfter(list: List<T>): DoubleIterator<T>;
+    insertNodeAfter(node: ListNode<T>): void;
 }
 
 
@@ -137,6 +139,53 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
     constructor(current: LinkedListNode<T>, list : LinkedList<T>) {
         this.current = current;
         this.list = list;
+    }
+
+
+    /**
+     * @description takes a list and inserts all its nodes into the iterator's list. 
+     * @param list  - this list is destroyed as a result.
+     * @returns iterator pointing to node AFTER the last inserted node.
+     */
+    insertListAfter(list: List<T>): DoubleIterator<T> {
+        if(this._isBackSentinel()) {
+            throw new Error("Tried to insert list after back sentinel");
+        }
+
+        let iter = list.makeFrontIterator();
+        let inserter = this.clone();
+        while(iter.hasNext()) {
+            let maybe_node = iter.removeNext(); // remove node from list so we can put it in current list.
+            maybe_node.caseOf({
+                just: (node) => {
+                    // If the node exists, insert it.
+                    inserter.insertNodeAfter(node);
+                    inserter.next();
+                },
+                nothing: () => {
+
+                }
+            })
+        }
+
+        // Once done, we return node after all that has been inserted.
+        inserter.next();
+        return inserter;
+    }
+
+    insertNodeAfter(node: ListNode<T>): void {
+        this.current.next.caseOf({
+            just: (nextNode) => {
+                node.next = Maybe.just(nextNode);
+                nextNode.prev = Maybe.just(node);
+            },
+            nothing: () => {
+                // If current has no next, we're probably in trouble. We can't really repair in any way.
+                throw new Error("insertNodeAfter: this iterator's list has been corrupted");
+            }
+        });
+        node.prev = Maybe.just(this.current);
+        this.current.next = Maybe.just(node);
     }
 
     /**
@@ -360,14 +409,14 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
         return Maybe.just(oldCurrent);
     }
 
-    removeNext(): void {
+    removeNext(): Maybe< LinkedListNode<T> > {
         this.next();
-        this.remove(false); // go backward after removing.
+        return this.remove(false); // go backward after removing.
     }
 
-    removePrev(): void {
+    removePrev(): Maybe< LinkedListNode<T> > {
         this.prev();
-        this.remove(true); // go forward after removing.
+        return this.remove(true); // go forward after removing.
     }
 
     clone(): DoubleIterator<T> {
@@ -443,4 +492,9 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
     }
 }
 
-export { LinkedList, List, DoubleIterator };
+export { 
+    LinkedList, 
+    List, 
+    ListNode, 
+    DoubleIterator
+};

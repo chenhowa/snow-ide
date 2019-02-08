@@ -55,10 +55,7 @@ class Editor {
         this.glyphs = new LinkedList();
         this.start_glyph_iter = this.glyphs.makeFrontIterator();
         this.end_glyph_iter = this.glyphs.makeFrontIterator();
-        this.keydowner = new KeydownHandler(
-                            this.executor,
-                            this.cursor, this.editor.get(0), this.keypress_map
-        );
+        this.keydowner = new KeydownHandler(this.executor, this.cursor, this.editor.get(0), this.keypress_map);
         this.clicker = new ClickHandler(this.cursor, this.editor.get(0));
         this.mouse_clicker = new MouseClickHandler(this.cursor, this.editor.get(0));
         

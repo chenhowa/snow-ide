@@ -43,8 +43,21 @@ var EditorDeleter = /** @class */ (function () {
         // If we need to, we insert a newline before rerendering (we might have deleted
         // the initial newline in the document)
         if (!start_iter.isValid()) {
-            start_iter.insertAfter(new glyph_1.Glyph("\n", new glyph_1.GlyphStyle()));
-            start_iter.next();
+            // If not valid, we are at the front sentinel of the linked list.
+            var next_iter = start_iter.clone();
+            next_iter.next();
+            var shouldInsert = next_iter.get().caseOf({
+                just: function (glyph) {
+                    return glyph.glyph === string_map_1.default.newline;
+                },
+                nothing: function () {
+                    return true;
+                }
+            });
+            if (shouldInsert) {
+                start_iter.insertAfter(new glyph_1.Glyph(string_map_1.default.newline, new glyph_1.GlyphStyle()));
+                start_iter.next();
+            }
         }
         // Now we rerender.
         end_iter = start_iter.clone(); // restore the validity of end_iter.

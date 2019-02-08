@@ -53,8 +53,21 @@ class EditorDeleter {
         // If we need to, we insert a newline before rerendering (we might have deleted
         // the initial newline in the document)
         if(!start_iter.isValid()) {
-            start_iter.insertAfter(new Glyph("\n", new GlyphStyle()));
-            start_iter.next();
+            // If not valid, we are at the front sentinel of the linked list.
+            let next_iter = start_iter.clone();
+            next_iter.next();
+            let shouldInsert = next_iter.get().caseOf({
+                just: (glyph) => {
+                    return glyph.glyph === Strings.newline;
+                },
+                nothing: () => {
+                    return true;
+                }
+            });
+            if(shouldInsert) {
+                start_iter.insertAfter(new Glyph(Strings.newline, new GlyphStyle()));
+                start_iter.next();
+            }
         }
 
         // Now we rerender.

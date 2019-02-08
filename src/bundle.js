@@ -19446,8 +19446,21 @@ var EditorDeleter = /** @class */ (function () {
         // If we need to, we insert a newline before rerendering (we might have deleted
         // the initial newline in the document)
         if (!start_iter.isValid()) {
-            start_iter.insertAfter(new glyph_1.Glyph("\n", new glyph_1.GlyphStyle()));
-            start_iter.next();
+            // If not valid, we are at the front sentinel of the linked list.
+            var next_iter = start_iter.clone();
+            next_iter.next();
+            var shouldInsert = next_iter.get().caseOf({
+                just: function (glyph) {
+                    return glyph.glyph === string_map_1.default.newline;
+                },
+                nothing: function () {
+                    return true;
+                }
+            });
+            if (shouldInsert) {
+                start_iter.insertAfter(new glyph_1.Glyph(string_map_1.default.newline, new glyph_1.GlyphStyle()));
+                start_iter.next();
+            }
         }
         // Now we rerender.
         end_iter = start_iter.clone(); // restore the validity of end_iter.
@@ -20303,37 +20316,39 @@ var KeydownHandler = /** @class */ (function () {
             if (this.cursor.isCollapsed()) {
                 var new_iters = this._insertGlyph(key, source_start_iter, source_end_iter);
                 var start_iter = new_iters[0];
-                this._renderGlyph(start_iter, start_iter); // TODO: render the single glyph by passing in BOTH iterators, as as general case.
+                this._renderGlyphs(start_iter, start_iter); // TODO: render the single glyph by passing in BOTH iterators, as as general case.
+                event.preventDefault();
+                return new_iters;
+            }
+            else {
+                var new_iters = this._insertGlyph(key, source_start_iter, source_end_iter);
+                var start_iter = new_iters[0];
+                this._renderGlyphs(start_iter, start_iter); // TODO: render the single glyph by passing in BOTH iterators, as as general case.
                 event.preventDefault();
                 return new_iters;
             }
         }
         else if (key === 'Backspace') {
-            if (this.cursor.isCollapsed()) {
-                var new_iters = this._deleteGlyphAndRerender(source_start_iter, source_end_iter, false);
-                event.preventDefault();
-                return new_iters;
-            }
-            else {
-                var new_iters = this._deleteGlyphAndRerender(source_start_iter, source_end_iter, false);
-                event.preventDefault();
-                return new_iters;
-            }
+            var new_iters = this._deleteGlyphsAndRerender(source_start_iter, source_end_iter, false);
+            event.preventDefault();
+            return new_iters;
         }
         else if (key === 'Enter') {
-            if (this.cursor.isCollapsed()) {
-                var new_iters = this._insertGlyph(string_map_1.default.newline, source_start_iter, source_end_iter);
-                // Renders glyph by rerendering current line and new line.
-                var start_iter = new_iters[0];
-                this._rerenderGlyph(start_iter);
-                event.preventDefault();
-                return new_iters;
-            }
+            var new_iters = this._insertGlyph(string_map_1.default.newline, source_start_iter, source_end_iter);
+            // Renders glyph by rerendering current line and new line.
+            var start_iter = new_iters[0];
+            this._rerenderGlyph(start_iter);
+            event.preventDefault();
+            return new_iters;
         }
         else if (this._isArrowKey(key)) {
             // TODO. Move iterator to correct destination and then rerender the cursor.
             event.preventDefault();
             return this._handleArrowKey(key, source_start_iter, source_end_iter);
+        }
+        else {
+            console.log("UNHANDLED KEY " + key);
+            event.preventDefault();
         }
         return [source_start_iter.clone(), source_end_iter.clone()];
     };
@@ -20342,6 +20357,7 @@ var KeydownHandler = /** @class */ (function () {
     };
     /**
      * @description - inserts the char as a glyph, and updates iterator to point at the new glyph.
+     *                Handles the case where start iterator and end iterator are not equal.
      * @param char
      * @param start_iter NOT MODIFIED
      * @param end_iter - NOT MODIFIED
@@ -20349,28 +20365,36 @@ var KeydownHandler = /** @class */ (function () {
     KeydownHandler.prototype._insertGlyph = function (char, source_start_iter, source_end_iter) {
         var start_iter = source_start_iter.clone();
         var end_iter = source_end_iter.clone();
-        if (start_iter.equals(end_iter)) {
-            start_iter.insertAfter(new glyph_1.Glyph(char, new glyph_1.GlyphStyle()));
-            start_iter.next();
-            end_iter.next();
+        if (!start_iter.equals(end_iter)) {
+            // If a selection, delete before inserting.
+            // TODO : figure out direction parameter. It is not needed or used in deleting. Should it be?
+            var new_iters = this._deleteGlyphsAndRerender(start_iter, end_iter, false);
+            start_iter = new_iters[0];
+            end_iter = new_iters[1];
         }
+        start_iter.insertAfter(new glyph_1.Glyph(char, new glyph_1.GlyphStyle()));
+        start_iter.next();
+        end_iter.next(); // keep end in sync with start.
         return [start_iter, end_iter];
     };
     /**
      * @desciption - Renders single glyph in DOM IGNORING the surrounding nodes.
-     * @param iter - not modified.
+     * @param source_start_iter - not modified.
+     * @param source_end_iter - not modified.
      */
-    KeydownHandler.prototype._renderGlyph = function (source_start_iter, source_end_iter) {
+    KeydownHandler.prototype._renderGlyphs = function (source_start_iter, source_end_iter) {
         var start_iter = source_start_iter.clone();
         var end_iter = source_end_iter.clone();
         this.renderer.render(start_iter, end_iter, this.editor);
     };
     /**
      * @description - deletes the pointed at glyph and rerenders document
-     * @param start_iter    NOT MODIFIED. Will modify iterator to move it to correct position.
+     * @param start_iter    NOT MODIFIED.
+     * @param end_iter      NOT MODIFIED.
      * @param direction true if delete and move forward, else go backward.
+     * @returns pair of iterators - first is new start iterator, second is new end iterator.
      */
-    KeydownHandler.prototype._deleteGlyphAndRerender = function (start_iter, end_iter, direction) {
+    KeydownHandler.prototype._deleteGlyphsAndRerender = function (start_iter, end_iter, direction) {
         return this.deleter.deleteAndRender(start_iter.clone(), end_iter.clone(), this.editor, direction);
     };
     /**

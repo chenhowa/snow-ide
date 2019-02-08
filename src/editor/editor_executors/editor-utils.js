@@ -136,3 +136,152 @@ function findLineEnd(source_iter) {
     return iter;
 }
 exports.findLineEnd = findLineEnd;
+function arrowLeft(source_start_iter, source_end_iter) {
+    var start_iter = source_start_iter.clone();
+    var end_iter = source_end_iter.clone();
+    if (start_iter.equals(end_iter)) {
+        // Back both up by one if possible.
+        if (start_iter.hasPrev()) {
+            start_iter.prev();
+            end_iter = start_iter.clone();
+        }
+    }
+    else {
+        // If selection, collapse end into start (left).
+        end_iter = start_iter.clone();
+    }
+    return [start_iter.clone(), end_iter.clone()];
+}
+exports.arrowLeft = arrowLeft;
+function arrowRight(source_start_iter, source_end_iter) {
+    var start_iter = source_start_iter.clone();
+    var end_iter = source_end_iter.clone();
+    if (start_iter.equals(end_iter)) {
+        if (start_iter.hasNext()) {
+            start_iter.next();
+            end_iter = start_iter.clone();
+        }
+    }
+    else {
+        // If selection, collapse start into end (right)
+        start_iter = end_iter.clone();
+    }
+    return [start_iter.clone(), end_iter.clone()];
+}
+exports.arrowRight = arrowRight;
+function arrowUp(source_start_iter, source_end_iter) {
+    var start_iter = source_start_iter.clone();
+    var end_iter = source_end_iter.clone();
+    if (start_iter.equals(end_iter)) {
+        var final_iter_1 = start_iter.clone();
+        getDistanceFromLineStart(start_iter).caseOf({
+            just: function (distance) {
+                var move = false;
+                if (distance === 0) {
+                    findPreviousNewline(start_iter).caseOf({
+                        just: function (new_iter) {
+                            final_iter_1 = new_iter;
+                        },
+                        nothing: function () { }
+                    });
+                }
+                else {
+                    findPreviousNewline(start_iter).caseOf({
+                        just: function (new_iter) {
+                            findPreviousNewline(new_iter).caseOf({
+                                just: function (new_iter) {
+                                    final_iter_1 = new_iter;
+                                    move = true;
+                                },
+                                nothing: function () {
+                                }
+                            });
+                        },
+                        nothing: function () { }
+                    });
+                    if (move) {
+                        for (var i = 0; i < distance; i++) {
+                            final_iter_1.next();
+                            var done = final_iter_1.get().caseOf({
+                                just: function (glyph) {
+                                    if (glyph.glyph === string_map_1.default.newline) {
+                                        // If found newline, back up one.
+                                        final_iter_1.prev();
+                                        return true;
+                                    }
+                                },
+                                nothing: function () {
+                                    return false;
+                                }
+                            });
+                            if (done) {
+                                break;
+                            }
+                        }
+                    }
+                }
+            },
+            nothing: function () {
+                throw new Error("Document did not start with a line!");
+            }
+        });
+        return [final_iter_1.clone(), final_iter_1.clone()];
+    }
+    else {
+        // If selection, up will just go left.
+        return arrowLeft(start_iter, end_iter);
+    }
+}
+exports.arrowUp = arrowUp;
+function arrowDown(source_start_iter, source_end_iter) {
+    var start_iter = source_start_iter.clone();
+    var end_iter = source_end_iter.clone();
+    if (start_iter.equals(end_iter)) {
+        // find previous newline to determine distance from line start
+        var final_iter_2 = start_iter.clone();
+        getDistanceFromLineStart(start_iter).caseOf({
+            just: function (distance) {
+                var line_end_iter = findLineEnd(start_iter);
+                var foundNext = line_end_iter.hasNext();
+                if (foundNext) {
+                    // We found the next new line, or there was no next newline.
+                    final_iter_2 = line_end_iter.clone();
+                    final_iter_2.next();
+                    var _loop_1 = function () {
+                        final_iter_2.next();
+                        var tooFar = false;
+                        final_iter_2.get().caseOf({
+                            just: function (glyph) {
+                                if (glyph.glyph === string_map_1.default.newline) {
+                                    tooFar = true;
+                                }
+                            },
+                            nothing: function () { }
+                        });
+                        if (tooFar) {
+                            final_iter_2.prev(); // back off from the newline.
+                            return "break";
+                        }
+                    };
+                    for (var i = 0; i < distance; i++) {
+                        var state_1 = _loop_1();
+                        if (state_1 === "break")
+                            break;
+                    }
+                }
+                else {
+                    // If no next line, we don't move.
+                }
+            },
+            nothing: function () {
+                throw new Error("doc does not start with newline");
+            }
+        });
+        return [final_iter_2.clone(), final_iter_2.clone()];
+    }
+    else {
+        // If selection, will just go right.
+        return arrowRight(source_start_iter, source_end_iter);
+    }
+}
+exports.arrowDown = arrowDown;

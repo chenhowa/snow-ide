@@ -133,10 +133,166 @@ function findLineEnd(source_iter: DoubleIterator<Glyph>): DoubleIterator<Glyph> 
     return iter;
 }
 
+function arrowLeft(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)
+                                            : Array< DoubleIterator<Glyph> > {
+    let start_iter = source_start_iter.clone();
+    let end_iter = source_end_iter.clone();
+    if(start_iter.equals(end_iter)) {
+        // Back both up by one if possible.
+        if(start_iter.hasPrev()) {
+            start_iter.prev();
+            end_iter = start_iter.clone();
+        }
+    } else {
+        // If selection, collapse end into start (left).
+        end_iter = start_iter.clone();
+    }
+    return [start_iter.clone(), end_iter.clone()];
+}
+
+function arrowRight(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)
+                    : Array< DoubleIterator<Glyph> > {
+    let start_iter = source_start_iter.clone();
+    let end_iter = source_end_iter.clone();
+    if(start_iter.equals(end_iter)) {
+        if(start_iter.hasNext()) {
+            start_iter.next();
+            end_iter = start_iter.clone();
+        }
+    } else {
+    // If selection, collapse start into end (right)
+        start_iter = end_iter.clone();
+    }
+    return [start_iter.clone(), end_iter.clone()];
+}
+
+function arrowUp(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)
+                                            : Array< DoubleIterator<Glyph> > {
+    let start_iter = source_start_iter.clone();
+    let end_iter = source_end_iter.clone();
+
+    if(start_iter.equals(end_iter)) {
+        let final_iter = start_iter.clone();
+        getDistanceFromLineStart(start_iter).caseOf({
+            just: (distance) => {
+                let move = false;
+                if(distance === 0) {
+                    findPreviousNewline(start_iter).caseOf({
+                        just: (new_iter) => {
+                            final_iter = new_iter;
+                        },
+                        nothing: () => { }
+                    });
+                } else {
+                    findPreviousNewline(start_iter).caseOf({
+                        just: (new_iter) => {
+                            findPreviousNewline(new_iter).caseOf({
+                                just: (new_iter) => {
+                                    final_iter = new_iter;
+                                    move = true;
+                                },
+                                nothing: () => {
+
+                                }
+                            });
+                        },
+                        nothing: () => {}
+                    });
+
+                    if(move) {
+                        for(let i = 0; i < distance; i++) {
+                            final_iter.next();
+                            let done = final_iter.get().caseOf({
+                                just: (glyph) => {
+                                    if(glyph.glyph === Strings.newline) {
+                                        // If found newline, back up one.
+                                        final_iter.prev();
+                                        return true;
+                                    }
+                                },
+                                nothing: () => {
+                                    return false;
+                                }
+                            });
+                            if(done) {
+                                break;
+                            }
+                        }
+                    }
+                }
+            },
+            nothing: () => {
+                throw new Error ("Document did not start with a line!");
+            }
+        });
+
+        return [final_iter.clone(), final_iter.clone()];
+    } else {
+        // If selection, up will just go left.
+        return arrowLeft(start_iter, end_iter);
+    }
+}
+
+function arrowDown(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)
+                                            : Array< DoubleIterator<Glyph> > {
+    let start_iter = source_start_iter.clone();
+    let end_iter = source_end_iter.clone();
+
+    if(start_iter.equals(end_iter)) {
+        // find previous newline to determine distance from line start
+        let final_iter = start_iter.clone();
+        getDistanceFromLineStart(start_iter).caseOf({
+            just: (distance) => {
+                let line_end_iter = findLineEnd(start_iter);
+                let foundNext = line_end_iter.hasNext();
+
+                if(foundNext) {
+                    // We found the next new line, or there was no next newline.
+                    final_iter = line_end_iter.clone();
+                    final_iter.next();
+                    for(var i = 0; i < distance; i++) {
+                        final_iter.next();
+                        let tooFar = false;
+                        final_iter.get().caseOf({
+                            just: (glyph) => {
+                                if(glyph.glyph === Strings.newline) {
+                                    tooFar = true;
+                                }
+                            },
+                            nothing: () => { }
+                        });
+
+                        if(tooFar) {
+                            final_iter.prev(); // back off from the newline.
+                            break;
+                        }
+                    }
+                } else {
+                    // If no next line, we don't move.
+                }
+            },
+            nothing: () => {
+                throw new Error("doc does not start with newline");
+            }
+        });
+
+        return [final_iter.clone(), final_iter.clone()];
+    } else {
+        // If selection, will just go right.
+        return arrowRight(source_start_iter, source_end_iter);
+    }
+
+}
+
 export {
     getDistanceFromNextLine,
     getDistanceFromLineStart,
     findPreviousNewline,
     findNextLineOrLast,
-    findLineEnd
+    findLineEnd,
+    arrowLeft,
+    arrowRight,
+    arrowUp,
+    arrowDown
+    
 };

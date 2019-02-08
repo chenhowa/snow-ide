@@ -1,15 +1,16 @@
 
 import { Maybe } from "tsmonad";
 import { DoubleIterator } from "data_structures/linked-list";
-import { Glyph, GlyphStyle } from "editor/glyph";
+import { Glyph } from "editor/glyph";
 import Handler from "editor/handlers/handler";
 import { EditorExecutor } from "editor/editor_executors/editor-executor";
 import Cursor from "editor/editor_executors/cursor";
 import Strings from "string-map";
 import { 
-    getDistanceFromLineStart, 
-    findPreviousNewline,
-    findLineEnd,
+    arrowLeft,
+    arrowRight,
+    arrowUp,
+    arrowDown
 } from "editor/editor_executors/editor-utils";
 import { KeyPressMap } from "editor/keypress-map";
 
@@ -108,167 +109,16 @@ class KeydownHandler implements Handler {
         let start_iter = source_start_iter.clone();
         let end_iter = source_end_iter.clone();                                                                            
         if(key === Strings.arrow.left) {
-            return this._arrowLeft(start_iter, end_iter);
+            return arrowLeft(start_iter, end_iter);
         } else if (key === Strings.arrow.right) {
-            return this._arrowRight(start_iter, end_iter);
+            return arrowRight(start_iter, end_iter);
         } else if (key === Strings.arrow.up) {
-            return this._arrowUp(start_iter, end_iter);
+            return arrowUp(start_iter, end_iter);
         } else if (key === Strings.arrow.down) {
-            return this._arrowDown(start_iter, end_iter);
+            return arrowDown(start_iter, end_iter);
         } else {
             throw new Error("NOT AN ARROW KEY");
         }
-    }
-
-    _arrowLeft(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)
-                                            : Array< DoubleIterator<Glyph> > {
-        let start_iter = source_start_iter.clone();
-        let end_iter = source_end_iter.clone();
-        if(start_iter.equals(end_iter)) {
-            // Back both up by one if possible.
-            if(start_iter.hasPrev()) {
-                start_iter.prev();
-                end_iter = start_iter.clone();
-            }
-        } else {
-            // If selection, collapse end into start (left).
-            end_iter = start_iter.clone();
-        }
-        return [start_iter.clone(), end_iter.clone()];
-    }
-
-    _arrowRight(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)
-                                            : Array< DoubleIterator<Glyph> > {
-        let start_iter = source_start_iter.clone();
-        let end_iter = source_end_iter.clone();
-        if(start_iter.equals(end_iter)) {
-            if(start_iter.hasNext()) {
-                start_iter.next();
-                end_iter = start_iter.clone();
-            }
-        } else {
-            // If selection, collapse start into end (right)
-            start_iter = end_iter.clone();
-        }
-        return [start_iter.clone(), end_iter.clone()];
-    }
-
-    _arrowUp(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)
-                                            : Array< DoubleIterator<Glyph> > {
-        let start_iter = source_start_iter.clone();
-        let end_iter = source_end_iter.clone();
-
-        if(start_iter.equals(end_iter)) {
-            let final_iter = start_iter.clone();
-            getDistanceFromLineStart(start_iter).caseOf({
-                just: (distance) => {
-                    let move = false;
-                    if(distance === 0) {
-                        findPreviousNewline(start_iter).caseOf({
-                            just: (new_iter) => {
-                                final_iter = new_iter;
-                            },
-                            nothing: () => { }
-                        });
-                    } else {
-                        findPreviousNewline(start_iter).caseOf({
-                            just: (new_iter) => {
-                                findPreviousNewline(new_iter).caseOf({
-                                    just: (new_iter) => {
-                                        final_iter = new_iter;
-                                        move = true;
-                                    },
-                                    nothing: () => {
-
-                                    }
-                                });
-                            },
-                            nothing: () => {}
-                        });
-
-                        if(move) {
-                            for(let i = 0; i < distance; i++) {
-                                final_iter.next();
-                                let done = final_iter.get().caseOf({
-                                    just: (glyph) => {
-                                        if(glyph.glyph === Strings.newline) {
-                                            // If found newline, back up one.
-                                            final_iter.prev();
-                                            return true;
-                                        }
-                                    },
-                                    nothing: () => {
-                                        return false;
-                                    }
-                                });
-                                if(done) {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                },
-                nothing: () => {
-                    throw new Error ("Document did not start with a line!");
-                }
-            });
-
-            return [final_iter.clone(), final_iter.clone()];
-        } else {
-            // If selection, up will just go left.
-            return this._arrowLeft(start_iter, end_iter);
-        }
-    }
-
-    _arrowDown(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)
-                                            : Array< DoubleIterator<Glyph> > {
-        let start_iter = source_start_iter.clone();
-        let end_iter = source_end_iter.clone();
-
-        if(start_iter.equals(end_iter)) {
-            // find previous newline to determine distance from line start
-            let final_iter = start_iter.clone();
-            getDistanceFromLineStart(start_iter).caseOf({
-                just: (distance) => {
-                    let line_end_iter = findLineEnd(start_iter);
-                    let foundNext = line_end_iter.hasNext();
-
-                    if(foundNext) {
-                        // We found the next new line, or there was no next newline.
-                        final_iter = line_end_iter.clone();
-                        final_iter.next();
-                        for(var i = 0; i < distance; i++) {
-                            final_iter.next();
-                            let tooFar = false;
-                            final_iter.get().caseOf({
-                                just: (glyph) => {
-                                    if(glyph.glyph === Strings.newline) {
-                                        tooFar = true;
-                                    }
-                                },
-                                nothing: () => { }
-                            });
-
-                            if(tooFar) {
-                                final_iter.prev(); // back off from the newline.
-                                break;
-                            }
-                        }
-                    } else {
-                        // If no next line, we don't move.
-                    }
-                },
-                nothing: () => {
-                    throw new Error("doc does not start with newline");
-                }
-            });
-
-            return [final_iter.clone(), final_iter.clone()];
-        } else {
-            // If selection, will just go right.
-            return this._arrowRight(start_iter, end_iter);
-        }
-
     }
 
     getStartIterator() : Maybe< DoubleIterator<Glyph> > {
@@ -278,8 +128,6 @@ class KeydownHandler implements Handler {
     getEndIterator(): Maybe< DoubleIterator<Glyph> > {
         return this.end;
     }
-
 }
-
 
 export default KeydownHandler;

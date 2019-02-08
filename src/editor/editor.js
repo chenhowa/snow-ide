@@ -113,10 +113,8 @@ var Editor = /** @class */ (function () {
             next: function (event) {
                 // Need to collapse selection on mouse down because otherwise it breaks a bunch of other shit
                 // in chrome.
-                console.log("MOUSE DOWN");
                 if (_this.cursor.isSelection()) {
                     // If is selection, start mousedown by collapsing the selection.
-                    console.log("ABOUT TO COLLAPSE SELECTION");
                     _this.cursor.selection.removeAllRanges();
                 }
             },
@@ -139,7 +137,6 @@ var Editor = /** @class */ (function () {
         var clickObs = rxjs_1.fromEvent(this.editor, 'click');
         var clickSub = clickObs.subscribe({
             next: function (event) {
-                console.log('mouseup');
                 _this.clicker.handle(event, _this.glyphs.makeFrontIterator(), _this.glyphs.makeBackIterator());
                 _this._updateIteratorsFromHandler(_this.clicker);
                 _this.updateCursorToCurrent();
@@ -157,21 +154,11 @@ var Editor = /** @class */ (function () {
     };
     Editor.prototype._updateIteratorsFromHandler = function (handler) {
         var _this = this;
-        console.log("start");
         handler.getStartIterator().caseOf({
             just: function (iter) {
-                iter.get().caseOf({
-                    just: function (glyph) {
-                        console.log(glyph);
-                    },
-                    nothing: function () {
-                        console.log("actually nothing");
-                    }
-                });
                 _this.start_glyph_iter = iter;
             },
             nothing: function () {
-                console.log("nothing");
                 _this.start_glyph_iter = _this.glyphs.makeFrontIterator();
                 if (_this.start_glyph_iter.hasNext()) {
                     _this.start_glyph_iter.next();
@@ -181,21 +168,11 @@ var Editor = /** @class */ (function () {
                 }
             }
         });
-        console.log("end");
         handler.getEndIterator().caseOf({
             just: function (iter) {
-                iter.get().caseOf({
-                    just: function (glyph) {
-                        console.log(glyph);
-                    },
-                    nothing: function () {
-                        console.log("actually nothing");
-                    }
-                });
                 _this.end_glyph_iter = iter;
             },
             nothing: function () {
-                console.log("nothing");
                 _this.end_glyph_iter = _this.start_glyph_iter.clone();
             }
         });
@@ -217,12 +194,9 @@ var Editor = /** @class */ (function () {
         var _this = this;
         // THIS IS FOR VISUAL FEEDBACK TO USER ONLY.
         // Using the cursor for direct insert is error prone, as it may be misplaced.
-        console.log(this.start_glyph_iter.grab());
-        console.log(this.end_glyph_iter.grab());
         var start = source_start.clone();
         var end = source_end.clone();
         if (start.equals(end)) {
-            console.log("collapsing");
             // If both start and end point to the same glyph, we collapse the cursor to one.
             end.get().caseOf({
                 just: function (glyph) {
@@ -265,10 +239,8 @@ var Editor = /** @class */ (function () {
                     }
                 }
             });
-            console.log(this.cursor.selection);
         }
         else {
-            console.log("expanding");
             // If start and end are not equal, we ASSUME that start is before end,
             // and we update the selection to reflect this. We also
             // assume, for now, that start and end are guaranteed to be pointing

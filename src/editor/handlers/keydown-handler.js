@@ -42,7 +42,6 @@ var KeydownHandler = /** @class */ (function () {
     KeydownHandler.prototype._handleKeyWithControl = function (event, key, source_start_iter, source_end_iter) {
         // If control was pressed, do nothing? Does that let default happen?
         // TODO: Allow operations of copy, paste, etc.
-        console.log("HANDLING WITH CONTROL");
         return [source_start_iter.clone(), source_end_iter.clone()];
     };
     KeydownHandler.prototype._handleKeyAlone = function (event, key, source_start_iter, source_end_iter) {
@@ -202,7 +201,6 @@ var KeydownHandler = /** @class */ (function () {
         var end_iter = source_end_iter.clone();
         if (start_iter.equals(end_iter)) {
             // find previous newline to determine distance from line start
-            console.log("going down on collapsed");
             var final_iter_2 = start_iter.clone();
             editor_utils_1.getDistanceFromLineStart(start_iter).caseOf({
                 just: function (distance) {
@@ -246,7 +244,6 @@ var KeydownHandler = /** @class */ (function () {
         }
         else {
             // If selection, will just go right.
-            console.log("DOWN BUT GOING RIGHT");
             return this._arrowRight(start_iter, end_iter);
         }
     };

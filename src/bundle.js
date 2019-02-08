@@ -19397,10 +19397,8 @@ var Editor = /** @class */ (function () {
             next: function (event) {
                 // Need to collapse selection on mouse down because otherwise it breaks a bunch of other shit
                 // in chrome.
-                console.log("MOUSE DOWN");
                 if (_this.cursor.isSelection()) {
                     // If is selection, start mousedown by collapsing the selection.
-                    console.log("ABOUT TO COLLAPSE SELECTION");
                     _this.cursor.selection.removeAllRanges();
                 }
             },
@@ -19423,7 +19421,6 @@ var Editor = /** @class */ (function () {
         var clickObs = rxjs_1.fromEvent(this.editor, 'click');
         var clickSub = clickObs.subscribe({
             next: function (event) {
-                console.log('mouseup');
                 _this.clicker.handle(event, _this.glyphs.makeFrontIterator(), _this.glyphs.makeBackIterator());
                 _this._updateIteratorsFromHandler(_this.clicker);
                 _this.updateCursorToCurrent();
@@ -19441,21 +19438,11 @@ var Editor = /** @class */ (function () {
     };
     Editor.prototype._updateIteratorsFromHandler = function (handler) {
         var _this = this;
-        console.log("start");
         handler.getStartIterator().caseOf({
             just: function (iter) {
-                iter.get().caseOf({
-                    just: function (glyph) {
-                        console.log(glyph);
-                    },
-                    nothing: function () {
-                        console.log("actually nothing");
-                    }
-                });
                 _this.start_glyph_iter = iter;
             },
             nothing: function () {
-                console.log("nothing");
                 _this.start_glyph_iter = _this.glyphs.makeFrontIterator();
                 if (_this.start_glyph_iter.hasNext()) {
                     _this.start_glyph_iter.next();
@@ -19465,21 +19452,11 @@ var Editor = /** @class */ (function () {
                 }
             }
         });
-        console.log("end");
         handler.getEndIterator().caseOf({
             just: function (iter) {
-                iter.get().caseOf({
-                    just: function (glyph) {
-                        console.log(glyph);
-                    },
-                    nothing: function () {
-                        console.log("actually nothing");
-                    }
-                });
                 _this.end_glyph_iter = iter;
             },
             nothing: function () {
-                console.log("nothing");
                 _this.end_glyph_iter = _this.start_glyph_iter.clone();
             }
         });
@@ -19501,12 +19478,9 @@ var Editor = /** @class */ (function () {
         var _this = this;
         // THIS IS FOR VISUAL FEEDBACK TO USER ONLY.
         // Using the cursor for direct insert is error prone, as it may be misplaced.
-        console.log(this.start_glyph_iter.grab());
-        console.log(this.end_glyph_iter.grab());
         var start = source_start.clone();
         var end = source_end.clone();
         if (start.equals(end)) {
-            console.log("collapsing");
             // If both start and end point to the same glyph, we collapse the cursor to one.
             end.get().caseOf({
                 just: function (glyph) {
@@ -19549,10 +19523,8 @@ var Editor = /** @class */ (function () {
                     }
                 }
             });
-            console.log(this.cursor.selection);
         }
         else {
-            console.log("expanding");
             // If start and end are not equal, we ASSUME that start is before end,
             // and we update the selection to reflect this. We also
             // assume, for now, that start and end are guaranteed to be pointing
@@ -19640,7 +19612,6 @@ var Cursor = /** @class */ (function () {
         if (this.selection.isCollapsed) {
             var currentNode = jquery_1.default(this.selection.anchorNode);
             if (currentNode.hasClass(string_map_1.default.editorName())) {
-                console.log('Node was editor: preserve-whitespace. INCORRECT');
                 if (currentNode.contents().length > 0) {
                     new_line.insertBefore(currentNode.contents().get(0));
                 }
@@ -19652,10 +19623,8 @@ var Cursor = /** @class */ (function () {
                 new_line.insertAfter(currentNode);
             }
             else if (currentNode.hasClass(string_map_1.default.glyphName())) {
-                console.log('inserting line after glyph');
                 // in a span. So we need to go up to the line and execute
                 var lineNode = currentNode.parent(string_map_1.default.lineSelector());
-                console.log(lineNode);
                 new_line.insertAfter(lineNode);
             }
             else {
@@ -19668,7 +19637,6 @@ var Cursor = /** @class */ (function () {
         if (this.selection.isCollapsed) {
             var currentNode = jquery_1.default(this.selection.anchorNode);
             if (currentNode.hasClass(string_map_1.default.editorName())) {
-                console.log('Node was editor: preserve-whitespace. INCORRECT');
                 // need to find the line and insert if possible. Otherwise throw error.
                 var firstLine = currentNode.children(string_map_1.default.lineSelector()).first();
                 if (firstLine.length > 0) {
@@ -19743,8 +19711,6 @@ var EditorDeleter = /** @class */ (function () {
         this.renderer = renderer;
     }
     EditorDeleter.prototype.deleteAndRender = function (source_start_iter, source_end_iter, direction) {
-        console.log("DELETING AND RENDERING");
-        console.log(this.renderer);
         var start_iter = source_start_iter.clone();
         var end_iter = source_end_iter.clone();
         // First we remove and destroy nodes until start_iter equals end_iter.
@@ -19776,7 +19742,6 @@ var EditorDeleter = /** @class */ (function () {
         // If we need to, we insert a newline before rerendering (we might have deleted
         // the initial newline in the document)
         if (!start_iter.isValid()) {
-            console.log("WAS NOT VALID");
             // If not valid, we are at the front sentinel of the linked list.
             var next_iter = start_iter.clone();
             next_iter.next();
@@ -20321,13 +20286,8 @@ var ClickHandler = /** @class */ (function () {
         this.editor = editor;
     }
     ClickHandler.prototype.handle = function (event, source_start_iter, source_end_iter) {
-        console.log("CLICKED EDITOR");
-        console.log(this.cursor.selection);
-        console.log(event);
-        console.log(event.target);
         var iter = source_start_iter.clone();
         if (this.cursor.selection.containsNode(this.editor, false)) {
-            console.log("CONTAINS NODE");
             // If the entire editor is selected for some reason, do nothing except collapse to end iterator.
             this.end_iter = tsmonad_1.Maybe.just(iter.clone());
             this.start_iter = tsmonad_1.Maybe.just(iter.clone());
@@ -20341,14 +20301,12 @@ var ClickHandler = /** @class */ (function () {
             4. in the editor node.
         */
         if (this.cursor.isCollapsed()) {
-            console.log("COLLAPSED");
             var node = this.cursor.selection.anchorNode;
             var before = this.cursor.selection.anchorOffset === 0;
             this.start_iter = this._getIterator(node, before, iter);
             this.end_iter = this._getIterator(node, before, iter);
         }
         else {
-            console.log("SPREAD OUT");
             // If the selection is NOT collapsed and is entirely within the editor, we can try to set the start and end iterators.
             var start_node = this.cursor.selection.anchorNode;
             var before_start = this.cursor.selection.anchorOffset === 0;
@@ -20381,13 +20339,11 @@ var ClickHandler = /** @class */ (function () {
             // Set which is actually start and end by the distance to start of the document.
             if (first_distance_1 <= second_distance_1) {
                 //First is first
-                console.log("FIRST");
                 this.start_iter = start_iter;
                 this.end_iter = end_iter;
             }
             else {
                 // Second is first.
-                console.log("SECOND");
                 this.start_iter = end_iter;
                 this.end_iter = start_iter;
             }
@@ -20516,7 +20472,6 @@ var KeydownHandler = /** @class */ (function () {
     KeydownHandler.prototype._handleKeyWithControl = function (event, key, source_start_iter, source_end_iter) {
         // If control was pressed, do nothing? Does that let default happen?
         // TODO: Allow operations of copy, paste, etc.
-        console.log("HANDLING WITH CONTROL");
         return [source_start_iter.clone(), source_end_iter.clone()];
     };
     KeydownHandler.prototype._handleKeyAlone = function (event, key, source_start_iter, source_end_iter) {
@@ -20676,7 +20631,6 @@ var KeydownHandler = /** @class */ (function () {
         var end_iter = source_end_iter.clone();
         if (start_iter.equals(end_iter)) {
             // find previous newline to determine distance from line start
-            console.log("going down on collapsed");
             var final_iter_2 = start_iter.clone();
             editor_utils_1.getDistanceFromLineStart(start_iter).caseOf({
                 just: function (distance) {
@@ -20720,7 +20674,6 @@ var KeydownHandler = /** @class */ (function () {
         }
         else {
             // If selection, will just go right.
-            console.log("DOWN BUT GOING RIGHT");
             return this._arrowRight(start_iter, end_iter);
         }
     };

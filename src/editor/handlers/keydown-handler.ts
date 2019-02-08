@@ -59,7 +59,6 @@ class KeydownHandler implements Handler {
                                     : Array<DoubleIterator<Glyph>> {
         // If control was pressed, do nothing? Does that let default happen?
         // TODO: Allow operations of copy, paste, etc.
-        console.log("HANDLING WITH CONTROL");
         return [source_start_iter.clone(), source_end_iter.clone()];
     }
 
@@ -228,7 +227,6 @@ class KeydownHandler implements Handler {
 
         if(start_iter.equals(end_iter)) {
             // find previous newline to determine distance from line start
-            console.log("going down on collapsed");
             let final_iter = start_iter.clone();
             getDistanceFromLineStart(start_iter).caseOf({
                 just: (distance) => {
@@ -268,7 +266,6 @@ class KeydownHandler implements Handler {
             return [final_iter.clone(), final_iter.clone()];
         } else {
             // If selection, will just go right.
-            console.log("DOWN BUT GOING RIGHT");
             return this._arrowRight(start_iter, end_iter);
         }
 

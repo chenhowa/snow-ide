@@ -18,13 +18,8 @@ var ClickHandler = /** @class */ (function () {
         this.editor = editor;
     }
     ClickHandler.prototype.handle = function (event, source_start_iter, source_end_iter) {
-        console.log("CLICKED EDITOR");
-        console.log(this.cursor.selection);
-        console.log(event);
-        console.log(event.target);
         var iter = source_start_iter.clone();
         if (this.cursor.selection.containsNode(this.editor, false)) {
-            console.log("CONTAINS NODE");
             // If the entire editor is selected for some reason, do nothing except collapse to end iterator.
             this.end_iter = tsmonad_1.Maybe.just(iter.clone());
             this.start_iter = tsmonad_1.Maybe.just(iter.clone());
@@ -38,14 +33,12 @@ var ClickHandler = /** @class */ (function () {
             4. in the editor node.
         */
         if (this.cursor.isCollapsed()) {
-            console.log("COLLAPSED");
             var node = this.cursor.selection.anchorNode;
             var before = this.cursor.selection.anchorOffset === 0;
             this.start_iter = this._getIterator(node, before, iter);
             this.end_iter = this._getIterator(node, before, iter);
         }
         else {
-            console.log("SPREAD OUT");
             // If the selection is NOT collapsed and is entirely within the editor, we can try to set the start and end iterators.
             var start_node = this.cursor.selection.anchorNode;
             var before_start = this.cursor.selection.anchorOffset === 0;
@@ -78,13 +71,11 @@ var ClickHandler = /** @class */ (function () {
             // Set which is actually start and end by the distance to start of the document.
             if (first_distance_1 <= second_distance_1) {
                 //First is first
-                console.log("FIRST");
                 this.start_iter = start_iter;
                 this.end_iter = end_iter;
             }
             else {
                 // Second is first.
-                console.log("SECOND");
                 this.start_iter = end_iter;
                 this.end_iter = start_iter;
             }

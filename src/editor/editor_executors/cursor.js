@@ -27,7 +27,6 @@ var Cursor = /** @class */ (function () {
         if (this.selection.isCollapsed) {
             var currentNode = jquery_1.default(this.selection.anchorNode);
             if (currentNode.hasClass(string_map_1.default.editorName())) {
-                console.log('Node was editor: preserve-whitespace. INCORRECT');
                 if (currentNode.contents().length > 0) {
                     new_line.insertBefore(currentNode.contents().get(0));
                 }
@@ -39,10 +38,8 @@ var Cursor = /** @class */ (function () {
                 new_line.insertAfter(currentNode);
             }
             else if (currentNode.hasClass(string_map_1.default.glyphName())) {
-                console.log('inserting line after glyph');
                 // in a span. So we need to go up to the line and execute
                 var lineNode = currentNode.parent(string_map_1.default.lineSelector());
-                console.log(lineNode);
                 new_line.insertAfter(lineNode);
             }
             else {
@@ -55,7 +52,6 @@ var Cursor = /** @class */ (function () {
         if (this.selection.isCollapsed) {
             var currentNode = jquery_1.default(this.selection.anchorNode);
             if (currentNode.hasClass(string_map_1.default.editorName())) {
-                console.log('Node was editor: preserve-whitespace. INCORRECT');
                 // need to find the line and insert if possible. Otherwise throw error.
                 var firstLine = currentNode.children(string_map_1.default.lineSelector()).first();
                 if (firstLine.length > 0) {

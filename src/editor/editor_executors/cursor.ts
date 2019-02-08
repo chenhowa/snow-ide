@@ -31,7 +31,6 @@ class Cursor {
             let currentNode = $(this.selection.anchorNode);
 
             if(currentNode.hasClass(Strings.editorName())) {
-                console.log('Node was editor: preserve-whitespace. INCORRECT');
                 if(currentNode.contents().length > 0) {
                     new_line.insertBefore(currentNode.contents().get(0));
                 } else {
@@ -41,10 +40,8 @@ class Cursor {
             } else if(currentNode.hasClass(Strings.lineName())) {
                 new_line.insertAfter(currentNode);
             } else if(currentNode.hasClass(Strings.glyphName()) ){
-                console.log('inserting line after glyph');
                 // in a span. So we need to go up to the line and execute
                 let lineNode = currentNode.parent(Strings.lineSelector());
-                console.log(lineNode);
                 new_line.insertAfter(lineNode);
             } else {
                 throw new Error("insertLine: currentNode not yet recognized");
@@ -60,7 +57,6 @@ class Cursor {
             let currentNode = $(this.selection.anchorNode);
 
             if(currentNode.hasClass(Strings.editorName())) {
-                console.log('Node was editor: preserve-whitespace. INCORRECT');
                 // need to find the line and insert if possible. Otherwise throw error.
                 let firstLine = currentNode.children(Strings.lineSelector()).first();
                 if(firstLine.length > 0) {

@@ -10,8 +10,6 @@ var EditorDeleter = /** @class */ (function () {
         this.renderer = renderer;
     }
     EditorDeleter.prototype.deleteAndRender = function (source_start_iter, source_end_iter, direction) {
-        console.log("DELETING AND RENDERING");
-        console.log(this.renderer);
         var start_iter = source_start_iter.clone();
         var end_iter = source_end_iter.clone();
         // First we remove and destroy nodes until start_iter equals end_iter.
@@ -43,7 +41,6 @@ var EditorDeleter = /** @class */ (function () {
         // If we need to, we insert a newline before rerendering (we might have deleted
         // the initial newline in the document)
         if (!start_iter.isValid()) {
-            console.log("WAS NOT VALID");
             // If not valid, we are at the front sentinel of the linked list.
             var next_iter = start_iter.clone();
             next_iter.next();

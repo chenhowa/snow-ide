@@ -24,14 +24,9 @@ class ClickHandler implements Handler {
     }
 
     handle(event: any, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>) {
-        console.log("CLICKED EDITOR");
-        console.log(this.cursor.selection);
-        console.log(event);
-        console.log(event.target);
         let iter = source_start_iter.clone();
 
         if(this.cursor.selection.containsNode(this.editor, false)) {
-            console.log("CONTAINS NODE");
             // If the entire editor is selected for some reason, do nothing except collapse to end iterator.
             this.end_iter = Maybe.just(iter.clone() );
             this.start_iter = Maybe.just(iter.clone());
@@ -46,15 +41,12 @@ class ClickHandler implements Handler {
             4. in the editor node.
         */
         if(this.cursor.isCollapsed()) {
-            console.log("COLLAPSED");
             let node = this.cursor.selection.anchorNode;
             let before = this.cursor.selection.anchorOffset === 0;
 
             this.start_iter = this._getIterator(node, before, iter);
             this.end_iter = this._getIterator(node, before, iter);
         } else {
-            console.log("SPREAD OUT");
-
             // If the selection is NOT collapsed and is entirely within the editor, we can try to set the start and end iterators.
             let start_node = this.cursor.selection.anchorNode;
             let before_start = this.cursor.selection.anchorOffset === 0;
@@ -89,12 +81,10 @@ class ClickHandler implements Handler {
             // Set which is actually start and end by the distance to start of the document.
             if(first_distance <= second_distance) {
                 //First is first
-                console.log("FIRST");
                 this.start_iter = start_iter;
                 this.end_iter = end_iter;
             } else {
                 // Second is first.
-                console.log("SECOND");
                 this.start_iter = end_iter;
                 this.end_iter = start_iter;
             }

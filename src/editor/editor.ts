@@ -18,7 +18,7 @@ import {
 
 import { SavePolicy, KeyDownTimeSavePolicy } from "editor/undo_redo/policies/save-policies";
 
-import { KeyPressMap, EditorKeyPressMap } from "editor/keypress-map";
+import { KeyPressMap } from "editor/keypress-map";
 
 import KeyPressMapSingleton from "editor/singletons/keypress-map-singleton";
 

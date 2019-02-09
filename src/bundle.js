@@ -20693,10 +20693,10 @@ var KeydownHandler = /** @class */ (function () {
         this.start = tsmonad_1.Maybe.just(source_start_iter.clone()); // By default, don't move the iterator.
         this.end = tsmonad_1.Maybe.just(source_end_iter.clone());
         var key = event.key;
-        if (key === "Control") {
-            event.preventDefault(); // Do not want to destroy the selection??
+        /*if(key === "Control") {
+            event.preventDefault(); // Do not want to destroy the selection?? Does this really do what I think it does?
             return;
-        }
+        }*/
         var new_iters;
         if (this._controlPressed()) {
             new_iters = this._handleKeyWithControl(event, key, start_iter, end_iter);

@@ -37,8 +37,8 @@ class KeydownHandler implements Handler {
         this.end = Maybe.just(source_end_iter.clone());
         let key: string = event.key;
 
-        if(key === "Control") {
-            event.preventDefault(); // Do not want to destroy the selection??
+        if(this._shouldNotHandle(key)) {
+            event.preventDefault(); 
             return;
         }
 
@@ -51,6 +51,17 @@ class KeydownHandler implements Handler {
         }
         this.start = Maybe.just( new_iters[0] );
         this.end = Maybe.just( new_iters[1] );
+    }
+
+    /**
+     * @description Returns true if the handler should not even try to handle this key.
+     * @param key 
+     */
+    _shouldNotHandle(key: string): boolean {
+        if(key === "Control") {
+            return true;
+        }
+        return false;
     }
 
     _controlPressed() {

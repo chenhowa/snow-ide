@@ -14,12 +14,11 @@ var renderer_1 = require("editor/editor_executors/renderer");
 var deleter_1 = require("editor/editor_executors/deleter");
 var editor_executor_1 = require("editor/editor_executors/editor-executor");
 var handlers_1 = require("editor/handlers/handlers");
-var save_policy_1 = require("editor/undo_redo/save-policy");
-var keypress_map_1 = require("editor/keypress-map");
+var save_policies_1 = require("editor/undo_redo/policies/save-policies");
+var keypress_map_singleton_1 = __importDefault(require("editor/singletons/keypress-map-singleton"));
 var Editor = /** @class */ (function () {
     function Editor(editor_id) {
         this.cursor = new cursor_1.default();
-        this.keypress_map = new keypress_map_1.EditorKeyPressMap();
         this.cursor = new cursor_1.default();
         if (editor_id) {
             this.editor = jquery_1.default(editor_id);
@@ -27,7 +26,9 @@ var Editor = /** @class */ (function () {
         else {
             this.editor = jquery_1.default('#editor');
         }
-        this.save_command_policy = new save_policy_1.TimeIntervalSavePolicy(20, this.editor);
+        this.keypress_map = keypress_map_singleton_1.default.get();
+        this.keypress_map.runOn(this.editor);
+        this.save_command_policy = new save_policies_1.KeyDownTimeSavePolicy(20, this.editor);
         this.renderer = new renderer_1.EditorRenderer(this.editor.get(0));
         this.deleter = new deleter_1.EditorDeleter(this.renderer);
         this.executor = new editor_executor_1.EditorActionExecutor(this.renderer, this.deleter);
@@ -82,19 +83,6 @@ var Editor = /** @class */ (function () {
                 // get data and supposedly remove non-utf characters.
                 var pasteText = event.originalEvent.clipboardData.getData('text');
                 pasteText = pasteText.replace(/[^\x20-\xFF]/gi, '');
-            },
-            error: function (err) { },
-            complete: function () { }
-        });
-        var keyupObs = rxjs_1.fromEvent(this.editor, 'keyup');
-        var keyupSub = keyupObs.subscribe({
-            next: function (event) {
-                var key = event.key;
-                switch (key) {
-                    case "Control": {
-                        _this.keypress_map.Control = false;
-                    }
-                }
             },
             error: function (err) { },
             complete: function () { }

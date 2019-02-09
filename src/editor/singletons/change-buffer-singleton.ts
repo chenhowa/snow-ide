@@ -14,3 +14,5 @@ var ChangeBufferSingleton = {
         }
     }
 }
+
+export default ChangeBufferSingleton;

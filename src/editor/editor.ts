@@ -20,6 +20,8 @@ import { SavePolicy, KeyDownTimeSavePolicy } from "editor/undo_redo/policies/sav
 
 import { KeyPressMap, EditorKeyPressMap } from "editor/keypress-map";
 
+import KeyPressMapSingleton from "editor/singletons/keypress-map-singleton";
+
 
 class Editor {
     glyphs: List<Glyph>;
@@ -31,7 +33,7 @@ class Editor {
     deleter: DeleteRenderer;
     executor: EditorExecutor;
     clicker: Handler;
-    keypress_map: KeyPressMap = new EditorKeyPressMap();
+    keypress_map: KeyPressMap;
     keydowner: Handler;
     save_command_policy: SavePolicy
 
@@ -51,6 +53,8 @@ class Editor {
         } else {
             this.editor = $('#editor');
         }
+        this.keypress_map = KeyPressMapSingleton.get();
+        this.keypress_map.runOn(this.editor);
         this.save_command_policy = new KeyDownTimeSavePolicy(20, this.editor);
         this.renderer = new EditorRenderer(this.editor.get(0));
         this.deleter = new EditorDeleter(this.renderer);
@@ -118,20 +122,6 @@ class Editor {
             },
             error: (err) => { },
             complete: () => { }
-        });
-
-        let keyupObs = fromEvent(this.editor, 'keyup');
-        let keyupSub = keyupObs.subscribe({
-            next: (event: any) => {
-                let key: string = event.key;
-                switch(key) {
-                    case "Control": {
-                        this.keypress_map.Control = false;
-                    }
-                }
-            },
-            error: (err) => {},
-            complete: () => {}
         });
 
         let keydownObs = fromEvent(this.editor, 'keydown');

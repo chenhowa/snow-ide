@@ -38,7 +38,6 @@ class KeydownHandler implements Handler {
         let key: string = event.key;
 
         if(key === "Control") {
-            this.keypress_map.Control = true;
             event.preventDefault(); // Do not want to destroy the selection??
             return;
         }
@@ -62,6 +61,7 @@ class KeydownHandler implements Handler {
                                     : Array<DoubleIterator<Glyph>> {
         // If control was pressed, do nothing? Does that let default happen?
         // TODO: Allow operations of copy, paste, etc.
+        console.log("HANDLING KEY WITH CONTROL");
         return [source_start_iter.clone(), source_end_iter.clone()];
     }
 

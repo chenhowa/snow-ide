@@ -22,7 +22,6 @@ var KeydownHandler = /** @class */ (function () {
         this.end = tsmonad_1.Maybe.just(source_end_iter.clone());
         var key = event.key;
         if (key === "Control") {
-            this.keypress_map.Control = true;
             event.preventDefault(); // Do not want to destroy the selection??
             return;
         }
@@ -42,13 +41,14 @@ var KeydownHandler = /** @class */ (function () {
     KeydownHandler.prototype._handleKeyWithControl = function (event, key, source_start_iter, source_end_iter) {
         // If control was pressed, do nothing? Does that let default happen?
         // TODO: Allow operations of copy, paste, etc.
+        console.log("HANDLING KEY WITH CONTROL");
         return [source_start_iter.clone(), source_end_iter.clone()];
     };
     KeydownHandler.prototype._handleKeyAlone = function (event, key, source_start_iter, source_end_iter) {
         var start_iter = source_start_iter.clone();
         var end_iter = source_end_iter.clone();
         event.preventDefault();
-        if (this._isChar(key)) {
+        if (editor_utils_1.isChar(key)) {
             return this.executor.insertAndRender(key, start_iter, end_iter);
         }
         else if (key === 'Backspace') {
@@ -57,26 +57,13 @@ var KeydownHandler = /** @class */ (function () {
         else if (key === 'Enter') {
             return this.executor.insertAndRerender(string_map_1.default.newline, source_start_iter, source_end_iter);
         }
-        else if (this._isArrowKey(key)) {
-            // TODO. Move iterator to correct destination and then rerender the cursor.
+        else if (editor_utils_1.isArrowKey(key)) {
             return this._handleArrowKey(key, start_iter, end_iter);
         }
         else {
             console.log("UNHANDLED KEY " + key);
         }
         return [start_iter.clone(), end_iter.clone()];
-    };
-    KeydownHandler.prototype._isChar = function (key) {
-        return key.length === 1;
-    };
-    KeydownHandler.prototype._isArrowKey = function (key) {
-        var keys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'];
-        for (var i = 0; i < keys.length; i++) {
-            if (key === keys[i]) {
-                return true;
-            }
-        }
-        return false;
     };
     /**
      * @description: Use arrow key input to move iterator to correct location.

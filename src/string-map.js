@@ -48,6 +48,12 @@ var Strings = {
         right: 'ArrowRight',
         up: 'ArrowUp',
         down: 'ArrowDown'
+    },
+    control: {
+        paste: 'v',
+        undo: 'z',
+        redo: 'y',
+        copy: 'c'
     }
 };
 exports.default = Strings;

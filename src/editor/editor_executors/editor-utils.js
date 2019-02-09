@@ -282,3 +282,17 @@ function arrowDown(source_start_iter, source_end_iter) {
     }
 }
 exports.arrowDown = arrowDown;
+function isArrowKey(key) {
+    var keys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'];
+    for (var i = 0; i < keys.length; i++) {
+        if (key === keys[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+exports.isArrowKey = isArrowKey;
+function isChar(key) {
+    return key.length === 1;
+}
+exports.isChar = isChar;

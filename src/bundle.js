@@ -19367,12 +19367,11 @@ var renderer_1 = require("editor/editor_executors/renderer");
 var deleter_1 = require("editor/editor_executors/deleter");
 var editor_executor_1 = require("editor/editor_executors/editor-executor");
 var handlers_1 = require("editor/handlers/handlers");
-var save_policy_1 = require("editor/undo_redo/save-policy");
-var keypress_map_1 = require("editor/keypress-map");
+var save_policies_1 = require("editor/undo_redo/policies/save-policies");
+var keypress_map_singleton_1 = __importDefault(require("editor/singletons/keypress-map-singleton"));
 var Editor = /** @class */ (function () {
     function Editor(editor_id) {
         this.cursor = new cursor_1.default();
-        this.keypress_map = new keypress_map_1.EditorKeyPressMap();
         this.cursor = new cursor_1.default();
         if (editor_id) {
             this.editor = jquery_1.default(editor_id);
@@ -19380,7 +19379,9 @@ var Editor = /** @class */ (function () {
         else {
             this.editor = jquery_1.default('#editor');
         }
-        this.save_command_policy = new save_policy_1.TimeIntervalSavePolicy(20, this.editor);
+        this.keypress_map = keypress_map_singleton_1.default.get();
+        this.keypress_map.runOn(this.editor);
+        this.save_command_policy = new save_policies_1.KeyDownTimeSavePolicy(20, this.editor);
         this.renderer = new renderer_1.EditorRenderer(this.editor.get(0));
         this.deleter = new deleter_1.EditorDeleter(this.renderer);
         this.executor = new editor_executor_1.EditorActionExecutor(this.renderer, this.deleter);
@@ -19435,19 +19436,6 @@ var Editor = /** @class */ (function () {
                 // get data and supposedly remove non-utf characters.
                 var pasteText = event.originalEvent.clipboardData.getData('text');
                 pasteText = pasteText.replace(/[^\x20-\xFF]/gi, '');
-            },
-            error: function (err) { },
-            complete: function () { }
-        });
-        var keyupObs = rxjs_1.fromEvent(this.editor, 'keyup');
-        var keyupSub = keyupObs.subscribe({
-            next: function (event) {
-                var key = event.key;
-                switch (key) {
-                    case "Control": {
-                        _this.keypress_map.Control = false;
-                    }
-                }
             },
             error: function (err) { },
             complete: function () { }
@@ -19652,7 +19640,7 @@ var Editor = /** @class */ (function () {
 }());
 exports.default = Editor;
 
-},{"data_structures/linked-list":101,"editor/editor_executors/cursor":103,"editor/editor_executors/deleter":104,"editor/editor_executors/editor-executor":105,"editor/editor_executors/renderer":107,"editor/glyph":108,"editor/handlers/handlers":110,"editor/keypress-map":113,"editor/undo_redo/save-policy":114,"jquery":1,"rxjs":2,"string-map":116,"tsmonad":99}],103:[function(require,module,exports){
+},{"data_structures/linked-list":101,"editor/editor_executors/cursor":103,"editor/editor_executors/deleter":104,"editor/editor_executors/editor-executor":105,"editor/editor_executors/renderer":107,"editor/glyph":108,"editor/handlers/handlers":110,"editor/singletons/keypress-map-singleton":114,"editor/undo_redo/policies/save-policies":118,"jquery":1,"rxjs":2,"string-map":120,"tsmonad":99}],103:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -19768,7 +19756,7 @@ var Cursor = /** @class */ (function () {
 }());
 exports.default = Cursor;
 
-},{"jquery":1,"string-map":116}],104:[function(require,module,exports){
+},{"jquery":1,"string-map":120}],104:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -19837,7 +19825,7 @@ var EditorDeleter = /** @class */ (function () {
 }());
 exports.EditorDeleter = EditorDeleter;
 
-},{"editor/glyph":108,"string-map":116}],105:[function(require,module,exports){
+},{"editor/glyph":108,"string-map":120}],105:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var glyph_1 = require("editor/glyph");
@@ -20218,8 +20206,22 @@ function arrowDown(source_start_iter, source_end_iter) {
     }
 }
 exports.arrowDown = arrowDown;
+function isArrowKey(key) {
+    var keys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'];
+    for (var i = 0; i < keys.length; i++) {
+        if (key === keys[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+exports.isArrowKey = isArrowKey;
+function isChar(key) {
+    return key.length === 1;
+}
+exports.isChar = isChar;
 
-},{"string-map":116,"tsmonad":99}],107:[function(require,module,exports){
+},{"string-map":120,"tsmonad":99}],107:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20441,7 +20443,7 @@ var EditorRenderer = /** @class */ (function () {
 }());
 exports.EditorRenderer = EditorRenderer;
 
-},{"editor/editor_executors/editor-utils":106,"jquery":1,"string-map":116}],108:[function(require,module,exports){
+},{"editor/editor_executors/editor-utils":106,"jquery":1,"string-map":120}],108:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20505,7 +20507,7 @@ var GlyphStyle = /** @class */ (function () {
 }());
 exports.GlyphStyle = GlyphStyle;
 
-},{"jquery":1,"string-map":116,"tsmonad":99}],109:[function(require,module,exports){
+},{"jquery":1,"string-map":120,"tsmonad":99}],109:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20654,7 +20656,7 @@ var ClickHandler = /** @class */ (function () {
 }());
 exports.default = ClickHandler;
 
-},{"jquery":1,"string-map":116,"tsmonad":99}],110:[function(require,module,exports){
+},{"jquery":1,"string-map":120,"tsmonad":99}],110:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20692,7 +20694,6 @@ var KeydownHandler = /** @class */ (function () {
         this.end = tsmonad_1.Maybe.just(source_end_iter.clone());
         var key = event.key;
         if (key === "Control") {
-            this.keypress_map.Control = true;
             event.preventDefault(); // Do not want to destroy the selection??
             return;
         }
@@ -20712,13 +20713,14 @@ var KeydownHandler = /** @class */ (function () {
     KeydownHandler.prototype._handleKeyWithControl = function (event, key, source_start_iter, source_end_iter) {
         // If control was pressed, do nothing? Does that let default happen?
         // TODO: Allow operations of copy, paste, etc.
+        console.log("HANDLING KEY WITH CONTROL");
         return [source_start_iter.clone(), source_end_iter.clone()];
     };
     KeydownHandler.prototype._handleKeyAlone = function (event, key, source_start_iter, source_end_iter) {
         var start_iter = source_start_iter.clone();
         var end_iter = source_end_iter.clone();
         event.preventDefault();
-        if (this._isChar(key)) {
+        if (editor_utils_1.isChar(key)) {
             return this.executor.insertAndRender(key, start_iter, end_iter);
         }
         else if (key === 'Backspace') {
@@ -20727,26 +20729,13 @@ var KeydownHandler = /** @class */ (function () {
         else if (key === 'Enter') {
             return this.executor.insertAndRerender(string_map_1.default.newline, source_start_iter, source_end_iter);
         }
-        else if (this._isArrowKey(key)) {
-            // TODO. Move iterator to correct destination and then rerender the cursor.
+        else if (editor_utils_1.isArrowKey(key)) {
             return this._handleArrowKey(key, start_iter, end_iter);
         }
         else {
             console.log("UNHANDLED KEY " + key);
         }
         return [start_iter.clone(), end_iter.clone()];
-    };
-    KeydownHandler.prototype._isChar = function (key) {
-        return key.length === 1;
-    };
-    KeydownHandler.prototype._isArrowKey = function (key) {
-        var keys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'];
-        for (var i = 0; i < keys.length; i++) {
-            if (key === keys[i]) {
-                return true;
-            }
-        }
-        return false;
     };
     /**
      * @description: Use arrow key input to move iterator to correct location.
@@ -20782,7 +20771,7 @@ var KeydownHandler = /** @class */ (function () {
 }());
 exports.default = KeydownHandler;
 
-},{"editor/editor_executors/editor-utils":106,"string-map":116,"tsmonad":99}],112:[function(require,module,exports){
+},{"editor/editor_executors/editor-utils":106,"string-map":120,"tsmonad":99}],112:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20927,18 +20916,107 @@ var MouseClickHandler = /** @class */ (function () {
 }());
 exports.default = MouseClickHandler;
 
-},{"jquery":1,"string-map":116,"tsmonad":99}],113:[function(require,module,exports){
+},{"jquery":1,"string-map":120,"tsmonad":99}],113:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+var rxjs_1 = require("rxjs");
 var EditorKeyPressMap = /** @class */ (function () {
     function EditorKeyPressMap() {
         this.Control = false;
     }
+    EditorKeyPressMap.prototype.runOn = function (node) {
+        var _this = this;
+        var keydownObs = rxjs_1.fromEvent(node, 'keydown');
+        var keydownSub = keydownObs.subscribe({
+            next: function (event) {
+                var key = event.key;
+                if (key === 'Control') {
+                    _this.Control = true;
+                }
+            }
+        });
+        var keyupObs = rxjs_1.fromEvent(node, 'keyup');
+        var keyupSub = keyupObs.subscribe({
+            next: function (event) {
+                var key = event.key;
+                if (key === 'Control') {
+                    _this.Control = false;
+                }
+            }
+        });
+    };
     return EditorKeyPressMap;
 }());
 exports.EditorKeyPressMap = EditorKeyPressMap;
 
-},{}],114:[function(require,module,exports){
+},{"rxjs":2}],114:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var keypress_map_1 = require("editor/keypress-map");
+var map = new keypress_map_1.EditorKeyPressMap();
+var KeyPressMapSingleton = {
+    get: function () {
+        if (!map) {
+            map = new keypress_map_1.EditorKeyPressMap();
+        }
+        return map;
+    }
+};
+exports.default = KeyPressMapSingleton;
+
+},{"editor/keypress-map":113}],115:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var editor_utils_1 = require("editor/editor_executors/editor-utils");
+var rxjs_1 = require("rxjs");
+var ArrowKeysSavePolicy = /** @class */ (function () {
+    function ArrowKeysSavePolicy(node) {
+        var _this = this;
+        this.pressed = false;
+        this.node = node;
+        var keydownObs = rxjs_1.fromEvent(node, 'keydown');
+        var keydownSub = keydownObs.subscribe({
+            next: function (event) {
+                var key = event.key;
+                _this.pressed = editor_utils_1.isArrowKey(key);
+            }
+        });
+    }
+    ArrowKeysSavePolicy.prototype.shouldSave = function (data) {
+        return this.pressed;
+    };
+    ArrowKeysSavePolicy.prototype.reset = function () {
+        this.pressed = false;
+    };
+    return ArrowKeysSavePolicy;
+}());
+exports.default = ArrowKeysSavePolicy;
+
+},{"editor/editor_executors/editor-utils":106,"rxjs":2}],116:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var CompositeSavePolicy = /** @class */ (function () {
+    function CompositeSavePolicy(policies) {
+        this.policies = policies;
+    }
+    CompositeSavePolicy.prototype.shouldSave = function (data) {
+        var should_save = false;
+        for (var i = 0; i < this.policies.length; i++) {
+            should_save = should_save || this.policies[i].shouldSave(data);
+        }
+        return should_save;
+    };
+    // The caller determines whether to reset the save policies.
+    CompositeSavePolicy.prototype.reset = function () {
+        for (var i = 0; i < this.policies.length; i++) {
+            this.policies[i].reset();
+        }
+    };
+    return CompositeSavePolicy;
+}());
+exports.default = CompositeSavePolicy;
+
+},{}],117:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var rxjs_1 = require("rxjs");
@@ -20946,16 +21024,22 @@ var rxjs_1 = require("rxjs");
  * @description This policy recommends saving once the last two recorded keystrokes differ in time by
  *              X amount of milliseconds.
  */
-var TimeIntervalSavePolicy = /** @class */ (function () {
-    function TimeIntervalSavePolicy(difference_in_ms, watch_node) {
-        this.should_save = false;
-        this.difference_in_ms = difference_in_ms;
+var KeydownTimeSavePolicy = /** @class */ (function () {
+    function KeydownTimeSavePolicy(max_difference_in_ms, watch_node) {
+        var _this = this;
+        this.last_difference_in_ms = 0;
+        this.last_time_in_ms = new Date().valueOf();
+        this.max_difference_in_ms = max_difference_in_ms;
         this.watch_node = watch_node;
         var keyDownObs = rxjs_1.fromEvent(this.watch_node, 'keydown');
         var keyDownSub = keyDownObs.subscribe({
             next: function (event) {
+                var key = event.key;
                 console.log("Policy");
-                console.log(event);
+                // Always track the log of how long it took.
+                var new_time_in_ms = new Date().valueOf();
+                _this.last_difference_in_ms = new_time_in_ms - _this.last_time_in_ms;
+                _this.last_time_in_ms = new_time_in_ms;
             },
             error: function (err) {
             },
@@ -20963,14 +21047,34 @@ var TimeIntervalSavePolicy = /** @class */ (function () {
             }
         });
     }
-    TimeIntervalSavePolicy.prototype.shouldSave = function (data) {
-        return this.should_save;
+    KeydownTimeSavePolicy.prototype.shouldSave = function (data) {
+        if (data) {
+            // Anything?
+        }
+        return this.last_difference_in_ms < this.max_difference_in_ms;
     };
-    return TimeIntervalSavePolicy;
+    KeydownTimeSavePolicy.prototype.reset = function () {
+        this.last_difference_in_ms = 0;
+        this.last_time_in_ms = new Date().valueOf();
+    };
+    return KeydownTimeSavePolicy;
 }());
-exports.TimeIntervalSavePolicy = TimeIntervalSavePolicy;
+exports.default = KeydownTimeSavePolicy;
 
-},{"rxjs":2}],115:[function(require,module,exports){
+},{"rxjs":2}],118:[function(require,module,exports){
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var keydown_time_save_policy_1 = __importDefault(require("editor/undo_redo/policies/keydown-time-save-policy"));
+exports.KeyDownTimeSavePolicy = keydown_time_save_policy_1.default;
+var arrow_keys_save_policy_1 = __importDefault(require("editor/undo_redo/policies/arrow-keys-save-policy"));
+exports.ArrowKeysSavePolicy = arrow_keys_save_policy_1.default;
+var editor_save_policy_1 = __importDefault(require("editor/undo_redo/policies/editor-save-policy"));
+exports.CompositeSavePolicy = editor_save_policy_1.default;
+
+},{"editor/undo_redo/policies/arrow-keys-save-policy":115,"editor/undo_redo/policies/editor-save-policy":116,"editor/undo_redo/policies/keydown-time-save-policy":117}],119:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -21001,7 +21105,7 @@ jquery_1.default(document).ready(function () {
     });
 });
 
-},{"./editor/editor":102,"jquery":1}],116:[function(require,module,exports){
+},{"./editor/editor":102,"jquery":1}],120:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var voca_1 = require("voca");
@@ -21052,8 +21156,14 @@ var Strings = {
         right: 'ArrowRight',
         up: 'ArrowUp',
         down: 'ArrowDown'
+    },
+    control: {
+        paste: 'v',
+        undo: 'z',
+        redo: 'y',
+        copy: 'c'
     }
 };
 exports.default = Strings;
 
-},{"voca":100}]},{},[115]);
+},{"voca":100}]},{},[119]);

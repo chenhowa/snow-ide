@@ -8,14 +8,13 @@ import { Glyph } from "editor/glyph";
 
 
 interface ChangeBuffer<T> {
-    decrementStart(): void;
-    incrementEnd(): void;
-    setStart(start: DoubleIterator<T>): void;
-    setEnd(end: DoubleIterator<T>): void;
+    decrementStartAnchor(): void;
+    incrementEndAnchor(): void;
+    setStartAnchor(start: DoubleIterator<T>): void;
+    setEndAnchor(end: DoubleIterator<T>): void;
     generate(): Command;
     addToBufferStart(node: ListNode<T>): void;
     addToBufferEnd(node: ListNode<T>): void;
-
 }
 
 
@@ -24,8 +23,8 @@ class EditorChangeBuffer implements ChangeBuffer<Glyph> {
     end: DoubleIterator<Glyph>;
 
     list: List<Glyph> = new LinkedList();
-    internal_start = this.list.makeFrontIterator();
-    internal_end = this.list.makeBackIterator();
+    internal_start: DoubleIterator<Glyph> = this.list.makeFrontIterator();
+    internal_end: DoubleIterator<Glyph> = this.list.makeBackIterator();
 
     executor: EditorExecutor;
 
@@ -34,6 +33,8 @@ class EditorChangeBuffer implements ChangeBuffer<Glyph> {
         this.start = start.clone();
         this.end = end.clone();
         this.executor = executor;
+
+        this.resetListState();
     }
 
     addToBufferStart(node: ListNode<Glyph>): void {
@@ -44,38 +45,39 @@ class EditorChangeBuffer implements ChangeBuffer<Glyph> {
         this.internal_end.insertNodeBefore(node);
     }
 
-    decrementStart(): void {
+    decrementStartAnchor(): void {
         this.start.prev();
     }
     
-    incrementEnd(): void {
+    incrementEndAnchor(): void {
         this.end.next();
     }
 
-    setStart(start: DoubleIterator<Glyph>): void {
+    setStartAnchor(start: DoubleIterator<Glyph>): void {
         this.start = start.clone();
     }
 
-    setEnd(end: DoubleIterator<Glyph>): void {
+    setEndAnchor(end: DoubleIterator<Glyph>): void {
         this.end = end.clone();
     }
 
     generate(): Command {
         let command: Command;
         if(this.list.isEmpty()) {
-            // Then we must only have been inserting, not removing.
             command = InsertCommand.new(this.start, this.end, this.executor);
         } else {
-            // Then we removed stuff.
             command = RemoveCommand.new(this.start, this.end, this.list, this.executor);
         }
 
-        // Since we generated a command, we now need to clear state, since we don't want to edit the contents of the commands by accident.
+        this.resetListState();
+
+        return command;
+    }
+
+    resetListState(): void {
         this.list = new LinkedList();
         this.internal_start = this.list.makeFrontIterator();
         this.internal_end = this.list.makeBackIterator();
-
-        return command;
     }
 }
 

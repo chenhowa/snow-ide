@@ -19367,6 +19367,7 @@ var renderer_1 = require("editor/editor_executors/renderer");
 var deleter_1 = require("editor/editor_executors/deleter");
 var editor_executor_1 = require("editor/editor_executors/editor-executor");
 var handlers_1 = require("editor/handlers/handlers");
+var save_policy_1 = require("editor/undo_redo/save-policy");
 var keypress_map_1 = require("editor/keypress-map");
 var Editor = /** @class */ (function () {
     function Editor(editor_id) {
@@ -19379,6 +19380,7 @@ var Editor = /** @class */ (function () {
         else {
             this.editor = jquery_1.default('#editor');
         }
+        this.save_command_policy = new save_policy_1.TimeIntervalSavePolicy(20, this.editor);
         this.renderer = new renderer_1.EditorRenderer(this.editor.get(0));
         this.deleter = new deleter_1.EditorDeleter(this.renderer);
         this.executor = new editor_executor_1.EditorActionExecutor(this.renderer, this.deleter);
@@ -19650,7 +19652,7 @@ var Editor = /** @class */ (function () {
 }());
 exports.default = Editor;
 
-},{"data_structures/linked-list":101,"editor/editor_executors/cursor":103,"editor/editor_executors/deleter":104,"editor/editor_executors/editor-executor":105,"editor/editor_executors/renderer":107,"editor/glyph":108,"editor/handlers/handlers":110,"editor/keypress-map":113,"jquery":1,"rxjs":2,"string-map":115,"tsmonad":99}],103:[function(require,module,exports){
+},{"data_structures/linked-list":101,"editor/editor_executors/cursor":103,"editor/editor_executors/deleter":104,"editor/editor_executors/editor-executor":105,"editor/editor_executors/renderer":107,"editor/glyph":108,"editor/handlers/handlers":110,"editor/keypress-map":113,"editor/undo_redo/save-policy":114,"jquery":1,"rxjs":2,"string-map":116,"tsmonad":99}],103:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -19766,7 +19768,7 @@ var Cursor = /** @class */ (function () {
 }());
 exports.default = Cursor;
 
-},{"jquery":1,"string-map":115}],104:[function(require,module,exports){
+},{"jquery":1,"string-map":116}],104:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -19835,7 +19837,7 @@ var EditorDeleter = /** @class */ (function () {
 }());
 exports.EditorDeleter = EditorDeleter;
 
-},{"editor/glyph":108,"string-map":115}],105:[function(require,module,exports){
+},{"editor/glyph":108,"string-map":116}],105:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var glyph_1 = require("editor/glyph");
@@ -20217,7 +20219,7 @@ function arrowDown(source_start_iter, source_end_iter) {
 }
 exports.arrowDown = arrowDown;
 
-},{"string-map":115,"tsmonad":99}],107:[function(require,module,exports){
+},{"string-map":116,"tsmonad":99}],107:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20439,7 +20441,7 @@ var EditorRenderer = /** @class */ (function () {
 }());
 exports.EditorRenderer = EditorRenderer;
 
-},{"editor/editor_executors/editor-utils":106,"jquery":1,"string-map":115}],108:[function(require,module,exports){
+},{"editor/editor_executors/editor-utils":106,"jquery":1,"string-map":116}],108:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20503,7 +20505,7 @@ var GlyphStyle = /** @class */ (function () {
 }());
 exports.GlyphStyle = GlyphStyle;
 
-},{"jquery":1,"string-map":115,"tsmonad":99}],109:[function(require,module,exports){
+},{"jquery":1,"string-map":116,"tsmonad":99}],109:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20652,7 +20654,7 @@ var ClickHandler = /** @class */ (function () {
 }());
 exports.default = ClickHandler;
 
-},{"jquery":1,"string-map":115,"tsmonad":99}],110:[function(require,module,exports){
+},{"jquery":1,"string-map":116,"tsmonad":99}],110:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20780,7 +20782,7 @@ var KeydownHandler = /** @class */ (function () {
 }());
 exports.default = KeydownHandler;
 
-},{"editor/editor_executors/editor-utils":106,"string-map":115,"tsmonad":99}],112:[function(require,module,exports){
+},{"editor/editor_executors/editor-utils":106,"string-map":116,"tsmonad":99}],112:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20925,7 +20927,7 @@ var MouseClickHandler = /** @class */ (function () {
 }());
 exports.default = MouseClickHandler;
 
-},{"jquery":1,"string-map":115,"tsmonad":99}],113:[function(require,module,exports){
+},{"jquery":1,"string-map":116,"tsmonad":99}],113:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var EditorKeyPressMap = /** @class */ (function () {
@@ -20937,6 +20939,38 @@ var EditorKeyPressMap = /** @class */ (function () {
 exports.EditorKeyPressMap = EditorKeyPressMap;
 
 },{}],114:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var rxjs_1 = require("rxjs");
+/**
+ * @description This policy recommends saving once the last two recorded keystrokes differ in time by
+ *              X amount of milliseconds.
+ */
+var TimeIntervalSavePolicy = /** @class */ (function () {
+    function TimeIntervalSavePolicy(difference_in_ms, watch_node) {
+        this.should_save = false;
+        this.difference_in_ms = difference_in_ms;
+        this.watch_node = watch_node;
+        var keyDownObs = rxjs_1.fromEvent(this.watch_node, 'keydown');
+        var keyDownSub = keyDownObs.subscribe({
+            next: function (event) {
+                console.log("Policy");
+                console.log(event);
+            },
+            error: function (err) {
+            },
+            complete: function () {
+            }
+        });
+    }
+    TimeIntervalSavePolicy.prototype.shouldSave = function (data) {
+        return this.should_save;
+    };
+    return TimeIntervalSavePolicy;
+}());
+exports.TimeIntervalSavePolicy = TimeIntervalSavePolicy;
+
+},{"rxjs":2}],115:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -20967,7 +21001,7 @@ jquery_1.default(document).ready(function () {
     });
 });
 
-},{"./editor/editor":102,"jquery":1}],115:[function(require,module,exports){
+},{"./editor/editor":102,"jquery":1}],116:[function(require,module,exports){
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 var voca_1 = require("voca");
@@ -21022,4 +21056,4 @@ var Strings = {
 };
 exports.default = Strings;
 
-},{"voca":100}]},{},[114]);
+},{"voca":100}]},{},[115]);

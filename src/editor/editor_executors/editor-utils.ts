@@ -133,6 +133,8 @@ function findLineEnd(source_iter: DoubleIterator<Glyph>): DoubleIterator<Glyph> 
     return iter;
 }
 
+
+
 function arrowLeft(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)
                                             : Array< DoubleIterator<Glyph> > {
     let start_iter = source_start_iter.clone();
@@ -287,6 +289,20 @@ function arrowDown(source_start_iter: DoubleIterator<Glyph>, source_end_iter: Do
 
 }
 
+function isArrowKey(key: string): boolean {
+    let keys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'];
+    for(let i = 0; i < keys.length; i++) {
+        if(key === keys[i]) {
+            return true;
+        }
+    }
+    return false; 
+}
+
+function isChar(key: string): boolean {
+    return key.length === 1;
+}
+
 export {
     getDistanceFromNextLine,
     getDistanceFromLineStart,
@@ -296,6 +312,7 @@ export {
     arrowLeft,
     arrowRight,
     arrowUp,
-    arrowDown
-    
+    arrowDown,
+    isArrowKey,
+    isChar    
 };

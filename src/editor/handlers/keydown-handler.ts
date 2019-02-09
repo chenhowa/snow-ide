@@ -10,7 +10,9 @@ import {
     arrowLeft,
     arrowRight,
     arrowUp,
-    arrowDown
+    arrowDown,
+    isArrowKey,
+    isChar
 } from "editor/editor_executors/editor-utils";
 import { KeyPressMap } from "editor/keypress-map";
 
@@ -69,34 +71,19 @@ class KeydownHandler implements Handler {
         let start_iter = source_start_iter.clone();
         let end_iter = source_end_iter.clone();
         event.preventDefault(); 
-        if(this._isChar(key)) {
+        if(isChar(key)) {
             return this.executor.insertAndRender(key, start_iter, end_iter);
         } else if (key === 'Backspace') {
             return this.executor.deleteAndRender(start_iter, end_iter, false);
         } else if (key === 'Enter') {
             return this.executor.insertAndRerender(Strings.newline, source_start_iter, source_end_iter);  
-        } else if (this._isArrowKey(key)) {
-            // TODO. Move iterator to correct destination and then rerender the cursor.
+        } else if (isArrowKey(key)) {
             return this._handleArrowKey(key, start_iter, end_iter);
         } else {
             console.log("UNHANDLED KEY " + key);
         }
 
         return [start_iter.clone(), end_iter.clone()];
-    }
-
-    _isChar(key: string): boolean {
-        return key.length === 1;
-    }
-
-    _isArrowKey(key: string): boolean {
-        let keys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'];
-        for(let i = 0; i < keys.length; i++) {
-            if(key === keys[i]) {
-                return true;
-            }
-        }
-        return false; 
     }
 
     /**

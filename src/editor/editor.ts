@@ -16,6 +16,8 @@ import {
     MouseClickHandler
 } from "editor/handlers/handlers";
 
+import { SavePolicy, KeyDownTimeSavePolicy } from "editor/undo_redo/policies/save-policies";
+
 import { KeyPressMap, EditorKeyPressMap } from "editor/keypress-map";
 
 
@@ -31,6 +33,7 @@ class Editor {
     clicker: Handler;
     keypress_map: KeyPressMap = new EditorKeyPressMap();
     keydowner: Handler;
+    save_command_policy: SavePolicy
 
     static new = function(editor_id?: string): Maybe<Editor> {
         let editor: Editor = new Editor(editor_id);
@@ -48,6 +51,7 @@ class Editor {
         } else {
             this.editor = $('#editor');
         }
+        this.save_command_policy = new KeyDownTimeSavePolicy(20, this.editor);
         this.renderer = new EditorRenderer(this.editor.get(0));
         this.deleter = new EditorDeleter(this.renderer);
         this.executor = new EditorActionExecutor(this.renderer, this.deleter);

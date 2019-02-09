@@ -14,6 +14,7 @@ var renderer_1 = require("editor/editor_executors/renderer");
 var deleter_1 = require("editor/editor_executors/deleter");
 var editor_executor_1 = require("editor/editor_executors/editor-executor");
 var handlers_1 = require("editor/handlers/handlers");
+var save_policy_1 = require("editor/undo_redo/save-policy");
 var keypress_map_1 = require("editor/keypress-map");
 var Editor = /** @class */ (function () {
     function Editor(editor_id) {
@@ -26,6 +27,7 @@ var Editor = /** @class */ (function () {
         else {
             this.editor = jquery_1.default('#editor');
         }
+        this.save_command_policy = new save_policy_1.TimeIntervalSavePolicy(20, this.editor);
         this.renderer = new renderer_1.EditorRenderer(this.editor.get(0));
         this.deleter = new deleter_1.EditorDeleter(this.renderer);
         this.executor = new editor_executor_1.EditorActionExecutor(this.renderer, this.deleter);

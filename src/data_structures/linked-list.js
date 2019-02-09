@@ -41,6 +41,9 @@ var LinkedList = /** @class */ (function () {
             iterator.removeNext();
         }
     };
+    LinkedList.prototype.isEmpty = function () {
+        return this.getCount() === 0;
+    };
     LinkedList.prototype.asArray = function () {
         var iterator = this.makeFrontIterator();
         var array = [];
@@ -125,6 +128,19 @@ var LinkedListIterator = /** @class */ (function () {
         });
         node.prev = tsmonad_1.Maybe.just(this.current);
         this.current.next = tsmonad_1.Maybe.just(node);
+    };
+    LinkedListIterator.prototype.insertNodeBefore = function (node) {
+        this.current.prev.caseOf({
+            just: function (prevNode) {
+                node.prev = tsmonad_1.Maybe.just(prevNode);
+                prevNode.next = tsmonad_1.Maybe.just(node);
+            },
+            nothing: function () {
+                throw new Error("insertNodeBefore: this iterator's list has been corrupted");
+            }
+        });
+        node.next = tsmonad_1.Maybe.just(this.current);
+        this.current.prev = tsmonad_1.Maybe.just(node);
     };
     /**
      * @description Finds first occurence at or after this iterator.

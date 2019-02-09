@@ -8,32 +8,38 @@ import { EditorExecutor } from "editor/editor_executors/editor-executor";
 
 class RemoveCommand implements Command {
     list: List<Glyph>;
-    start: DoubleIterator<Glyph>; // functions as pointer to the reference node.
-    end: DoubleIterator<Glyph>;
+    start: DoubleIterator<Glyph>; // remove/insert start point
+    end: DoubleIterator<Glyph>;    // remove/insert end point
     executor: EditorExecutor;
+    done: boolean;
 
-    static new(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, executor: EditorExecutor): RemoveCommand {
-        let command = new RemoveCommand(start, end, new LinkedList(), executor);
+    static new(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, list: LinkedList<Glyph>, executor: EditorExecutor): RemoveCommand {
+        // By default, create a done command. So this wants to undo only (that is, insert) right now,
+        // from its list of things to "unremove";
+        let command = new RemoveCommand(start, end, list, executor, true);
         return command;
     }
 
-    constructor(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, list: List<Glyph>, executor: EditorExecutor ) {
+    constructor(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, list: List<Glyph>, executor: EditorExecutor, done: boolean ) {
         this.start = start.clone();
         this.end = end.clone();
         this.list = list;
         this.executor = executor;
+        this.done = done;
     }
 
     /**
      * @description Range is from this.start to this.end, excluding this.start and this.end.
-     *              Everything in between will be reinserted into the list.
+     *              Everything in between will be removed from the target and put into the internal list.
      */
     do() {
-        if(this.start.equals(this.end)) {
+        if(this.done) {
             throw new Error("RemoveCommand: tried to do when start === end");
         }
 
-        let inserter = this.list.makeFrontIterator();
+        this.list = new LinkedList();  // reinitialize state in case it was corrupted.
+
+        let internal_inserter = this.list.makeFrontIterator();
         let scanner = this.start.clone();
         while(true) {
             scanner.next();
@@ -53,8 +59,8 @@ class RemoveCommand implements Command {
 
                 scanner.remove(false).caseOf({
                     just: (node) => {
-                        inserter.insertNodeAfter(node);
-                        inserter.next();
+                        internal_inserter.insertNodeAfter(node);
+                        internal_inserter.next();
                     },
                     nothing: () => {
                         //If there was no node, something is definitely wrong. But we'll try to repair by doing nothing.
@@ -66,18 +72,42 @@ class RemoveCommand implements Command {
         // Rerender the range now that the stuff has been removed.
         this.executor.rerenderRange(this.start, this.end);
 
-        // Set end to start, to show the command has been done.
-        this.end = this.start.clone();
+        // Prepare to undo.
+        this.done = true;
 
     }
 
+    /**
+     * @description = this undoes the remove command. That is, it inserts between this.start and this.end,
+     */
     undo() {
-        if(!this.start.equals(this.end)) {
+        if(!this.done) {
             throw new Error("RemoveCommand: tried to undo when start !== end");
         }
 
-        this.end = this.start.insertListAfter(this.list); // puts end at one past the last inserted node
+        let remover = this.start.clone();
+        while(remover.hasNext()) {
+            remover.next();
+            if(remover.equals(this.end)) {
+                break;
+            } else {
+                remover.get().caseOf({
+                    just: (glyph) => {
+                        glyph.destroyNode(); // Destroy the representations of any glyphs that are being removed.
+                    },
+                    nothing: () => { }
+                })
+
+                remover.remove(false);
+            }
+        }
+
+        // Insert internal list into target.
+        this.start.insertListAfter(this.list);
         this.executor.rerenderRange(this.start, this.end); // rerender now that the stuff has been inserted.
+
+        // Prepare to do.
+        this.done = false;
     }
 
     asArray(): Array<Glyph> {

@@ -8,6 +8,7 @@ interface List<T> {
     asArray(): Array<T>;
     empty(): void; // empties linked list.
     find(filter: (data: T) => boolean): DoubleIterator<T>; //
+    isEmpty(): boolean;
 }
 
 interface ListNode<T> {
@@ -87,6 +88,10 @@ class LinkedList<T> implements List<T> {
         while(iterator.hasNext()) {
             iterator.removeNext();
         }
+    }
+
+    isEmpty(): boolean {
+        return this.getCount() === 0;
     }
 
     asArray(): Array<T> {

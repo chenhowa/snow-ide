@@ -65,7 +65,7 @@ class KeydownHandler implements Handler {
     }
 
     _controlPressed() {
-        return this.keypress_map.Control;
+        return this.keypress_map.isControl();
     }
 
     _handleKeyWithControl(event: any, key: string, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)

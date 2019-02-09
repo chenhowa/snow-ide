@@ -2,7 +2,7 @@
 import { fromEvent } from 'rxjs';
 
 interface KeyPressMap {
-    Control: boolean;
+    isControl(): boolean;
 
     runOn(node: JQuery<HTMLElement>): void;
 }
@@ -12,6 +12,10 @@ class EditorKeyPressMap implements KeyPressMap {
 
     constructor() {
 
+    }
+
+    isControl(): boolean {
+        return this.Control;
     }
 
     runOn(node: JQuery<HTMLElement>) {

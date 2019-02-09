@@ -1,5 +1,5 @@
 
-import { History, CommandHistory } from "editor/editor_commands/command-history";
+import { History, CommandHistory } from "editor/undo_redo/command-history";
 
 var history: CommandHistory;
 

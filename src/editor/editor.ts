@@ -23,6 +23,11 @@ import { KeyPressMap } from "editor/keypress-map";
 import KeyPressMapSingleton from "editor/singletons/keypress-map-singleton";
 
 
+/*
+    TODO : INCORPORATE POLICY AND CHANGE BUFFER INTO THE EDITOR.
+    TODO : INCORPORATE THE HISTORY OF COMMANDS.
+*/
+
 class Editor {
     glyphs: List<Glyph>;
     start_glyph_iter: DoubleIterator<Glyph>;

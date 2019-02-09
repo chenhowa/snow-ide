@@ -1,5 +1,5 @@
 import "jest";
-import { CommandHistory } from "editor/editor_commands/command-history";
+import { CommandHistory } from "editor/undo_redo/command-history";
 import { MockCommand } from "editor/editor_commands/command";
 
 describe("test command history", () => {

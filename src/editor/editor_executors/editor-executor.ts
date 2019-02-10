@@ -4,11 +4,11 @@ import { Renderer, EditorRenderer } from "editor/editor_executors/renderer";
 import { DeleteRenderer, EditorDeleter } from "editor/editor_executors/deleter";
 
 import HistorySingleton from "editor/singletons/history-singleton";
-import { ChangeBuffer } from "editor/undo_redo/change-buffer";
+import { ChangeBuffer, ChangeTracker } from "editor/undo_redo/change-buffer";
 
 
 import { AddCommand } from "editor/undo_redo/command-history";
-import { SavePolicy } from "editor/undo_redo/policies/save-policies";
+import { SavePolicy, SaveData } from "editor/undo_redo/policies/save-policies";
 import SavePolicySingleton from "editor/singletons/save-policy-singleton";
 
 
@@ -57,17 +57,23 @@ class MockEditorExecutor implements EditorExecutor {
 }
 
 
+/*
+    TODO incorporate the change buffer here, using the SavePolicy and the buffer itself to determine whether it's time to set start
+    and end or not. Tricky, tricky.
+*/
+
+
 class EditorActionExecutor implements EditorExecutor {
     renderer: Renderer;
     deleter: DeleteRenderer;
     command_history: AddCommand<Glyph>; // we are only allowed to add commands to the history. No calling undo or redo!
-    change_buffer: ChangeBuffer<Glyph>;
+    change_buffer: ChangeBuffer<Glyph> & ChangeTracker<Glyph>;
     save_policy: SavePolicy
 
-    constructor(change_buffer: ChangeBuffer<Glyph>, editor: Node) {
+    constructor(change_buffer: ChangeBuffer<Glyph> & ChangeTracker<Glyph>, editor: Node) {
         this.renderer = new EditorRenderer(editor);
-        this.deleter = new EditorDeleter(this.renderer);
         this.change_buffer = change_buffer;
+        this.deleter = new EditorDeleter(this.renderer, this.change_buffer);
 
         this.save_policy = SavePolicySingleton.get(); // gets the save policy!
         this.command_history = HistorySingleton.get(); // always remember the history, so we can add to it as need be.
@@ -90,9 +96,35 @@ class EditorActionExecutor implements EditorExecutor {
 
     insertAndRender(char: string, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph> )
                                                 : Array<DoubleIterator<Glyph>> {
+                
+        this._repositionChangeBuffer(source_start_iter, source_end_iter, char);
+
         let new_iters: Array<DoubleIterator<Glyph>> = this._insertGlyph(char, source_start_iter, source_end_iter);
         this._renderGlyphs(new_iters[0], new_iters[1]);
         return new_iters;                             
+    }
+
+    _repositionChangeBuffer(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>, char?: string): void {
+        let start_iter = source_start_iter.clone();
+        let end_iter = source_end_iter.clone();
+
+        //First we check if we should save the command at this point.
+        let save_data: SaveData = {
+            key: char
+        }
+        if(this.save_policy.shouldSave(save_data)) {
+            this.command_history.add(this.change_buffer.generateAndClean());
+        }
+
+        if(!this.change_buffer.isDirty()) {
+            // If the change buffer isn't dirty, then we are starting a new change buffer due to this insert.
+            // Note that on insert, we don't need to do anything other than record the start and end points of the
+            // insertion. That's all the info we need to undo the insertion, after all.
+            let start_anchor = start_iter.clone();
+            let end_anchor = end_iter.clone();
+            end_anchor.next();
+            this.change_buffer.setAnchors(start_anchor, end_anchor);
+        }
     }
 
     /**
@@ -150,11 +182,14 @@ class EditorActionExecutor implements EditorExecutor {
 
     deleteAndRender(start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>, direction: boolean)
                                                 : Array< DoubleIterator<Glyph> > {
+        this._repositionChangeBuffer(start_iter, end_iter);
         return this.deleter.deleteAndRender(start_iter.clone(), end_iter.clone(), direction);
     }
 
     insertAndRerender(char: string, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph> )
                                                 : Array<DoubleIterator<Glyph>> {
+                                                    
+        this._repositionChangeBuffer(source_start_iter, source_end_iter, char);
         let new_iters: Array<DoubleIterator<Glyph>> = this._insertGlyph(char, source_start_iter, source_end_iter);
         this.rerenderAt(new_iters[0]);
         return new_iters;

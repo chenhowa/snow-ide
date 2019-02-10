@@ -24,12 +24,12 @@ import {
     ArrowKeysSavePolicy,
 } from "editor/undo_redo/policies/save-policies";
 
-import { ChangeBuffer, EditorChangeBuffer } from "editor/undo_redo/change-buffer";
+import { ChangeBuffer, EditorChangeBuffer, ChangeTracker } from "editor/undo_redo/change-buffer";
 
 
 /*
     TODO : INCORPORATE POLICY AND CHANGE BUFFER INTO THE EDITOR.
-    TODO : INCORPORATE THE HISTORY OF COMMANDS.
+    TODO : RESET FUNCTION SHOULD ALSO RESET THE STATE OF THE CHANGE BUFFER and the COMMAND HISTORY.
 */
 
 class Editor {
@@ -42,7 +42,7 @@ class Editor {
     click_handler: Handler;
     keypress_map: KeyPressMap;
     keydown_handler: Handler;
-    change_buffer: ChangeBuffer<Glyph>;
+    change_buffer: ChangeBuffer<Glyph> & ChangeTracker<Glyph>;
 
 
     static new = function(editor_id?: string): Maybe<Editor> {
@@ -55,9 +55,9 @@ class Editor {
     };
 
     constructor(editor_id?: string) {
-        this.glyphs = new LinkedList();
+        this.glyphs = new LinkedList(); // list of characters and the styles they should be rendered with.
 
-        this.cursor = new Cursor();
+        this.cursor = new Cursor(); // object responsible for rendering the cursor according to the editor's state.
         if(editor_id) {
             this.editor = $(editor_id);
         } else {

@@ -17,7 +17,7 @@ class CompositeSavePolicy implements SavePolicy, SetPolicies {
     }
 
 
-    shouldSave(data?: SaveData): boolean {
+    shouldSave(data: SaveData): boolean {
         let should_save = false;
         for(let i = 0; i < this.policies.length; i++) {
             should_save = should_save || this.policies[i].shouldSave(data);

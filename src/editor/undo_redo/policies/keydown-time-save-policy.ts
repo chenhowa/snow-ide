@@ -39,7 +39,7 @@ class KeydownTimeSavePolicy implements SavePolicy {
         });
     }
 
-    shouldSave(data?: SaveData): boolean {
+    shouldSave(data: SaveData): boolean {
         if(data) {
             // Anything?
         }

@@ -3,8 +3,6 @@ import {
     isArrowKey
 } from "editor/editor_executors/editor-utils";
 
-import $ from "jquery";
-
 import { fromEvent } from 'rxjs';
 
 import { SavePolicy, SaveData } from "editor/undo_redo/policies/save-policy";
@@ -25,7 +23,7 @@ class ArrowKeysSavePolicy implements SavePolicy {
         });
     }
 
-    shouldSave(data?: SaveData): boolean {
+    shouldSave(data: SaveData): boolean {
         return this.pressed;
     }
 

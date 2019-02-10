@@ -45,7 +45,7 @@ class KeydownHandler implements Handler {
         let key: string = event.key;
 
         if(this._shouldNotHandle(key)) {
-            event.preventDefault(); 
+            event.preventDefault();
             return;
         }
 
@@ -97,13 +97,11 @@ class KeydownHandler implements Handler {
         } else if (key === Strings.control.paste) {
 
         } else if (key === Strings.control.undo) {
-            console.log("UNDO");
             let result = this.command_history.undo();
             iterator_array[0] = result.start_iter ? result.start_iter : iterator_array[0];
             iterator_array[1] = result.end_iter ? result.end_iter : iterator_array[1];
 
         } else if (key === Strings.control.redo) {
-            console.log("REDO");
             let result = this.command_history.do();
             iterator_array[0] = result.start_iter ? result.start_iter : iterator_array[0];
             iterator_array[1] = result.end_iter ? result.end_iter : iterator_array[1];

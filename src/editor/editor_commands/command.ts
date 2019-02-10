@@ -1,33 +1,43 @@
+import { DoubleIterator } from "data_structures/linked-list";
 
 
-interface Command {
-    do(): void;
-    undo(): void;
+interface CommandResult<T> {
+    start_iter?: DoubleIterator<T>;
+    end_iter?: DoubleIterator<T>;
 }
 
 
-class MockCommand implements Command {
+interface Command<T> {
+    do(): CommandResult<T>;
+    undo(): CommandResult<T>;
+}
+
+
+class MockCommand<T> implements Command<T> {
     done: boolean = true;
     tag: string;
     constructor(tag: string) {
         this.tag = tag;
     }
 
-    do() {
+    do(): CommandResult<T> {
         if(this.done) {
             throw new Error("Called do on a done command");
         }
-
         this.done = true;
+
+        return {};
     }
 
-    undo() {
+    undo(): CommandResult<T> {
         if(!this.done) {
             throw new Error("Called undo on an undone command");
         }
         this.done = false;
+
+        return {};
     }   
 }
 
 export default Command;
-export { MockCommand, Command };
+export { MockCommand, Command, CommandResult };

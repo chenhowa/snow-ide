@@ -27,13 +27,14 @@ class KeydownHandler implements Handler {
     cursor: Cursor;
     editor: Node;
     keypress_map: KeyPressMap;
-    command_history: History;
+    command_history: History<Glyph>;   // Have the history so we can undo and redo as needed.
+    
     constructor(executor: EditorExecutor, cursor: Cursor, editor: Node, map: KeyPressMap) {
         this.executor = executor;
         this.cursor = cursor;
         this.editor = editor;
         this.keypress_map = map;
-        this.command_history = HistorySingleton.get();
+        this.command_history = HistorySingleton.get(); 
     }
 
     handle(event: any, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>) {
@@ -76,10 +77,41 @@ class KeydownHandler implements Handler {
 
     _handleKeyWithControl(event: any, key: string, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)
                                     : Array<DoubleIterator<Glyph>> {
-        // If control was pressed, do nothing? Does that let default happen?
-        // TODO: Allow operations of copy, paste, etc.
-        console.log("HANDLING KEY WITH CONTROL");
-        return [source_start_iter.clone(), source_end_iter.clone()];
+        /* So what might happen here?
+            1. Copy.
+            2. Paste.
+            3. Undo.
+            4. Redo
+
+            In the case of copy, nothing needs to happen with regards to where the cursor is.
+            In the case of paste, we have all info we need (the current cursor) to figure out where the cursor should be next.
+            But in the case of undo and redo, WE DO NOT. Each command technically knows where it ends up. So commands should 
+            return a CommandResult object or something, or they should get a reference to the editor, so we can know how
+            to set the resulting state. For now we'll go with returning a command object.
+        */
+
+        let iterator_array = [source_start_iter.clone(), source_end_iter.clone()];
+
+        if(key === Strings.control.copy) {
+
+        } else if (key === Strings.control.paste) {
+
+        } else if (key === Strings.control.undo) {
+            console.log("UNDO");
+            let result = this.command_history.undo();
+            iterator_array[0] = result.start_iter ? result.start_iter : iterator_array[0];
+            iterator_array[1] = result.end_iter ? result.end_iter : iterator_array[1];
+
+        } else if (key === Strings.control.redo) {
+            console.log("REDO");
+            let result = this.command_history.do();
+            iterator_array[0] = result.start_iter ? result.start_iter : iterator_array[0];
+            iterator_array[1] = result.end_iter ? result.end_iter : iterator_array[1];
+        } else {
+            console.log("UNHANDLED KEY WITH CONTROL");
+        }
+
+        return iterator_array;
     }
 
     _handleKeyAlone(event: any, key: string, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)

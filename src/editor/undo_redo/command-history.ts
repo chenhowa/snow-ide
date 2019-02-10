@@ -1,20 +1,20 @@
 
-import Command from "editor/editor_commands/command";
+import {Command, CommandResult} from "editor/editor_commands/command";
 import { LinkedList, List, DoubleIterator } from "data_structures/linked-list";
 
-interface History {
-    do() : void;
-    undo(): void;
+interface History<T> {
+    do() : CommandResult<T>;
+    undo(): CommandResult<T>;
 }
 
-interface AddCommand {
-    add(command: Command): void;
+interface AddCommand<T> {
+    add(command: Command<T>): void;
 }
 
 
-class CommandHistory implements History, AddCommand {
-    current_command: DoubleIterator<Command>;
-    commands: List<Command>
+class CommandHistory<T> implements History<T>, AddCommand<T> {
+    current_command: DoubleIterator<Command<T>>;
+    commands: List<Command<T>>
     command_count: number = 0;
     max_count: number;
 
@@ -27,27 +27,30 @@ class CommandHistory implements History, AddCommand {
         this.max_count = max_count;
     }
 
-    do() {
+    do(): CommandResult<T> {
         // Only do the next command if it exists.
+        let result = {};
         if(this.current_command.hasNext()) {
             this.current_command.next();
             this.current_command.get().caseOf({
                 just: (command) => {
-                    command.do();
+                    result = command.do();
                 },
                 nothing: () => {
                     // command does not exist. Do nothng
                 }
             });
         }
+        return result;
     }
 
-    undo() {
+    undo(): CommandResult<T> {
         // Only do this if there is a command to undo.
+        let result = {};
         if(this.current_command.isValid()) {
             this.current_command.get().caseOf({
                 just: (command) => {
-                    command.undo();
+                    result = command.undo();
                 },
                 nothing: () => {
                     // Command does not exist. Do nothing.
@@ -55,9 +58,11 @@ class CommandHistory implements History, AddCommand {
             });
             this.current_command.prev();
         }
+
+        return result;
     }
 
-    add(new_command: Command) {
+    add(new_command: Command<T>) {
 
         while(this.current_command.hasNext()) {
             // Remove commands that will be overwritten by the newly added one.
@@ -84,7 +89,7 @@ class CommandHistory implements History, AddCommand {
         }
     }
     
-    getCurrentCommand(): Command {
+    getCurrentCommand(): Command<T> {
         return this.current_command.grab();
     }
 }

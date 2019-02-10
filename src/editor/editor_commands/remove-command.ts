@@ -1,4 +1,4 @@
-import Command from "editor/editor_commands/command";
+import {Command, CommandResult} from "editor/editor_commands/command";
 import { DoubleIterator, List, LinkedList } from "data_structures/linked-list";
 
 
@@ -6,7 +6,7 @@ import { Glyph } from "editor/glyph";
 import { Renderer } from "editor/editor_executors/renderer";
 
 
-class RemoveCommand implements Command {
+class RemoveCommand implements Command<Glyph> {
     list: List<Glyph>;
     start: DoubleIterator<Glyph>; // remove/insert start point
     end: DoubleIterator<Glyph>;    // remove/insert end point
@@ -32,7 +32,7 @@ class RemoveCommand implements Command {
      * @description Range is from this.start to this.end, excluding this.start and this.end.
      *              Everything in between will be removed from the target and put into the internal list.
      */
-    do() {
+    do(): CommandResult<Glyph> {
         if(this.done) {
             throw new Error("RemoveCommand: tried to do when start === end");
         }
@@ -75,12 +75,14 @@ class RemoveCommand implements Command {
         // Prepare to undo.
         this.done = true;
 
+        return this._generateResult();
+
     }
 
     /**
      * @description = this undoes the remove command. That is, it inserts between this.start and this.end,
      */
-    undo() {
+    undo(): CommandResult<Glyph> {
         if(!this.done) {
             throw new Error("RemoveCommand: tried to undo when start !== end");
         }
@@ -108,6 +110,17 @@ class RemoveCommand implements Command {
 
         // Prepare to do.
         this.done = false;
+
+        return this._generateResult();
+    }
+
+    _generateResult(): CommandResult<Glyph> {
+        let result_end = this.end.clone();
+        result_end.prev();
+        return {
+            start_iter: this.start.clone(),
+            end_iter: result_end
+        }
     }
 
     asArray(): Array<Glyph> {

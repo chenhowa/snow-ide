@@ -1,4 +1,4 @@
-import Command from "editor/editor_commands/command";
+import {Command, CommandResult} from "editor/editor_commands/command";
 import { 
     DoubleIterator,
     List,
@@ -10,7 +10,7 @@ import { Renderer } from "editor/editor_executors/renderer";
 import RemoveCommand from "editor/editor_commands/remove-command";
 
 
-class InsertCommand implements Command {
+class InsertCommand implements Command<Glyph> {
     remove_command: RemoveCommand;
 
     static new(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, renderer: Renderer) {
@@ -24,9 +24,9 @@ class InsertCommand implements Command {
         this.remove_command = new RemoveCommand(start, start, list, renderer, !done);
     }
 
-    do() {
+    do(): CommandResult<Glyph> {
         try {
-            this.remove_command.undo();
+            return this.remove_command.undo();
         } catch(e) {
             throw new Error("InsertCommand do(): remove_command.undo threw the error " + e.message);
         }
@@ -36,9 +36,9 @@ class InsertCommand implements Command {
      * @description Range is from this.start to this.end, excluding this.start and this.end.
      *              Everything in between will be reinserted into the list.
      */
-    undo() {
+    undo(): CommandResult<Glyph> {
         try {
-            this.remove_command.do();
+            return this.remove_command.do();
         } catch(e) {
             throw new Error("InsertCommand do(): remove_command.do threw the error " + e.message);
         }

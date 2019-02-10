@@ -1,10 +1,11 @@
 
 import { History, CommandHistory, AddCommand } from "editor/undo_redo/command-history";
+import { Glyph } from "editor/glyph";
 
-var history: CommandHistory;
+var history: CommandHistory<Glyph>;
 
 var HistorySingleton = {
-    get: function(): History & AddCommand {
+    get: function(): History<Glyph> & AddCommand<Glyph> {
         if(!history) {
             history = new CommandHistory(15);
         }

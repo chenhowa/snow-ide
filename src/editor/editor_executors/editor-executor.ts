@@ -60,7 +60,7 @@ class MockEditorExecutor implements EditorExecutor {
 class EditorActionExecutor implements EditorExecutor {
     renderer: Renderer;
     deleter: DeleteRenderer;
-    command_history: AddCommand; // we are only allowed to add commands to the history. No calling undo or redo!
+    command_history: AddCommand<Glyph>; // we are only allowed to add commands to the history. No calling undo or redo!
     change_buffer: ChangeBuffer<Glyph>;
     save_policy: SavePolicy
 
@@ -70,7 +70,7 @@ class EditorActionExecutor implements EditorExecutor {
         this.change_buffer = change_buffer;
 
         this.save_policy = SavePolicySingleton.get(); // gets the save policy!
-        this.command_history = HistorySingleton.get();
+        this.command_history = HistorySingleton.get(); // always remember the history, so we can add to it as need be.
     }
 
     renderAt(iter: DoubleIterator<Glyph>) {

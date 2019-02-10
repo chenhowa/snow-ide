@@ -14,10 +14,10 @@ interface Renderer {
 
 class MockRenderer implements Renderer {
     render() {
-        
+        // Does nothing!
     }
     rerender() {
-
+        // Does nothing!
     }
 }
 

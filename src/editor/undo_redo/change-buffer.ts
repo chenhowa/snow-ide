@@ -2,7 +2,6 @@
 import { DoubleIterator, List, LinkedList, ListNode } from "data_structures/linked-list";
 import Command from "editor/editor_commands/command";
 import { InsertCommand, RemoveCommand } from "editor/editor_commands/commands";
-import { EditorExecutor } from "editor/editor_executors/editor-executor";
 import { Glyph } from "editor/glyph";
 
 import { Renderer } from "editor/editor_executors/renderer";
@@ -13,7 +12,7 @@ interface ChangeBuffer<T> {
     incrementEndAnchor(): void;
     setStartAnchor(start: DoubleIterator<T>): void;
     setEndAnchor(end: DoubleIterator<T>): void;
-    generate(): Command;
+    generate(): Command<T>;
     addToBufferStart(node: ListNode<T>): void;
     addToBufferEnd(node: ListNode<T>): void;
 }
@@ -61,8 +60,8 @@ class EditorChangeBuffer implements ChangeBuffer<Glyph> {
         this.end = end.clone();
     }
 
-    generate(): Command {
-        let command: Command;
+    generate(): Command<Glyph> {
+        let command: Command<Glyph>;
         if(this.list.isEmpty()) {
             command = InsertCommand.new(this.start, this.end, this.renderer);
         } else {

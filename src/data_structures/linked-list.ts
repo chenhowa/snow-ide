@@ -463,6 +463,7 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
 
     prev(): void {
         if(this._isFrontSentinel()) {
+            console.log("was front sentinel");
             return;
         }
 
@@ -472,9 +473,18 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
                 thisIterator.current = node;
             },
             nothing: function() {
+                console.log("PREV TO FRONT SENTINEL");
                 thisIterator.current = thisIterator.list.front_sentinel;
             }
         });
+
+        if(thisIterator.current === thisIterator.list.back_sentinel) {
+            console.log("CURRENT was made into back sentinel by prev");
+        } else {
+            console.log("current is not back sentinel after prev");
+        }
+
+
     }
 
     hasNext(): boolean {
@@ -482,9 +492,11 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
         let thisIterator = this;
         this.current.next.caseOf({
             just: function(nextNode) {
+                console.log("saw back sentinel");
                 next =  nextNode !== thisIterator.list.back_sentinel;
             },
             nothing: function(){
+                console.log("saw nothing");
                 next = false;
             }
         });

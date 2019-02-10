@@ -1,6 +1,7 @@
 
 import $ from "jquery";
 import Editor from './editor/editor';
+import HistorySingleton from "editor/singletons/history-singleton";
 
 $(document).ready(function() {
     let maybe_editor = Editor.new('#editor');
@@ -20,6 +21,14 @@ $(document).ready(function() {
 
             $("#re-render").click(function(event) {
                 editor.rerender();
+            });
+
+            $("#history").click(function(event) {
+                console.log(HistorySingleton.get().asArray());
+            })
+
+            $("#buffer").click(function(event) {
+                console.log(editor.showBuffer());
             });
         },
         nothing: function() {

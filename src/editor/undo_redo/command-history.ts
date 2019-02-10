@@ -5,6 +5,7 @@ import { LinkedList, List, DoubleIterator } from "data_structures/linked-list";
 interface History<T> {
     do() : CommandResult<T>;
     undo(): CommandResult<T>;
+    asArray(): Array<string>
 }
 
 interface AddCommand<T> {
@@ -27,6 +28,25 @@ class CommandHistory<T> implements History<T>, AddCommand<T> {
         this.max_count = max_count;
     }
 
+    asArray(): Array<string> {
+        let array = this.commands.asArray().map((command) => {
+            return command.asString();
+        });
+
+        let current = this.current_command.get().caseOf({
+            just: (command) => {
+                return "some command";
+            },
+            nothing: () => {
+                return "some sentinel";
+            }
+        })
+
+        array.unshift(current);
+
+        return array;
+    }
+
     do(): CommandResult<T> {
         // Only do the next command if it exists.
         let result = {};
@@ -34,12 +54,15 @@ class CommandHistory<T> implements History<T>, AddCommand<T> {
             this.current_command.next();
             this.current_command.get().caseOf({
                 just: (command) => {
+                    console.log("doing a command");
                     result = command.do();
                 },
                 nothing: () => {
                     // command does not exist. Do nothng
                 }
             });
+        } else {
+            console.log("NO NEXT COMMAND");
         }
         return result;
     }
@@ -48,6 +71,7 @@ class CommandHistory<T> implements History<T>, AddCommand<T> {
         // Only do this if there is a command to undo.
         let result = {};
         if(this.current_command.isValid()) {
+            console.log("undoing a command");
             this.current_command.get().caseOf({
                 just: (command) => {
                     result = command.undo();
@@ -57,12 +81,16 @@ class CommandHistory<T> implements History<T>, AddCommand<T> {
                 }
             });
             this.current_command.prev();
+            if(!this.current_command.isValid()) {
+                console.log("undid and now I am not valid");
+            }
         }
 
         return result;
     }
 
     add(new_command: Command<T>) {
+        console.log("adding command")
 
         while(this.current_command.hasNext()) {
             // Remove commands that will be overwritten by the newly added one.

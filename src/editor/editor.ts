@@ -62,7 +62,8 @@ class Editor {
         // configure save policies for undo/redo for the entire editor.
         let policy = SavePolicySingleton.get();
         policy.setPolicies([
-            new SwitchInsertDeleteSavePolicy()
+            new SwitchInsertDeleteSavePolicy(),
+            new CurrentKeySavePolicy()
         ]);
 
         this.glyphs = new LinkedList(); // list of characters and the styles they should be rendered with.
@@ -84,12 +85,18 @@ class Editor {
         
         this.start_glyph_iter = this.glyphs.makeFrontIterator();
         this.end_glyph_iter = this.glyphs.makeFrontIterator();
-        this.keydown_handler = new KeydownHandler(this.executor, this.cursor, this.editor.get(0), this.keypress_map);
+        this.keydown_handler = new KeydownHandler(
+            this.executor, this.cursor, this.editor.get(0), this.keypress_map, this.change_buffer
+        );
         this.click_handler = new ClickHandler(this.cursor, this.editor.get(0));
 
         if(this.valid()) {
             this.reset();
         }
+    }
+
+    showBuffer(): string {
+        return (this.change_buffer.asString());
     }
 
     reset(): void {

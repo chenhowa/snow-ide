@@ -21,7 +21,7 @@ class InsertCommand implements Command<Glyph> {
 
     constructor(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, list: List<Glyph>, renderer: Renderer, done: boolean) {
         // Piggy back off the inverse remove comand. If the insert is done, the remove is NOT done.
-        this.remove_command = new RemoveCommand(start, start, list, renderer, !done);
+        this.remove_command = new RemoveCommand(start, end, list, renderer, !done);
     }
 
     do(): CommandResult<Glyph> {
@@ -41,6 +41,14 @@ class InsertCommand implements Command<Glyph> {
             return this.remove_command.do();
         } catch(e) {
             throw new Error("InsertCommand do(): remove_command.do threw the error " + e.message);
+        }
+    }
+
+    asString(): string {
+        try {
+            return this.remove_command.asString();
+        } catch (e) {
+            throw new Error("InsertCommand asString(): remove_command.asString threw the error " + e.message);
         }
     }
 }

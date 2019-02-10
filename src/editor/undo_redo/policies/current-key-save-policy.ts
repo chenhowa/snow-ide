@@ -23,6 +23,7 @@ class CurrentKeySavePolicy implements SavePolicy {
         if(data && data.key) {
             let press_map = KeypressMapSingleton.get();
             if(press_map.isControl()) {
+                console.log('control was pressed');
                 return this._shouldSaveIfControl(data.key);
             } else if (isArrowKey(data.key)) {
                 return true;
@@ -33,14 +34,24 @@ class CurrentKeySavePolicy implements SavePolicy {
     }
 
     _shouldSaveIfControl(key: string): boolean {
+        let should_save = false;
         switch(key) {
-            case Strings.control.paste: return true;  // should save before paste.
-            case Strings.control.undo: return true;  // should save before undo (you are undoing what you just did)
-            case Strings.control.redo: return true;  /* should save before redo (if you undid 5 things and then started typing, 
+            case Strings.control.paste: should_save = true; // should save before paste.
+            break;  
+            case Strings.control.undo: should_save = true;  // should save before undo (you are undoing what you just did)
+            break;
+            case Strings.control.redo: should_save = true;  /* should save before redo (if you undid 5 things and then started typing, 
                                                             redo should overwite your old history )*/
-            case Strings.control.copy: return true; 
-            default:    return false;
+            break;
+            case Strings.control.copy: should_save = true;
+            break;
+            default:    should_save = false;
         }
+
+        if(should_save) {
+            console.log("should save with control for key " + key);
+        }
+        return should_save;
     }
 
 

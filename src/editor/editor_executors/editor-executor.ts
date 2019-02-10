@@ -138,11 +138,15 @@ class EditorActionExecutor implements EditorExecutor {
 
         //First we check if we should save the latest insert/remove command at this point.
         if(this.save_policy.shouldSave(save_data) && this.change_buffer.isDirty()) {
+            console.log('saving');
             this.command_history.add(this.change_buffer.generateAndClean());
             this.save_policy.reset(); // Reset save_policies so 'unsave' until input then indicates again that we should save.
+        } else {
+            console.log('not saving');
         }
 
         if(!this.change_buffer.isDirty()) {
+            console.log('not dirty');
             // If the change buffer isn't dirty, then we are starting a new change buffer due to this insert.
             // Note that on insert, we don't need to do anything other than record the start and end points of the
             // insertion. That's all the info we need to undo the insertion, after all.
@@ -150,6 +154,8 @@ class EditorActionExecutor implements EditorExecutor {
             let end_anchor = end_iter.clone();
             end_anchor.next();
             this.change_buffer.setAnchors(start_anchor, end_anchor);
+        } else {
+            console.log('dirty');
         }
     }
 

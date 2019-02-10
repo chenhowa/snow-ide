@@ -16,8 +16,11 @@ import {
 } from "editor/editor_executors/editor-utils";
 import { KeyPressMap } from "editor/keypress-map";
 
-import { History } from "editor/undo_redo/command-history";
+import { History, AddCommand } from "editor/undo_redo/command-history";
 import HistorySingleton from "editor/singletons/history-singleton";
+import { SavePolicy } from "editor/undo_redo/policies/save-policy";
+import SavePolicySingleton from "editor/singletons/save-policy-singleton";
+import { ChangeBuffer } from "editor/undo_redo/change-buffer";
 
 
 class KeydownHandler implements Handler {
@@ -27,14 +30,18 @@ class KeydownHandler implements Handler {
     cursor: Cursor;
     editor: Node;
     keypress_map: KeyPressMap;
-    command_history: History<Glyph>;   // Have the history so we can undo and redo as needed.
+    command_history: History<Glyph> & AddCommand<Glyph>;   // Have the history so we can undo and redo as needed.
+    save_policy: SavePolicy;
+    change_buffer: ChangeBuffer<Glyph>;
     
-    constructor(executor: EditorExecutor, cursor: Cursor, editor: Node, map: KeyPressMap) {
+    constructor(executor: EditorExecutor, cursor: Cursor, editor: Node, map: KeyPressMap, change_buffer: ChangeBuffer<Glyph>) {
         this.executor = executor;
         this.cursor = cursor;
         this.editor = editor;
         this.keypress_map = map;
-        this.command_history = HistorySingleton.get(); 
+        this.command_history = HistorySingleton.get();
+        this.save_policy = SavePolicySingleton.get(); 
+        this.change_buffer = change_buffer;
     }
 
     handle(event: any, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>) {
@@ -89,11 +96,18 @@ class KeydownHandler implements Handler {
             return a CommandResult object or something, or they should get a reference to the editor, so we can know how
             to set the resulting state. For now we'll go with returning a command object.
         */
+        const save_data = {
+            key: key
+        }
+
+        if(this.save_policy.shouldSave(save_data) && this.change_buffer.isDirty()) {
+            this.command_history.add(this.change_buffer.generateAndClean());
+        }
 
         let iterator_array = [source_start_iter.clone(), source_end_iter.clone()];
 
         if(key === Strings.control.copy) {
-
+            
         } else if (key === Strings.control.paste) {
 
         } else if (key === Strings.control.undo) {
@@ -102,6 +116,7 @@ class KeydownHandler implements Handler {
             iterator_array[1] = result.end_iter ? result.end_iter : iterator_array[1];
 
         } else if (key === Strings.control.redo) {
+            console.log("DOING");
             let result = this.command_history.do();
             iterator_array[0] = result.start_iter ? result.start_iter : iterator_array[0];
             iterator_array[1] = result.end_iter ? result.end_iter : iterator_array[1];

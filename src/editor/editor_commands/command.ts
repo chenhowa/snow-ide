@@ -10,6 +10,7 @@ interface CommandResult<T> {
 interface Command<T> {
     do(): CommandResult<T>;
     undo(): CommandResult<T>;
+    asString(): string;
 }
 
 
@@ -36,7 +37,11 @@ class MockCommand<T> implements Command<T> {
         this.done = false;
 
         return {};
-    }   
+    }
+
+    asString(): string {
+        return "Mock Command";
+    }
 }
 
 export default Command;

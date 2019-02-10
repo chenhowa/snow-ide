@@ -13,6 +13,8 @@ class RemoveCommand implements Command<Glyph> {
     renderer: Renderer;
     done: boolean;
 
+    inserted_string: string;
+
     static new(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, list: LinkedList<Glyph>, renderer: Renderer): RemoveCommand {
         // By default, create a done command. So this wants to undo only (that is, insert) right now,
         // from its list of things to "unremove";
@@ -26,6 +28,72 @@ class RemoveCommand implements Command<Glyph> {
         this.list = list;
         this.renderer = renderer;
         this.done = done;
+        this.inserted_string = "";
+
+        if(!this.done) {
+            // Then we inserted. Let's cache what we inserted.
+            let cache = this.start.clone();
+            console.log("END WAS " + this.end.get().caseOf({
+                just: (glyph) => {
+                    return glyph.glyph;
+                }, nothing: () => {
+                    "nothing or sentinel";
+                }
+            }));
+            while(cache.hasNext()) {
+                cache.next();
+                if(cache.equals(this.end)) {
+                    break;
+                } else {
+                    cache.get().caseOf({
+                        just: (glyph) => {
+                            console.log(glyph.glyph);
+                            this.inserted_string += glyph.glyph;//
+                        },
+                        nothing: () => {
+
+                        }
+                    })
+                }
+            }
+        }
+    }
+
+    asString(): string {
+        let string = "";
+        if(this.done) {
+            // We did the remove.
+            let chars = this.list.asArray().map((glyph) => {
+                return glyph.glyph;
+            });
+
+            string += "Removed " + chars.join('');
+        } else {
+            // We did the insert.
+            string += "Inserted " + this.inserted_string;
+        }
+
+        string += ". Start anchor: ";
+        string += this.start.get().caseOf({
+            just: (glyph) => {
+                return glyph.glyph;
+            },
+            nothing: () => {
+                return "not valid or sentinel"
+            }
+        });
+        string += ", End anchor: ";
+        string += this.end.get().caseOf({
+            just: (glyph) => {
+                return glyph.glyph;
+            },
+            nothing: () => {
+                return "not valid or sentinel";
+            }
+        });
+
+        return string;
+
     }
 
     /**
@@ -103,6 +171,12 @@ class RemoveCommand implements Command<Glyph> {
                 remover.remove(false);
             }
         }
+
+        // We will do the insert now, so cache the inserted string.
+        let chars = this.list.asArray().map((glyph) => {
+            return glyph.glyph;
+        });
+        this.inserted_string = chars.join('');
 
         // Insert internal list into target.
         this.start.insertListAfter(this.list);

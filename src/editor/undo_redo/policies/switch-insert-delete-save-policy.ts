@@ -18,14 +18,19 @@ class SwitchInsertDeleteSavePolicy implements SavePolicy {
     shouldSave(data: SaveData): boolean {
         if(data && data.editor_action) {
             if(!this.last_action) {
+                console.log('no last action');
                 this.was_switched = false;
                 this.last_action = data.editor_action;
             }
             else if(data.editor_action === this.last_action) {
+                console.log('same action');
                 this.was_switched = false;
             } else {
+                console.log('switching');
                 this.was_switched = true;
             }
+        } else {
+            console.log('no response');
         }
 
         return this.was_switched;

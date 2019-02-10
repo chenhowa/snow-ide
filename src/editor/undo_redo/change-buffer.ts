@@ -13,6 +13,7 @@ interface ChangeBuffer<T> {
     setAnchors(start: DoubleIterator<T>, end: DoubleIterator<T>): void;
     generateAndClean(): Command<T>;
     isDirty(): boolean;
+    asString(): string;
 }
 
 interface ChangeTracker<T> {
@@ -44,6 +45,34 @@ class EditorChangeBuffer implements ChangeBuffer<Glyph>, ChangeTracker<Glyph> {
         this.resetListState();
     }
 
+    asString(): string {
+        let string = "Buffer contains string [";
+        string += this.list.asArray().map((glyph) => {
+            return glyph.glyph
+        }).join('');
+
+        string += "]. Start anchor: ";
+        string += this.start.get().caseOf({
+            just: (glyph) => {
+                return glyph.glyph;
+            },
+            nothing: () => {
+                return "not valid or sentinel"
+            }
+        });
+        string += ", End anchor: ";
+        string += this.end.get().caseOf({
+            just: (glyph) => {
+                return glyph.glyph;
+            },
+            nothing: () => {
+                return "not valid or sentinel";
+            }
+        });
+
+        return string;
+    }
+
     isDirty(): boolean {
         return this.dirty;
     }
@@ -59,11 +88,13 @@ class EditorChangeBuffer implements ChangeBuffer<Glyph>, ChangeTracker<Glyph> {
     }
 
     decrementStartAnchor(): void {
+        console.log("decrementing");
         this.start.prev();
         this.dirty = true;
     }
     
     incrementEndAnchor(): void {
+        console.log("incrementing");
         this.end.next();
         this.dirty = true;
     }

@@ -6,7 +6,7 @@ interface SaveData {
 }
 
 enum EditorActionType {
-    Insert,
+    Insert = 1,
     Remove
 }
 

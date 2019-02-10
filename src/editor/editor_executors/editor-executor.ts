@@ -112,7 +112,7 @@ class EditorActionExecutor implements EditorExecutor {
         let save_data: SaveData = {
             key: char
         }
-        if(this.save_policy.shouldSave(save_data)) {
+        if(this.save_policy.shouldSave(save_data) && this.change_buffer.isDirty()) {
             this.command_history.add(this.change_buffer.generateAndClean());
         }
 

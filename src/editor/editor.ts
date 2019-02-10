@@ -21,7 +21,7 @@ import {
     SavePolicy,
     SaveData,
     KeyDownTimeSavePolicy,
-    ArrowKeysSavePolicy,
+    CurrentKeySavePolicy
 } from "editor/undo_redo/policies/save-policies";
 
 import { ChangeBuffer, EditorChangeBuffer, ChangeTracker } from "editor/undo_redo/change-buffer";

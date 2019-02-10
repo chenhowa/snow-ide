@@ -1,4 +1,7 @@
-
+import {
+    isChar,
+    isArrowKey
+} from "editor/editor_executors/editor-utils";
 
 
 import { SavePolicy, SaveData } from "editor/undo_redo/policies/save-policy";
@@ -8,7 +11,10 @@ import KeypressMapSingleton from "editor/singletons/keypress-map-singleton";
 import Strings from "string-map";
 
 
-class KeycodeSavePolicy implements SavePolicy {
+/**
+ * @description - Saves based on the current key passed to it. Maintains no state.
+ */
+class CurrentKeySavePolicy implements SavePolicy {
     constructor() {
 
     }
@@ -18,6 +24,8 @@ class KeycodeSavePolicy implements SavePolicy {
             let press_map = KeypressMapSingleton.get();
             if(press_map.isControl()) {
                 return this._shouldSaveIfControl(data.key);
+            } else if (isArrowKey(data.key)) {
+                return true;
             }
         }
 
@@ -41,4 +49,4 @@ class KeycodeSavePolicy implements SavePolicy {
     }
 }
 
-export default KeycodeSavePolicy;
+export default CurrentKeySavePolicy;

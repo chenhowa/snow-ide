@@ -8,7 +8,7 @@ import { ChangeBuffer, ChangeTracker } from "editor/undo_redo/change-buffer";
 
 
 import { AddCommand } from "editor/undo_redo/command-history";
-import { SavePolicy, SaveData } from "editor/undo_redo/policies/save-policies";
+import { SavePolicy, SaveData, EditorActionType } from "editor/undo_redo/policies/save-policies";
 import SavePolicySingleton from "editor/singletons/save-policy-singleton";
 
 
@@ -57,12 +57,6 @@ class MockEditorExecutor implements EditorExecutor {
 }
 
 
-/*
-    TODO incorporate the change buffer here, using the SavePolicy and the buffer itself to determine whether it's time to set start
-    and end or not. Tricky, tricky.
-*/
-
-
 class EditorActionExecutor implements EditorExecutor {
     renderer: Renderer;
     deleter: DeleteRenderer;
@@ -96,24 +90,25 @@ class EditorActionExecutor implements EditorExecutor {
 
     insertAndRender(char: string, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph> )
                                                 : Array<DoubleIterator<Glyph>> {
-                
-        this._repositionChangeBuffer(source_start_iter, source_end_iter, char);
+        let save_data = {
+            char: char,
+            editor_action: EditorActionType.Insert
+        }
+        this._repositionChangeBuffer(source_start_iter, source_end_iter, save_data);
 
         let new_iters: Array<DoubleIterator<Glyph>> = this._insertGlyph(char, source_start_iter, source_end_iter);
         this._renderGlyphs(new_iters[0], new_iters[1]);
         return new_iters;                             
     }
 
-    _repositionChangeBuffer(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>, char?: string): void {
+    _repositionChangeBuffer(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>, save_data: SaveData ): void {
         let start_iter = source_start_iter.clone();
         let end_iter = source_end_iter.clone();
 
-        //First we check if we should save the command at this point.
-        let save_data: SaveData = {
-            key: char
-        }
+        //First we check if we should save the latest insert/remove command at this point.
         if(this.save_policy.shouldSave(save_data) && this.change_buffer.isDirty()) {
             this.command_history.add(this.change_buffer.generateAndClean());
+            this.save_policy.reset(); // Reset save_policies so 'unsave' until input then indicates again that we should save.
         }
 
         if(!this.change_buffer.isDirty()) {
@@ -182,14 +177,20 @@ class EditorActionExecutor implements EditorExecutor {
 
     deleteAndRender(start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>, direction: boolean)
                                                 : Array< DoubleIterator<Glyph> > {
-        this._repositionChangeBuffer(start_iter, end_iter);
+        const save_data = {
+            editor_action: EditorActionType.Remove
+        };
+        this._repositionChangeBuffer(start_iter, end_iter, save_data);
         return this.deleter.deleteAndRender(start_iter.clone(), end_iter.clone(), direction);
     }
 
     insertAndRerender(char: string, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph> )
                                                 : Array<DoubleIterator<Glyph>> {
-                                                    
-        this._repositionChangeBuffer(source_start_iter, source_end_iter, char);
+        const save_data = {
+            char: char,
+            editor_action: EditorActionType.Insert
+        }
+        this._repositionChangeBuffer(source_start_iter, source_end_iter, save_data);
         let new_iters: Array<DoubleIterator<Glyph>> = this._insertGlyph(char, source_start_iter, source_end_iter);
         this.rerenderAt(new_iters[0]);
         return new_iters;

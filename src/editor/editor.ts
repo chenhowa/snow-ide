@@ -21,10 +21,14 @@ import {
     SavePolicy,
     SaveData,
     KeyDownTimeSavePolicy,
-    CurrentKeySavePolicy
+    CurrentKeySavePolicy,
+    CompositeSavePolicy,
+    SetPolicies,
+    SwitchInsertDeleteSavePolicy
 } from "editor/undo_redo/policies/save-policies";
 
 import { ChangeBuffer, EditorChangeBuffer, ChangeTracker } from "editor/undo_redo/change-buffer";
+import SavePolicySingleton from "./singletons/save-policy-singleton";
 
 
 /*
@@ -55,6 +59,12 @@ class Editor {
     };
 
     constructor(editor_id?: string) {
+        // configure save policies for undo/redo for the entire editor.
+        let policy = SavePolicySingleton.get();
+        policy.setPolicies([
+            new SwitchInsertDeleteSavePolicy()
+        ]);
+
         this.glyphs = new LinkedList(); // list of characters and the styles they should be rendered with.
 
         this.cursor = new Cursor(); // object responsible for rendering the cursor according to the editor's state.

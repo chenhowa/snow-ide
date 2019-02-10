@@ -4,7 +4,7 @@ import {
 } from "editor/editor_executors/editor-utils";
 
 
-import { SavePolicy, SaveData } from "editor/undo_redo/policies/save-policy";
+import { SavePolicy, SaveData, EditorActionType } from "editor/undo_redo/policies/save-policy";
 
 import KeypressMapSingleton from "editor/singletons/keypress-map-singleton";
 

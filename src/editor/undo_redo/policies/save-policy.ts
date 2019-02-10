@@ -2,6 +2,12 @@
 
 interface SaveData {
     key?: string;
+    editor_action?: EditorActionType;
+}
+
+enum EditorActionType {
+    Insert,
+    Remove
 }
 
 interface SetPolicies {
@@ -18,4 +24,5 @@ export {
     SaveData, 
     SavePolicy,
     SetPolicies,
+    EditorActionType
 }

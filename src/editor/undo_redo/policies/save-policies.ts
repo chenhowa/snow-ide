@@ -1,9 +1,10 @@
 
 
-import { SavePolicy, SaveData, SetPolicies } from "editor/undo_redo/policies/save-policy";
+import { SavePolicy, SaveData, SetPolicies, EditorActionType } from "editor/undo_redo/policies/save-policy";
 import KeyDownTimeSavePolicy from "editor/undo_redo/policies/keydown-time-save-policy";
 import CompositeSavePolicy from "editor/undo_redo/policies/composite-save-policy";
 import CurrentKeySavePolicy from "editor/undo_redo/policies/current-key-save-policy";
+import SwitchInsertDeleteSavePolicy from "editor/undo_redo/policies/switch-insert-delete-save-policy";
 
 
 export {
@@ -12,5 +13,7 @@ export {
     KeyDownTimeSavePolicy,
     CompositeSavePolicy,
     CurrentKeySavePolicy,
-    SetPolicies
+    SetPolicies,
+    EditorActionType,
+    SwitchInsertDeleteSavePolicy
 }

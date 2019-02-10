@@ -13,14 +13,20 @@ import {
     Handler, 
     ClickHandler, 
     KeydownHandler,
-    MouseClickHandler
 } from "editor/handlers/handlers";
-
-import { SavePolicy, KeyDownTimeSavePolicy } from "editor/undo_redo/policies/save-policies";
 
 import { KeyPressMap } from "editor/keypress-map";
 
 import KeyPressMapSingleton from "editor/singletons/keypress-map-singleton";
+
+import { History, AddCommand, CommandHistory } from "editor/undo_redo/command-history";
+import { 
+    SavePolicy,
+    SaveData,
+    KeyDownTimeSavePolicy,
+    ArrowKeysSavePolicy,
+    CompositeSavePolicy
+} from "editor/undo_redo/policies/save-policies";
 
 
 /*
@@ -34,13 +40,12 @@ class Editor {
     end_glyph_iter: DoubleIterator<Glyph>;
     editor: JQuery<HTMLElement>;
     cursor: Cursor = new Cursor();
-    renderer: Renderer;
-    deleter: DeleteRenderer;
     executor: EditorExecutor;
     clicker: Handler;
     keypress_map: KeyPressMap;
     keydowner: Handler;
-    save_command_policy: SavePolicy
+    history: History & AddCommand = new CommandHistory(15);
+
 
     static new = function(editor_id?: string): Maybe<Editor> {
         let editor: Editor = new Editor(editor_id);
@@ -60,10 +65,11 @@ class Editor {
         }
         this.keypress_map = KeyPressMapSingleton.get();
         this.keypress_map.runOn(this.editor);
-        this.save_command_policy = new KeyDownTimeSavePolicy(20, this.editor);
-        this.renderer = new EditorRenderer(this.editor.get(0));
-        this.deleter = new EditorDeleter(this.renderer);
-        this.executor = new EditorActionExecutor(this.renderer, this.deleter);
+
+        let renderer = new EditorRenderer(this.editor.get(0));
+        let deleter = new EditorDeleter(renderer);
+        this.executor = new EditorActionExecutor(renderer, deleter);
+        
         this.glyphs = new LinkedList();
         this.start_glyph_iter = this.glyphs.makeFrontIterator();
         this.end_glyph_iter = this.glyphs.makeFrontIterator();
@@ -95,7 +101,7 @@ class Editor {
         let iterator = this.glyphs.makeFrontIterator();
         while(iterator.hasNext()) {
             iterator.next();
-            this.renderer.render(iterator, iterator);
+            this.executor.renderAt(iterator);
         }
 
         this.updateCursorToCurrent(); // Initially is between a and b!

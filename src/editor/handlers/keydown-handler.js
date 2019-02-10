@@ -21,10 +21,10 @@ var KeydownHandler = /** @class */ (function () {
         this.start = tsmonad_1.Maybe.just(source_start_iter.clone()); // By default, don't move the iterator.
         this.end = tsmonad_1.Maybe.just(source_end_iter.clone());
         var key = event.key;
-        /*if(key === "Control") {
-            event.preventDefault(); // Do not want to destroy the selection?? Does this really do what I think it does?
+        if (this._shouldNotHandle(key)) {
+            event.preventDefault();
             return;
-        }*/
+        }
         var new_iters;
         if (this._controlPressed()) {
             new_iters = this._handleKeyWithControl(event, key, start_iter, end_iter);
@@ -35,8 +35,18 @@ var KeydownHandler = /** @class */ (function () {
         this.start = tsmonad_1.Maybe.just(new_iters[0]);
         this.end = tsmonad_1.Maybe.just(new_iters[1]);
     };
+    /**
+     * @description Returns true if the handler should not even try to handle this key.
+     * @param key
+     */
+    KeydownHandler.prototype._shouldNotHandle = function (key) {
+        if (key === "Control") {
+            return true;
+        }
+        return false;
+    };
     KeydownHandler.prototype._controlPressed = function () {
-        return this.keypress_map.Control;
+        return this.keypress_map.isControl();
     };
     KeydownHandler.prototype._handleKeyWithControl = function (event, key, source_start_iter, source_end_iter) {
         // If control was pressed, do nothing? Does that let default happen?

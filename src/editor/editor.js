@@ -16,6 +16,10 @@ var editor_executor_1 = require("editor/editor_executors/editor-executor");
 var handlers_1 = require("editor/handlers/handlers");
 var save_policies_1 = require("editor/undo_redo/policies/save-policies");
 var keypress_map_singleton_1 = __importDefault(require("editor/singletons/keypress-map-singleton"));
+/*
+    TODO : INCORPORATE POLICY AND CHANGE BUFFER INTO THE EDITOR.
+    TODO : INCORPORATE THE HISTORY OF COMMANDS.
+*/
 var Editor = /** @class */ (function () {
     function Editor(editor_id) {
         this.cursor = new cursor_1.default();

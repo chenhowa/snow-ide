@@ -5,11 +5,14 @@ import { LinkedList, List, DoubleIterator } from "data_structures/linked-list";
 interface History {
     do() : void;
     undo(): void;
+}
+
+interface AddCommand {
     add(command: Command): void;
 }
 
 
-class CommandHistory implements History {
+class CommandHistory implements History, AddCommand {
     current_command: DoubleIterator<Command>;
     commands: List<Command>
     command_count: number = 0;
@@ -87,4 +90,4 @@ class CommandHistory implements History {
 }
 
 
-export { History, CommandHistory };
+export { History, AddCommand, CommandHistory };

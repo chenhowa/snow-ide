@@ -5,6 +5,9 @@ var EditorKeyPressMap = /** @class */ (function () {
     function EditorKeyPressMap() {
         this.Control = false;
     }
+    EditorKeyPressMap.prototype.isControl = function () {
+        return this.Control;
+    };
     EditorKeyPressMap.prototype.runOn = function (node) {
         var _this = this;
         var keydownObs = rxjs_1.fromEvent(node, 'keydown');

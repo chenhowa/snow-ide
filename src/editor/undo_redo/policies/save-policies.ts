@@ -12,5 +12,6 @@ export {
     SaveData,
     KeyDownTimeSavePolicy,
     ArrowKeysSavePolicy,
-    CompositeSavePolicy
+    CompositeSavePolicy,
+    KeycodeSavePolicy
 }

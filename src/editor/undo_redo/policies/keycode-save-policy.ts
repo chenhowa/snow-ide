@@ -16,7 +16,7 @@ class KeycodeSavePolicy implements SavePolicy {
     shouldSave(data?: SaveData): boolean {
         if(data && data.key) {
             let press_map = KeypressMapSingleton.get();
-            if(press_map.Control) {
+            if(press_map.isControl()) {
                 return this._shouldSaveIfControl(data.key);
             }
         }

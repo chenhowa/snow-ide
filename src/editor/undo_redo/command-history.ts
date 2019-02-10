@@ -54,7 +54,6 @@ class CommandHistory<T> implements History<T>, AddCommand<T> {
             this.current_command.next();
             this.current_command.get().caseOf({
                 just: (command) => {
-                    console.log("doing a command");
                     result = command.do();
                 },
                 nothing: () => {
@@ -71,7 +70,6 @@ class CommandHistory<T> implements History<T>, AddCommand<T> {
         // Only do this if there is a command to undo.
         let result = {};
         if(this.current_command.isValid()) {
-            console.log("undoing a command");
             this.current_command.get().caseOf({
                 just: (command) => {
                     result = command.undo();
@@ -81,16 +79,13 @@ class CommandHistory<T> implements History<T>, AddCommand<T> {
                 }
             });
             this.current_command.prev();
-            if(!this.current_command.isValid()) {
-                console.log("undid and now I am not valid");
-            }
+            
         }
 
         return result;
     }
 
     add(new_command: Command<T>) {
-        console.log("adding command")
 
         while(this.current_command.hasNext()) {
             // Remove commands that will be overwritten by the newly added one.

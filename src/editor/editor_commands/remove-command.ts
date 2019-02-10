@@ -33,13 +33,7 @@ class RemoveCommand implements Command<Glyph> {
         if(!this.done) {
             // Then we inserted. Let's cache what we inserted.
             let cache = this.start.clone();
-            console.log("END WAS " + this.end.get().caseOf({
-                just: (glyph) => {
-                    return glyph.glyph;
-                }, nothing: () => {
-                    "nothing or sentinel";
-                }
-            }));
+            
             while(cache.hasNext()) {
                 cache.next();
                 if(cache.equals(this.end)) {
@@ -47,7 +41,6 @@ class RemoveCommand implements Command<Glyph> {
                 } else {
                     cache.get().caseOf({
                         just: (glyph) => {
-                            console.log(glyph.glyph);
                             this.inserted_string += glyph.glyph;//
                         },
                         nothing: () => {

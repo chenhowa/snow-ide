@@ -107,7 +107,7 @@ class KeydownHandler implements Handler {
         let iterator_array = [source_start_iter.clone(), source_end_iter.clone()];
 
         if(key === Strings.control.copy) {
-            
+
         } else if (key === Strings.control.paste) {
 
         } else if (key === Strings.control.undo) {
@@ -116,7 +116,6 @@ class KeydownHandler implements Handler {
             iterator_array[1] = result.end_iter ? result.end_iter : iterator_array[1];
 
         } else if (key === Strings.control.redo) {
-            console.log("DOING");
             let result = this.command_history.do();
             iterator_array[0] = result.start_iter ? result.start_iter : iterator_array[0];
             iterator_array[1] = result.end_iter ? result.end_iter : iterator_array[1];

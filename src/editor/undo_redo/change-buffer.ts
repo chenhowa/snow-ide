@@ -88,13 +88,11 @@ class EditorChangeBuffer implements ChangeBuffer<Glyph>, ChangeTracker<Glyph> {
     }
 
     decrementStartAnchor(): void {
-        console.log("decrementing");
         this.start.prev();
         this.dirty = true;
     }
     
     incrementEndAnchor(): void {
-        console.log("incrementing");
         this.end.next();
         this.dirty = true;
     }

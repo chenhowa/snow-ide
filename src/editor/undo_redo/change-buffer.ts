@@ -5,6 +5,7 @@ import { InsertCommand, RemoveCommand } from "editor/editor_commands/commands";
 import { EditorExecutor } from "editor/editor_executors/editor-executor";
 import { Glyph } from "editor/glyph";
 
+import { Renderer } from "editor/editor_executors/renderer";
 
 
 interface ChangeBuffer<T> {
@@ -26,13 +27,12 @@ class EditorChangeBuffer implements ChangeBuffer<Glyph> {
     internal_start: DoubleIterator<Glyph> = this.list.makeFrontIterator();
     internal_end: DoubleIterator<Glyph> = this.list.makeBackIterator();
 
-    executor: EditorExecutor;
+    renderer: Renderer;
 
-
-    constructor(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, executor: EditorExecutor) {
+    constructor(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, renderer: Renderer) {
         this.start = start.clone();
         this.end = end.clone();
-        this.executor = executor;
+        this.renderer = renderer;
 
         this.resetListState();
     }
@@ -64,9 +64,9 @@ class EditorChangeBuffer implements ChangeBuffer<Glyph> {
     generate(): Command {
         let command: Command;
         if(this.list.isEmpty()) {
-            command = InsertCommand.new(this.start, this.end, this.executor);
+            command = InsertCommand.new(this.start, this.end, this.renderer);
         } else {
-            command = RemoveCommand.new(this.start, this.end, this.list, this.executor);
+            command = RemoveCommand.new(this.start, this.end, this.list, this.renderer);
         }
 
         this.resetListState();

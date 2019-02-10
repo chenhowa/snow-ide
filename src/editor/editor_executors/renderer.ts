@@ -12,6 +12,15 @@ interface Renderer {
     rerender(start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>): void;
 }
 
+class MockRenderer implements Renderer {
+    render() {
+        
+    }
+    rerender() {
+
+    }
+}
+
 
 class EditorRenderer implements Renderer {
     editor: Node;
@@ -228,4 +237,4 @@ class EditorRenderer implements Renderer {
 }
 
 
-export { EditorRenderer, Renderer };
+export { EditorRenderer, Renderer, MockRenderer };

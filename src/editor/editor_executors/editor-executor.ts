@@ -1,14 +1,15 @@
 import { Glyph, GlyphStyle } from "editor/glyph";
 import { DoubleIterator } from "data_structures/linked-list";
-import { Renderer } from "editor/editor_executors/renderer";
-import { DeleteRenderer } from "editor/editor_executors/deleter";
+import { Renderer, EditorRenderer } from "editor/editor_executors/renderer";
+import { DeleteRenderer, EditorDeleter } from "editor/editor_executors/deleter";
 
 import HistorySingleton from "editor/singletons/history-singleton";
-import { 
-    InsertCommand, 
-    RemoveCommand,
-    Command 
-} from "editor/editor_commands/commands";
+import { ChangeBuffer } from "editor/undo_redo/change-buffer";
+
+
+import { AddCommand } from "editor/undo_redo/command-history";
+import { SavePolicy } from "editor/undo_redo/policies/save-policies";
+import SavePolicySingleton from "editor/singletons/save-policy-singleton";
 
 
 interface EditorExecutor {
@@ -59,10 +60,17 @@ class MockEditorExecutor implements EditorExecutor {
 class EditorActionExecutor implements EditorExecutor {
     renderer: Renderer;
     deleter: DeleteRenderer;
+    command_history: AddCommand; // we are only allowed to add commands to the history. No calling undo or redo!
+    change_buffer: ChangeBuffer<Glyph>;
+    save_policy: SavePolicy
 
-    constructor(renderer: Renderer, deleter: DeleteRenderer) {
-        this.renderer = renderer;
-        this.deleter = deleter;
+    constructor(change_buffer: ChangeBuffer<Glyph>, editor: Node) {
+        this.renderer = new EditorRenderer(editor);
+        this.deleter = new EditorDeleter(this.renderer);
+        this.change_buffer = change_buffer;
+
+        this.save_policy = SavePolicySingleton.get(); // gets the save policy!
+        this.command_history = HistorySingleton.get();
     }
 
     renderAt(iter: DoubleIterator<Glyph>) {

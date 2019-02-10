@@ -7,14 +7,15 @@ import {
     KeyDownTimeSavePolicy,
     ArrowKeysSavePolicy,
     CompositeSavePolicy,
-    KeycodeSavePolicy
+    KeycodeSavePolicy,
+    SetPolicies
 } from "editor/undo_redo/policies/save-policies";
 
 
-let policy: SavePolicy;
+let policy: SavePolicy & SetPolicies;
 
 let SavePolicySingleton = {
-    get: function(): SavePolicy {
+    get: function(): SavePolicy & SetPolicies {
         if(!policy) {
             policy = new CompositeSavePolicy([new KeycodeSavePolicy()])
         }

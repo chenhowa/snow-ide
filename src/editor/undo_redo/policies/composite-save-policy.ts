@@ -1,12 +1,18 @@
 
 
-import { SavePolicy, SaveData } from "editor/undo_redo/policies/save-policy";
+import { SavePolicy, SaveData, SetPolicies } from "editor/undo_redo/policies/save-policy";
 
 
-class CompositeSavePolicy implements SavePolicy {
+class CompositeSavePolicy implements SavePolicy, SetPolicies {
     policies: Array<SavePolicy>
 
     constructor(policies: Array<SavePolicy>) {
+        this.policies = policies;
+    }
+
+    // TODO - if you can remove policies, than to remove memory leaks,
+    // we should destroy the policies by UNSUBSCRIBING.
+    setPolicies(policies: Array<SavePolicy>) {
         this.policies = policies;
     }
 

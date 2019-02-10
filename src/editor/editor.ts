@@ -5,9 +5,8 @@ import { Glyph, GlyphStyle } from 'editor/glyph';
 import { LinkedList, List, DoubleIterator } from 'data_structures/linked-list';
 import { fromEvent } from 'rxjs';
 import Strings from "string-map";
-import { Renderer, EditorRenderer } from "editor/editor_executors/renderer";
-import { DeleteRenderer, EditorDeleter } from "editor/editor_executors/deleter";
 import { EditorExecutor, EditorActionExecutor } from "editor/editor_executors/editor-executor";
+import { EditorRenderer } from "editor/editor_executors/renderer";
 
 import { 
     Handler, 
@@ -18,15 +17,14 @@ import {
 import { KeyPressMap } from "editor/keypress-map";
 
 import KeyPressMapSingleton from "editor/singletons/keypress-map-singleton";
-
-import { History, AddCommand, CommandHistory } from "editor/undo_redo/command-history";
 import { 
     SavePolicy,
     SaveData,
     KeyDownTimeSavePolicy,
     ArrowKeysSavePolicy,
-    CompositeSavePolicy
 } from "editor/undo_redo/policies/save-policies";
+
+import { ChangeBuffer, EditorChangeBuffer } from "editor/undo_redo/change-buffer";
 
 
 /*
@@ -41,10 +39,10 @@ class Editor {
     editor: JQuery<HTMLElement>;
     cursor: Cursor = new Cursor();
     executor: EditorExecutor;
-    clicker: Handler;
+    click_handler: Handler;
     keypress_map: KeyPressMap;
-    keydowner: Handler;
-    history: History & AddCommand = new CommandHistory(15);
+    keydown_handler: Handler;
+    change_buffer: ChangeBuffer<Glyph>;
 
 
     static new = function(editor_id?: string): Maybe<Editor> {
@@ -57,6 +55,8 @@ class Editor {
     };
 
     constructor(editor_id?: string) {
+        this.glyphs = new LinkedList();
+
         this.cursor = new Cursor();
         if(editor_id) {
             this.editor = $(editor_id);
@@ -66,16 +66,17 @@ class Editor {
         this.keypress_map = KeyPressMapSingleton.get();
         this.keypress_map.runOn(this.editor);
 
-        let renderer = new EditorRenderer(this.editor.get(0));
-        let deleter = new EditorDeleter(renderer);
-        this.executor = new EditorActionExecutor(renderer, deleter);
+        this.change_buffer = new EditorChangeBuffer(
+            this.glyphs.makeFrontIterator(), this.glyphs.makeBackIterator(), new EditorRenderer(this.editor.get(0))
+        );
+
+        this.executor = new EditorActionExecutor(this.change_buffer, this.editor.get(0));
         
-        this.glyphs = new LinkedList();
         this.start_glyph_iter = this.glyphs.makeFrontIterator();
         this.end_glyph_iter = this.glyphs.makeFrontIterator();
-        this.keydowner = new KeydownHandler(this.executor, this.cursor, this.editor.get(0), this.keypress_map);
-        this.clicker = new ClickHandler(this.cursor, this.editor.get(0));
-        
+        this.keydown_handler = new KeydownHandler(this.executor, this.cursor, this.editor.get(0), this.keypress_map);
+        this.click_handler = new ClickHandler(this.cursor, this.editor.get(0));
+
         if(this.valid()) {
             this.reset();
         }
@@ -139,8 +140,8 @@ class Editor {
         let keydownSub = keydownObs.subscribe({
             next: (event: any) => {
 
-                this.keydowner.handle(event, this.start_glyph_iter.clone(), this.end_glyph_iter.clone());
-                this._updateIteratorsFromHandler(this.keydowner);
+                this.keydown_handler.handle(event, this.start_glyph_iter.clone(), this.end_glyph_iter.clone());
+                this._updateIteratorsFromHandler(this.keydown_handler);
                 this.updateCursorToCurrent();
             },
             error: (err) => {},
@@ -178,8 +179,8 @@ class Editor {
         let clickObs = fromEvent(this.editor, 'click');
         let clickSub = clickObs.subscribe({
             next: (event: any) => {
-                this.clicker.handle(event, this.glyphs.makeFrontIterator(), this.glyphs.makeBackIterator());
-                this._updateIteratorsFromHandler(this.clicker);
+                this.click_handler.handle(event, this.glyphs.makeFrontIterator(), this.glyphs.makeBackIterator());
+                this._updateIteratorsFromHandler(this.click_handler);
                 this.updateCursorToCurrent();
             },
             error: (err) => {},

@@ -3,28 +3,28 @@ import { DoubleIterator, List, LinkedList } from "data_structures/linked-list";
 
 
 import { Glyph } from "editor/glyph";
-import { EditorExecutor } from "editor/editor_executors/editor-executor";
+import { Renderer } from "editor/editor_executors/renderer";
 
 
 class RemoveCommand implements Command {
     list: List<Glyph>;
     start: DoubleIterator<Glyph>; // remove/insert start point
     end: DoubleIterator<Glyph>;    // remove/insert end point
-    executor: EditorExecutor;
+    renderer: Renderer;
     done: boolean;
 
-    static new(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, list: LinkedList<Glyph>, executor: EditorExecutor): RemoveCommand {
+    static new(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, list: LinkedList<Glyph>, renderer: Renderer): RemoveCommand {
         // By default, create a done command. So this wants to undo only (that is, insert) right now,
         // from its list of things to "unremove";
-        let command = new RemoveCommand(start, end, list, executor, true);
+        let command = new RemoveCommand(start, end, list, renderer, true);
         return command;
     }
 
-    constructor(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, list: List<Glyph>, executor: EditorExecutor, done: boolean ) {
+    constructor(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, list: List<Glyph>, renderer: Renderer, done: boolean ) {
         this.start = start.clone();
         this.end = end.clone();
         this.list = list;
-        this.executor = executor;
+        this.renderer = renderer;
         this.done = done;
     }
 
@@ -70,7 +70,7 @@ class RemoveCommand implements Command {
         }
 
         // Rerender the range now that the stuff has been removed.
-        this.executor.rerenderRange(this.start, this.end);
+        this.renderer.rerender(this.start, this.end);
 
         // Prepare to undo.
         this.done = true;
@@ -104,7 +104,7 @@ class RemoveCommand implements Command {
 
         // Insert internal list into target.
         this.start.insertListAfter(this.list);
-        this.executor.rerenderRange(this.start, this.end); // rerender now that the stuff has been inserted.
+        this.renderer.rerender(this.start, this.end);
 
         // Prepare to do.
         this.done = false;

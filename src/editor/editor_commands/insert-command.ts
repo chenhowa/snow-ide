@@ -6,22 +6,22 @@ import {
 } from "data_structures/linked-list";
 
 import { Glyph } from "editor/glyph";
-import { EditorExecutor } from "editor/editor_executors/editor-executor";
+import { Renderer } from "editor/editor_executors/renderer";
 import RemoveCommand from "editor/editor_commands/remove-command";
 
 
 class InsertCommand implements Command {
     remove_command: RemoveCommand;
 
-    static new(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, executor: EditorExecutor) {
+    static new(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, renderer: Renderer) {
         // By default, creates a done Insertion. The internal linked list is empty,
         // so UNDO needs to be called to fill it up with what was previously inserted.
-        return new InsertCommand(start, end, new LinkedList(), executor, true);
+        return new InsertCommand(start, end, new LinkedList(), renderer, true);
     }
 
-    constructor(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, list: List<Glyph>, executor: EditorExecutor, done: boolean) {
+    constructor(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, list: List<Glyph>, renderer: Renderer, done: boolean) {
         // Piggy back off the inverse remove comand. If the insert is done, the remove is NOT done.
-        this.remove_command = new RemoveCommand(start, start, list, executor, !done);
+        this.remove_command = new RemoveCommand(start, start, list, renderer, !done);
     }
 
     do() {

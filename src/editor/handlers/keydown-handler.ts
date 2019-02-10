@@ -16,6 +16,10 @@ import {
 } from "editor/editor_executors/editor-utils";
 import { KeyPressMap } from "editor/keypress-map";
 
+import { History } from "editor/undo_redo/command-history";
+import HistorySingleton from "editor/singletons/history-singleton";
+
+
 class KeydownHandler implements Handler {
     executor: EditorExecutor;
     start: Maybe<DoubleIterator<Glyph>> = Maybe.nothing();
@@ -23,11 +27,13 @@ class KeydownHandler implements Handler {
     cursor: Cursor;
     editor: Node;
     keypress_map: KeyPressMap;
+    command_history: History;
     constructor(executor: EditorExecutor, cursor: Cursor, editor: Node, map: KeyPressMap) {
         this.executor = executor;
         this.cursor = cursor;
         this.editor = editor;
         this.keypress_map = map;
+        this.command_history = HistorySingleton.get();
     }
 
     handle(event: any, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>) {

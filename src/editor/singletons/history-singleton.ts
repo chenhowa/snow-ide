@@ -4,7 +4,7 @@ import { History, CommandHistory, AddCommand } from "editor/undo_redo/command-hi
 var history: CommandHistory;
 
 var HistorySingleton = {
-    get: function(): AddCommand {
+    get: function(): History & AddCommand {
         if(!history) {
             history = new CommandHistory(15);
         }

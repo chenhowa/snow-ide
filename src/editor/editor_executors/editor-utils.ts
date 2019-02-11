@@ -304,7 +304,7 @@ function isChar(key: string): boolean {
 }
 
 function isSpace(key: string): boolean {
-    return key === 'Space'
+    return key === ' '
         || key === 'Tab'
         || key === 'Enter';
 }

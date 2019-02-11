@@ -22,10 +22,10 @@ import {
     SaveData,
     KeyDownTimeSavePolicy,
     CurrentKeySavePolicy,
-    CompositeSavePolicy,
     SetPolicies,
     SwitchInsertDeleteSavePolicy,
-    SwitchBackspaceDeleteSavePolicy
+    SwitchBackspaceDeleteSavePolicy,
+    SwitchCharSpaceSavePolicy
 } from "editor/undo_redo/policies/save-policies";
 
 import { ChangeBuffer, EditorChangeBuffer, ChangeTracker } from "editor/undo_redo/change-buffer";
@@ -65,7 +65,8 @@ class Editor {
         policy.setPolicies([
             new SwitchInsertDeleteSavePolicy(),
             new CurrentKeySavePolicy(),
-            new SwitchBackspaceDeleteSavePolicy()
+            new SwitchBackspaceDeleteSavePolicy(),
+            new SwitchCharSpaceSavePolicy()
         ]);
 
         this.glyphs = new LinkedList(); // list of characters and the styles they should be rendered with.

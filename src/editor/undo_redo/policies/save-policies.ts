@@ -5,7 +5,8 @@ import KeyDownTimeSavePolicy from "editor/undo_redo/policies/keydown-time-save-p
 import CompositeSavePolicy from "editor/undo_redo/policies/composite-save-policy";
 import CurrentKeySavePolicy from "editor/undo_redo/policies/current-key-save-policy";
 import SwitchInsertDeleteSavePolicy from "editor/undo_redo/policies/switch-insert-delete-save-policy";
-import SwitchBackspaceDeleteSavePolicy from "Editor/undo_redo/policies/switch-backspace-delete-save-policy";
+import SwitchBackspaceDeleteSavePolicy from "editor/undo_redo/policies/switch-backspace-delete-save-policy";
+import SwitchCharSpaceSavePolicy from "editor/undo_redo/policies/switch-char-space-policy";
 
 
 export {
@@ -18,5 +19,6 @@ export {
     EditorActionType,
     SwitchInsertDeleteSavePolicy,
     DeletionType,
-    SwitchBackspaceDeleteSavePolicy
+    SwitchBackspaceDeleteSavePolicy,
+    SwitchCharSpaceSavePolicy
 }

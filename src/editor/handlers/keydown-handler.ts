@@ -55,6 +55,7 @@ class KeydownHandler implements Handler {
         const save_data = {
             key: key
         }
+        console.log("Pressed the key " + event.key);
         if(this.save_policy.shouldSave(save_data) && this.change_buffer.isDirty()) {
             this.command_history.add(this.change_buffer.generateAndClean());
         }

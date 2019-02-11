@@ -89,7 +89,7 @@ class Editor {
         this.start_glyph_iter = this.glyphs.makeFrontIterator();
         this.end_glyph_iter = this.glyphs.makeFrontIterator();
         this.keydown_handler = new KeydownHandler(
-            this.executor, this.cursor, this.editor.get(0), this.keypress_map, this.change_buffer
+            this.executor, this.editor.get(0), this.keypress_map, this.change_buffer
         );
         this.click_handler = new ClickHandler(this.cursor, this.editor.get(0));
 

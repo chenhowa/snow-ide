@@ -4,7 +4,6 @@ import { DoubleIterator } from "data_structures/linked-list";
 import { Glyph } from "editor/glyph";
 import Handler from "editor/handlers/handler";
 import { EditorExecutor } from "editor/editor_executors/editor-executor";
-import Cursor from "editor/editor_executors/cursor";
 import Strings from "string-map";
 import { 
     arrowLeft,
@@ -27,16 +26,14 @@ class KeydownHandler implements Handler {
     executor: EditorExecutor;
     start: Maybe<DoubleIterator<Glyph>> = Maybe.nothing();
     end: Maybe<DoubleIterator<Glyph>> = Maybe.nothing();
-    cursor: Cursor;
     editor: Node;
     keypress_map: KeyPressMap;
     command_history: History<Glyph> & AddCommand<Glyph>;   // Have the history so we can undo and redo as needed.
     save_policy: SavePolicy;
     change_buffer: ChangeBuffer<Glyph>;
     
-    constructor(executor: EditorExecutor, cursor: Cursor, editor: Node, map: KeyPressMap, change_buffer: ChangeBuffer<Glyph>) {
+    constructor(executor: EditorExecutor, editor: Node, map: KeyPressMap, change_buffer: ChangeBuffer<Glyph>) {
         this.executor = executor;
-        this.cursor = cursor;
         this.editor = editor;
         this.keypress_map = map;
         this.command_history = HistorySingleton.get();
@@ -55,7 +52,6 @@ class KeydownHandler implements Handler {
         const save_data = {
             key: key
         }
-        console.log("Pressed the key " + event.key);
         if(this.save_policy.shouldSave(save_data) && this.change_buffer.isDirty()) {
             this.command_history.add(this.change_buffer.generateAndClean());
         }

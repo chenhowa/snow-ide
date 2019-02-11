@@ -6,7 +6,7 @@ import Strings from "string-map";
 import { ChangeTracker } from "editor/undo_redo/change-buffer";
 
 interface DeleteRenderer {
-    deleteAndRender(start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>, direction: boolean)
+    deleteAndRender(start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>)
                                                 : Array< DoubleIterator<Glyph> >;
 }
 
@@ -19,11 +19,11 @@ class EditorDeleter {
         this.change_tracker = change_tracker;
     }
 
-    deleteAndRender(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>, 
-                        direction: boolean)
+    deleteAndRender(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)
                                                             : Array< DoubleIterator<Glyph> > {
         let start_iter = source_start_iter.clone();
         let end_iter = source_end_iter.clone();
+
 
         // Check before deleting if we're just deleting a single ListNode. If so, we get to decide
         // on which end of the change buffer to stick the deleted ListNode.
@@ -38,6 +38,8 @@ class EditorDeleter {
                 insert_at_back = true;
             }
         }
+
+        //jjjjjjjjjjjjjjzzzzzzzzzzzzzzzzzzzzjjjjjjjjjjj
 
         // First we remove and destroy nodes until start_iter equals end_iter.
         // then we remove the node at start_iter == end_iter, and move

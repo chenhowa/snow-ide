@@ -14,21 +14,23 @@ class RemoveCommand implements Command<Glyph> {
     done: boolean;
 
     inserted_string: string;
+    collapse_direction: number;
 
-    static new(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, list: LinkedList<Glyph>, renderer: Renderer): RemoveCommand {
+    static new(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, list: LinkedList<Glyph>, renderer: Renderer, collapse_direction: number): RemoveCommand {
         // By default, create a done command. So this wants to undo only (that is, insert) right now,
         // from its list of things to "unremove";
-        let command = new RemoveCommand(start, end, list, renderer, true);
+        let command = new RemoveCommand(start, end, list, renderer, true, collapse_direction);
         return command;
     }
 
-    constructor(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, list: List<Glyph>, renderer: Renderer, done: boolean ) {
+    constructor(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, list: List<Glyph>, renderer: Renderer, done: boolean, collapse_direction: number ) {
         this.start = start.clone();
         this.end = end.clone();
         this.list = list;
         this.renderer = renderer;
         this.done = done;
         this.inserted_string = "";
+        this.collapse_direction = collapse_direction;
 
         if(!this.done) {
             // Then we inserted. Let's cache what we inserted.
@@ -184,9 +186,25 @@ class RemoveCommand implements Command<Glyph> {
     _generateResult(): CommandResult<Glyph> {
         let result_end = this.end.clone();
         result_end.prev();
-        return {
-            start_iter: this.start.clone(),
-            end_iter: result_end
+
+        if(this.collapse_direction < 0) {
+            // Then we collapse to the start
+            return {
+                start_iter: this.start.clone(),
+                end_iter: this.start.clone()
+            }
+        } else if(this.collapse_direction > 0) {
+            // Then we collapse the resulting selection to the end.
+            return {
+                start_iter: result_end.clone(),
+                end_iter: result_end.clone()
+            }
+        } else {
+            // Then we let the selection stay uncollapsed.
+            return {
+                start_iter: this.start.clone(),
+                end_iter: result_end.clone()
+            }
         }
     }
 

@@ -23,6 +23,11 @@ class CompositeSavePolicy implements SavePolicy, SetPolicies {
             should_save = should_save || this.policies[i].shouldSave(data);
         }
 
+        if(should_save) {
+            // To prevent bugs from maintained state, reset each policy once the composite policy is queried.
+            this.reset();
+        }
+
         return should_save;
     }
 

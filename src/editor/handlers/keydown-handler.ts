@@ -18,7 +18,7 @@ import { KeyPressMap } from "editor/keypress-map";
 
 import { History, AddCommand } from "editor/undo_redo/command-history";
 import HistorySingleton from "editor/singletons/history-singleton";
-import { SavePolicy } from "editor/undo_redo/policies/save-policy";
+import { SavePolicy, SaveData } from "editor/undo_redo/policies/save-policy";
 import SavePolicySingleton from "editor/singletons/save-policy-singleton";
 import { ChangeBuffer } from "editor/undo_redo/change-buffer";
 
@@ -50,6 +50,14 @@ class KeydownHandler implements Handler {
         this.start = Maybe.just(source_start_iter.clone()); // By default, don't move the iterator.
         this.end = Maybe.just(source_end_iter.clone());
         let key: string = event.key;
+
+        //save change buffer as command if necesary here.
+        const save_data = {
+            key: key
+        }
+        if(this.save_policy.shouldSave(save_data) && this.change_buffer.isDirty()) {
+            this.command_history.add(this.change_buffer.generateAndClean());
+        }
 
         if(this._shouldNotHandle(key)) {
             event.preventDefault();
@@ -96,14 +104,6 @@ class KeydownHandler implements Handler {
             return a CommandResult object or something, or they should get a reference to the editor, so we can know how
             to set the resulting state. For now we'll go with returning a command object.
         */
-        const save_data = {
-            key: key
-        }
-
-        if(this.save_policy.shouldSave(save_data) && this.change_buffer.isDirty()) {
-            this.command_history.add(this.change_buffer.generateAndClean());
-        }
-
         let iterator_array = [source_start_iter.clone(), source_end_iter.clone()];
 
         if(key === Strings.control.copy) {
@@ -131,11 +131,14 @@ class KeydownHandler implements Handler {
         
         let start_iter = source_start_iter.clone();
         let end_iter = source_end_iter.clone();
-        event.preventDefault(); 
+        event.preventDefault();
+
         if(isChar(key)) {
             return this.executor.insertAndRender(key, start_iter, end_iter);
         } else if (key === 'Backspace') {
-            return this.executor.deleteAndRender(start_iter, end_iter, false);
+            return this.executor.deleteAndRender(start_iter, end_iter, false); // deletes 'backward'
+        } else if (key === 'Delete' ) {
+            return this.executor.deleteAndRender(start_iter, end_iter, true); // deletes 'forward'
         } else if (key === 'Enter') {
             return this.executor.insertAndRerender(Strings.newline, source_start_iter, source_end_iter);  
         } else if (isArrowKey(key)) {

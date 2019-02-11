@@ -3,6 +3,12 @@
 interface SaveData {
     key?: string;
     editor_action?: EditorActionType;
+    deletion_direction?: DeletionType // true for forward, false for backward.
+}
+
+enum DeletionType {
+    Backward = 1,
+    Forward
 }
 
 enum EditorActionType {
@@ -24,5 +30,6 @@ export {
     SaveData, 
     SavePolicy,
     SetPolicies,
-    EditorActionType
+    EditorActionType,
+    DeletionType
 }

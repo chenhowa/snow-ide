@@ -13,15 +13,17 @@ import RemoveCommand from "editor/editor_commands/remove-command";
 class InsertCommand implements Command<Glyph> {
     remove_command: RemoveCommand;
 
-    static new(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, renderer: Renderer) {
+    static new(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, renderer: Renderer, collapse_direction: number) {
         // By default, creates a done Insertion. The internal linked list is empty,
         // so UNDO needs to be called to fill it up with what was previously inserted.
-        return new InsertCommand(start, end, new LinkedList(), renderer, true);
+        return new InsertCommand(start, end, new LinkedList(), renderer, true, collapse_direction);
     }
 
-    constructor(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, list: List<Glyph>, renderer: Renderer, done: boolean) {
+    constructor(
+                start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, 
+                list: List<Glyph>, renderer: Renderer, done: boolean, collapse_direction: number) {
         // Piggy back off the inverse remove comand. If the insert is done, the remove is NOT done.
-        this.remove_command = new RemoveCommand(start, end, list, renderer, !done);
+        this.remove_command = new RemoveCommand(start, end, list, renderer, !done, collapse_direction);
     }
 
     do(): CommandResult<Glyph> {

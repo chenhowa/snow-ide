@@ -24,7 +24,8 @@ import {
     CurrentKeySavePolicy,
     CompositeSavePolicy,
     SetPolicies,
-    SwitchInsertDeleteSavePolicy
+    SwitchInsertDeleteSavePolicy,
+    SwitchBackspaceDeleteSavePolicy
 } from "editor/undo_redo/policies/save-policies";
 
 import { ChangeBuffer, EditorChangeBuffer, ChangeTracker } from "editor/undo_redo/change-buffer";
@@ -63,7 +64,8 @@ class Editor {
         let policy = SavePolicySingleton.get();
         policy.setPolicies([
             new SwitchInsertDeleteSavePolicy(),
-            new CurrentKeySavePolicy()
+            new CurrentKeySavePolicy(),
+            new SwitchBackspaceDeleteSavePolicy()
         ]);
 
         this.glyphs = new LinkedList(); // list of characters and the styles they should be rendered with.

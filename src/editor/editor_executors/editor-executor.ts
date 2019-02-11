@@ -8,7 +8,7 @@ import { ChangeBuffer, ChangeTracker } from "editor/undo_redo/change-buffer";
 
 
 import { AddCommand } from "editor/undo_redo/command-history";
-import { SavePolicy, SaveData, EditorActionType } from "editor/undo_redo/policies/save-policies";
+import { SavePolicy, SaveData, EditorActionType, DeletionType } from "editor/undo_redo/policies/save-policies";
 import SavePolicySingleton from "editor/singletons/save-policy-singleton";
 
 
@@ -129,6 +129,8 @@ class EditorActionExecutor implements EditorExecutor {
         end_iter.next(); // keep end in sync with start.
 
         return [start_iter, end_iter];
+
+        //f fdsssssssssssssssssssssss
         
     }
 
@@ -138,24 +140,29 @@ class EditorActionExecutor implements EditorExecutor {
 
         //First we check if we should save the latest insert/remove command at this point.
         if(this.save_policy.shouldSave(save_data) && this.change_buffer.isDirty()) {
-            console.log('saving');
             this.command_history.add(this.change_buffer.generateAndClean());
             this.save_policy.reset(); // Reset save_policies so 'unsave' until input then indicates again that we should save.
-        } else {
-            console.log('not saving');
         }
 
         if(!this.change_buffer.isDirty()) {
-            console.log('not dirty');
-            // If the change buffer isn't dirty, then we are starting a new change buffer due to this insert.
-            // Note that on insert, we don't need to do anything other than record the start and end points of the
-            // insertion. That's all the info we need to undo the insertion, after all.
+            // If the change buffer isn't dirty, then we are starting a new change buffer due to this insert or deletion.
+            // We also have to decide whether we want to collapse to the start or end anchor.
             let start_anchor = start_iter.clone();
             let end_anchor = end_iter.clone();
             end_anchor.next();
             this.change_buffer.setAnchors(start_anchor, end_anchor);
-        } else {
-            console.log('dirty');
+
+            if(save_data.deletion_direction && source_start_iter.equals(source_end_iter)) {
+                // We only consider collapsing if we're backspacing or deleting a selection.
+                if(save_data.deletion_direction === DeletionType.Backward) {
+                    // Then we should collapse to the end, as the 'end' is the origin of the deletion.
+                    this.change_buffer.collapseToEnd();
+                } else {
+                    this.change_buffer.collapseToStart();
+                }
+            } else {
+                // No deletion direction was specified. Assume no collapsing is needed, and do nothing.
+            }
         }
     }
 
@@ -174,16 +181,46 @@ class EditorActionExecutor implements EditorExecutor {
      * @description - deletes the pointed at glyph and rerenders document
      * @param start_iter    NOT MODIFIED.
      * @param end_iter      NOT MODIFIED.
-     * @param direction true if delete and move forward, else go backward.
+     * @param forward true if delete and move forward, else go backward.
      * @returns pair of iterators - first is new start iterator, second is new end iterator.
      */
-    deleteAndRender(start_iter: DoubleIterator<Glyph>, end_iter: DoubleIterator<Glyph>, direction: boolean)
+    deleteAndRender(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>, forward: boolean)
                                                 : Array< DoubleIterator<Glyph> > {
+        let start_iter = source_start_iter.clone();
+        let end_iter = source_end_iter.clone();
+
+        if(start_iter.equals(end_iter)) {
+            // We also check if we are doing an invalid backspace or delete. If we are, we definitely won't set anchors for the change buffer,
+            // or do the deletion at all, really.
+            let invalid = (!start_iter.hasPrev() && !forward) || (!end_iter.hasNext() && forward);
+            if(invalid) {
+                return [source_start_iter.clone(), source_end_iter.clone()];
+            }
+        }
+
         const save_data = {
-            editor_action: EditorActionType.Remove
+            editor_action: EditorActionType.Remove,
+            deletion_direction: forward ? DeletionType.Forward : DeletionType.Backward
         };
         this._repositionChangeBuffer(start_iter, end_iter, save_data);
-        return this.deleter.deleteAndRender(start_iter.clone(), end_iter.clone(), direction);
+
+        if(start_iter.equals(end_iter)) {
+            // If we are deleting from a collapsed cursor, Backspace and Delete now  have a difference: one goes forward while the
+            // Other goes backward.
+            if(forward) {
+                if(start_iter.hasNext()) {
+                    start_iter.next();
+                    end_iter.next();
+                } else {
+                    // If we try to "DELETE" at the EOF, we're in for trouble. So we don't even try.
+                    return [source_start_iter.clone(), source_end_iter.clone()];
+                }
+            } else {
+                // We need do nothing for backspace, as we are already set up for that.
+            }
+        } 
+
+        return this.deleter.deleteAndRender(start_iter.clone(), end_iter.clone());
     }
 
     insertAndRerender(char: string, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph> )

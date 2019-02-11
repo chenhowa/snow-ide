@@ -14,6 +14,9 @@ interface ChangeBuffer<T> {
     generateAndClean(): Command<T>;
     isDirty(): boolean;
     asString(): string;
+    collapseToEnd(): void;
+    collapseToStart(): void;
+    resetListState(): void;
 }
 
 interface ChangeTracker<T> {
@@ -23,6 +26,12 @@ interface ChangeTracker<T> {
     addToBufferEnd(node: ListNode<T>): void;
     equalsStartAnchor(iter: DoubleIterator<T>): boolean;
     equalsEndAnchor(iter: DoubleIterator<T>): boolean;
+}
+
+enum CollapseDirection {
+    Neither = 1,
+    Start,
+    End
 }
 
 
@@ -37,12 +46,22 @@ class EditorChangeBuffer implements ChangeBuffer<Glyph>, ChangeTracker<Glyph> {
 
     renderer: Renderer;
 
+    collapse_direction: CollapseDirection = CollapseDirection.Neither;
+
     constructor(start: DoubleIterator<Glyph>, end: DoubleIterator<Glyph>, renderer: Renderer) {
         this.start = start.clone();
         this.end = end.clone();
         this.renderer = renderer;
 
         this.resetListState();
+    }
+
+    collapseToEnd() {
+        this.collapse_direction = CollapseDirection.End;
+    }
+
+    collapseToStart() {
+        this.collapse_direction = CollapseDirection.Start;
     }
 
     asString(): string {
@@ -122,22 +141,32 @@ class EditorChangeBuffer implements ChangeBuffer<Glyph>, ChangeTracker<Glyph> {
 
     generateAndClean(): Command<Glyph> {
         let command: Command<Glyph>;
-        if(this.list.isEmpty()) {
-            command = InsertCommand.new(this.start, this.end, this.renderer);
+        let direction: number;
+        if(this.collapse_direction === CollapseDirection.Neither) {
+            direction = 0;
+        } else if (this.collapse_direction === CollapseDirection.Start) {
+            direction = -1;
         } else {
-            command = RemoveCommand.new(this.start, this.end, this.list, this.renderer);
+            direction = 1;
         }
 
-        this.dirty = false;
+        if(this.list.isEmpty()) {
+            command = InsertCommand.new(this.start, this.end, this.renderer, direction);
+        } else {
+            command = RemoveCommand.new(this.start, this.end, this.list, this.renderer, direction);
+        }
+
         this.resetListState();
 
         return command;
     }
 
     resetListState(): void {
+        this.dirty = false;
         this.list = new LinkedList();
         this.internal_start = this.list.makeFrontIterator();
         this.internal_end = this.list.makeBackIterator();
+        this.collapse_direction = CollapseDirection.Neither;
     }
 }
 

@@ -152,7 +152,12 @@ class EditorActionExecutor implements EditorExecutor {
             end_anchor.next();
             this.change_buffer.setAnchors(start_anchor, end_anchor);
 
-            if(save_data.deletion_direction && source_start_iter.equals(source_end_iter)) {
+            if(save_data.editor_action === EditorActionType.Insert) {
+                // If insert, and it was NOT a selection, then we collapse to end.
+                if(source_start_iter.equals(source_end_iter)) {
+                    this.change_buffer.collapseToEnd();
+                }
+            } else if(save_data.deletion_direction && source_start_iter.equals(source_end_iter)) {
                 // We only consider collapsing if we're backspacing or deleting a selection.
                 if(save_data.deletion_direction === DeletionType.Backward) {
                     // Then we should collapse to the end, as the 'end' is the origin of the deletion.

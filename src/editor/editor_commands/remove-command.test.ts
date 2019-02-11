@@ -7,7 +7,6 @@ import { MockRenderer } from "editor/editor_executors/renderer";
 
 describe("validate undoing removal behavior", () => {
     let list: LinkedList<Glyph>;
-    let removed_list: LinkedList<Glyph>;
 
     beforeEach(() => {
         list = new LinkedList();
@@ -27,8 +26,8 @@ describe("validate undoing removal behavior", () => {
         second_iter.next();
         second_iter.next(); // points at 'b'
 
-        let command = new RemoveCommand(first_iter, second_iter, new LinkedList(), new MockRenderer(), false);
-        command.do(); // at this point, the list should be longer.
+        let command = new RemoveCommand(first_iter, second_iter, new LinkedList(), new MockRenderer(), false, 0);
+        command.do(); // at this point, the list should be shorter.
 
         let result_array = list.asArray();
         expect(result_array).toEqual([
@@ -51,7 +50,7 @@ describe("validate undoing removal behavior", () => {
         let second_iter = list.makeBackIterator();
         second_iter.prev(); // points at 'e'
 
-        let command = new RemoveCommand(first_iter, second_iter, new LinkedList(), new MockRenderer(), false);
+        let command = new RemoveCommand(first_iter, second_iter, new LinkedList(), new MockRenderer(), false, 0);
         command.do(); // at this point, the list should be shorter.
 
         let result_array = list.asArray();
@@ -75,7 +74,7 @@ describe("validate undoing removal behavior", () => {
         first_iter.prev(); // points at c
         let second_iter = list.makeBackIterator(); // points at exact back of iterator.
 
-        let command = new RemoveCommand(first_iter, second_iter, new LinkedList(), new MockRenderer(), false);
+        let command = new RemoveCommand(first_iter, second_iter, new LinkedList(), new MockRenderer(), false, 0);
         command.do(); // at this point, the list should be shorter.
 
         let result_array = list.asArray();
@@ -95,7 +94,7 @@ describe("validate undoing removal behavior", () => {
         let first_iter = list.makeFrontIterator();
         let second_iter = list.makeBackIterator();
 
-        let command = new RemoveCommand(first_iter, second_iter, new LinkedList(), new MockRenderer(), false);
+        let command = new RemoveCommand(first_iter, second_iter, new LinkedList(), new MockRenderer(), false, 0);
         command.do(); // at this point, the list should be shorter.
 
         let result_array = list.asArray();
@@ -143,7 +142,7 @@ describe("validate undoing removal behavior", () => {
         second_iter.next();
         second_iter.next(); // points at 'b'
 
-        let command = new RemoveCommand(first_iter, second_iter, new LinkedList(), new MockRenderer(), false);
+        let command = new RemoveCommand(first_iter, second_iter, new LinkedList(), new MockRenderer(), false, 0);
         command.do(); // at this point, the list should be shorter.
 
         expect(list.asArray()).toEqual([
@@ -175,7 +174,7 @@ describe("validate undoing removal behavior", () => {
         let second_iter = list.makeBackIterator();
         second_iter.prev(); // points at 'e'
 
-        let command = new RemoveCommand(first_iter, second_iter, new LinkedList(), new MockRenderer(), false);
+        let command = new RemoveCommand(first_iter, second_iter, new LinkedList(), new MockRenderer(), false, 0);
         command.do(); // at this point, the list should be shorter.
         command.undo();
 
@@ -200,7 +199,7 @@ describe("validate undoing removal behavior", () => {
         first_iter.prev(); // points at c
         let second_iter = list.makeBackIterator(); // points at exact back of iterator.
 
-        let command = new RemoveCommand(first_iter, second_iter, new LinkedList(), new MockRenderer(), false);
+        let command = new RemoveCommand(first_iter, second_iter, new LinkedList(), new MockRenderer(), false, 0);
         command.do(); // at this point, the list should be shorter.
         command.undo();
 
@@ -216,7 +215,7 @@ describe("validate undoing removal behavior", () => {
         let first_iter = list.makeFrontIterator();
         let second_iter = list.makeBackIterator();
 
-        let command = new RemoveCommand(first_iter, second_iter, new LinkedList(), new MockRenderer(), false);
+        let command = new RemoveCommand(first_iter, second_iter, new LinkedList(), new MockRenderer(), false, 0);
         command.do(); // at this point, the list should be shorter.
         command.undo();
 

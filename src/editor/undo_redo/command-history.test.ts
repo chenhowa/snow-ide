@@ -1,9 +1,10 @@
 import "jest";
 import { CommandHistory } from "editor/undo_redo/command-history";
 import { MockCommand } from "editor/editor_commands/command";
+import { Glyph } from "editor/glyph";
 
 describe("test command history", () => {
-    let history: CommandHistory;
+    let history: CommandHistory<Glyph>;
 
     beforeEach(() => {
         history = new CommandHistory(4);

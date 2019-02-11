@@ -303,6 +303,12 @@ function isChar(key: string): boolean {
     return key.length === 1;
 }
 
+function isSpace(key: string): boolean {
+    return key === 'Space'
+        || key === 'Tab'
+        || key === 'Enter';
+}
+
 export {
     getDistanceFromNextLine,
     getDistanceFromLineStart,
@@ -314,5 +320,6 @@ export {
     arrowUp,
     arrowDown,
     isArrowKey,
-    isChar    
+    isChar,
+    isSpace    
 };

@@ -7,7 +7,7 @@ import { fromEvent, Observable } from 'rxjs';
 import { map } from "rxjs/operators";
 import Strings from "string-map";
 import { EditorExecutor, EditorActionExecutor } from "editor/editor_executors/editor-executor";
-import { EditorRenderer } from "editor/editor_executors/renderer";
+import { Renderer, EditorRenderer } from "editor/editor_executors/renderer";
 
 import { 
     Handler, 
@@ -33,8 +33,13 @@ import { ChangeBuffer, EditorChangeBuffer, ChangeTracker } from "editor/undo_red
 import SavePolicySingleton from "editor/singletons/save-policy-singleton";
 import ChangeBufferSingleton from "editor/singletons/change-buffer-singleton";
 
-import KeydownProcessor, { KeydownAction } from "editor/subjects_observables/keydown-processor-observable";
+import KeydownProcessor, { KeydownAction } from "editor/subjects_observables/keydown-processor";
 import { NewActionData } from "editor/subjects_observables/action-processor";
+
+
+import ActionProcessor from "editor/subjects_observables/action-processor";
+import SaveProcessor from "editor/subjects_observables/save-processor";
+import ExecuteProcessor, { RenderAction, RenderData } from "editor/subjects_observables/execute-processor";
 
 
 /*
@@ -56,6 +61,7 @@ class Editor {
     cursor: Cursor = new Cursor();
     click_handler: Handler;
     keypress_map: KeyPressMap;
+    renderer: Renderer;
 
 
     static new = function(editor_id?: string): Maybe<Editor> {
@@ -68,6 +74,7 @@ class Editor {
     };
 
     constructor(editor_id?: string) {
+
         // configure save policies for undo/redo for the entire editor.
         let policy = SavePolicySingleton.get();
         policy.setPolicies([
@@ -85,6 +92,9 @@ class Editor {
         } else {
             this.editor = $('#editor');
         }
+
+        this.renderer = new EditorRenderer(this.editor.get(0));
+
         this.keypress_map = KeyPressMapSingleton.get();
         this.keypress_map.runOn(this.editor);
 
@@ -197,20 +207,23 @@ class Editor {
             }
         }));
         let actionProcessor = ActionProcessor.subscribeTo(newActionData);
+        let saveProcessor = SaveProcessor.subscribeTo(actionProcessor,this.editor, this.glyphs);
+        let executeProcessor = ExecuteProcessor.subscribeTo(saveProcessor, this.editor, this.glyphs);
+        executeProcessor.subscribe({
+            next: ( data: RenderData ) => {
+                if(data.action === RenderAction.Render) {
+                    this.renderer.render(data.start, data.end);
+                } else if (data.action === RenderAction.Rerender) {
+                    this.renderer.rerender(data.start, data.end);
+                } else {
+                    // No need to render, since RenderAction.None.
+                }
 
-
-
-        /*let keydownObs = fromEvent(this.editor, 'keydown');
-        let keydownSub = keydownObs.subscribe({
-            next: (event: any) => {
-
-                this.keydown_handler.handle(event, this.start_glyph_iter.clone(), this.end_glyph_iter.clone());
-                this._updateIteratorsFromHandler(this.keydown_handler);
+                this.start_glyph_iter = data.start.clone();
+                this.end_glyph_iter = data.end.clone();
                 this.updateCursorToCurrent();
-            },
-            error: (err) => {},
-            complete: () => {}
-        });*/
+            }
+        })
 
         let mouseDownObs = fromEvent(this.editor, 'mousedown');
         let mouseDownSub = mouseDownObs.subscribe({

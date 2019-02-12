@@ -4,8 +4,10 @@ import Strings from "string-map";
 
 import { DoubleIterator } from 'data_structures/linked-list';
 import { Glyph } from "editor/glyph";
-import { KeydownAction } from "editor/subjects_observables/keydown-processor-observable";
+import { KeydownAction } from "editor/subjects_observables/keydown-processor";
 import { SaveData, EditorActionType, DeletionType } from "editor/undo_redo/policies/save-policy";
+
+import { SaveProcessorData } from "editor/subjects_observables/save-processor";
 
 interface NewActionData {
     start: DoubleIterator<Glyph>;
@@ -13,16 +15,6 @@ interface NewActionData {
     action: KeydownAction;
     key: string;
 }
-
-interface SaveProcessorData {
-    start: DoubleIterator<Glyph>;
-    end: DoubleIterator<Glyph>
-    action: KeydownAction,
-    save_data: SaveData,
-    position: DoubleIterator<Glyph>
-}
-
-
 
 let action_processor: Observable<SaveProcessorData>;
 
@@ -56,9 +48,10 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
                             break;
                         } else {
                             processor_data.push({
+                                key: data.key,
                                 start: data.start.clone(),
                                 end: data.end.clone(),
-                                action: KeydownAction.Delete,
+                                action: KeydownAction.Backspace,
                                 position: start.clone(),
                                 save_data: {
                                     editor_action: EditorActionType.Remove,
@@ -68,11 +61,12 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
                         }
                     }
 
-                    // Then create the insert message.
+                    // Delete the final character.
                     processor_data.push({
+                        key: data.key,
                         start: data.start.clone(),
                         end:data.end.clone(),
-                        action: KeydownAction.Delete,
+                        action: KeydownAction.Backspace,
                         position: end.clone(),
                         save_data: {
                             editor_action: EditorActionType.Remove,
@@ -87,6 +81,7 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
                 }
                 
                 processor_data.push({
+                    key: data.key,
                     start: data.start.clone(),
                     end: data.end.clone(),
                     action: data.action,
@@ -101,13 +96,81 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
 
             } break;
             case KeydownAction.Backspace: {
+                let processor_data = [];
+                while(!start.equals(end) && start.hasNext()) {
+                    start.next();
+                    if(start.equals(end)) {
+                        break;
+                    } else {
+                        processor_data.push({
+                            key: data.key,
+                            start: data.start.clone(),
+                            end: data.end.clone(),
+                            action: KeydownAction.Backspace,
+                            position: start.clone(),
+                            save_data: {
+                                editor_action: EditorActionType.Remove,
+                                deletion_direction: DeletionType.Backward
+                            }
+                        });
+                    }
+                }
+
+                // Delete the final character.
+                processor_data.push({
+                    key: data.key,
+                    start: data.start.clone(),
+                    end:data.end.clone(),
+                    action: KeydownAction.Backspace,
+                    position: end.clone(),
+                    save_data: {
+                        editor_action: EditorActionType.Remove,
+                        deletion_direction: DeletionType.Backward
+                    }
+                });
+
+                return from(processor_data);
                 
             } break;
             case KeydownAction.Delete: {
-               
+                let processor_data = [];
+                while(!start.equals(end) && start.hasNext()) {
+                    start.next();
+                    if(start.equals(end)) {
+                        break;
+                    } else {
+                        processor_data.push({
+                            key: data.key,
+                            start: data.start.clone(),
+                            end: data.end.clone(),
+                            action: KeydownAction.Delete,
+                            position: start.clone(),
+                            save_data: {
+                                editor_action: EditorActionType.Remove,
+                                deletion_direction: DeletionType.Forward
+                            }
+                        });
+                    }
+                }
+
+                // Delete the final character.
+                processor_data.push({
+                    key: data.key,
+                    start: data.start.clone(),
+                    end:data.end.clone(),
+                    action: KeydownAction.Delete,
+                    position: end.clone(),
+                    save_data: {
+                        editor_action: EditorActionType.Remove,
+                        deletion_direction: DeletionType.Forward
+                    }
+                });
+
+                return from(processor_data);
             } break;
             case KeydownAction.Copy: {
                 return from([{
+                    key: data.key,
                     start: data.start.clone(),
                     end: data.end.clone(),
                     action: data.action,
@@ -119,6 +182,7 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
             } break;
             case KeydownAction.Paste: {
                 return from([{
+                    key: data.key,
                     start: data.start.clone(),
                     end: data.end.clone(),
                     action: data.action,
@@ -130,6 +194,7 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
             } break;
             case KeydownAction.Undo: {
                 return from([{
+                    key: data.key,
                     start: data.start.clone(),
                     end: data.end.clone(),
                     action: data.action,
@@ -141,6 +206,7 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
             } break;
             case KeydownAction.Redo: {
                 return from([{
+                    key: data.key,
                     start: data.start.clone(),
                     end: data.end.clone(),
                     action: data.action,
@@ -152,6 +218,7 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
             } break;
             case KeydownAction.None: {
                 return from([{
+                    key: data.key,
                     start: data.start.clone(),
                     end: data.end.clone(),
                     action: data.action,

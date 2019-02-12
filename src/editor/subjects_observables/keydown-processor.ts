@@ -131,6 +131,7 @@ function _handleKeyAlone(data: EditorData)
     } else if (key === 'Delete' ) {
         action = KeydownAction.Delete;
     } else if (key === 'Enter') {
+        key = Strings.newline; // We convert the Enter key into a \n newline.
         action = KeydownAction.Insert;  
     } else if (isArrowKey(key)) {
         action = KeydownAction.None;
@@ -138,10 +139,14 @@ function _handleKeyAlone(data: EditorData)
         action = KeydownAction.None;
     }
 
+    // TODO THIS IS INCORRECT. We shouldn't be telling the 
+    // editor about the new iterator position yet, since the inserts
+    // and deletes haven't yet happened.
+
     let result: KeydownActionData = {
         start: data.start.clone(),
         end: data.end.clone(),
-        key: data.key,
+        key: key,
         action: action,
         new_start: data.start.clone(),
         new_end: data.end.clone()

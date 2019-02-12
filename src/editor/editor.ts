@@ -3,7 +3,8 @@ import $ from "jquery";
 import Cursor from 'editor/editor_executors/cursor';
 import { Glyph, GlyphStyle } from 'editor/glyph';
 import { LinkedList, List, DoubleIterator } from 'data_structures/linked-list';
-import { fromEvent } from 'rxjs';
+import { fromEvent, Observable } from 'rxjs';
+import { map } from "rxjs/operators";
 import Strings from "string-map";
 import { EditorExecutor, EditorActionExecutor } from "editor/editor_executors/editor-executor";
 import { EditorRenderer } from "editor/editor_executors/renderer";
@@ -29,7 +30,11 @@ import {
 } from "editor/undo_redo/policies/save-policies";
 
 import { ChangeBuffer, EditorChangeBuffer, ChangeTracker } from "editor/undo_redo/change-buffer";
-import SavePolicySingleton from "./singletons/save-policy-singleton";
+import SavePolicySingleton from "editor/singletons/save-policy-singleton";
+import ChangeBufferSingleton from "editor/singletons/change-buffer-singleton";
+
+import KeydownProcessor, { KeydownAction } from "editor/subjects_observables/keydown-processor-observable";
+import { NewActionData } from "editor/subjects_observables/action-processor";
 
 
 /*
@@ -37,17 +42,20 @@ import SavePolicySingleton from "./singletons/save-policy-singleton";
     TODO : RESET FUNCTION SHOULD ALSO RESET THE STATE OF THE CHANGE BUFFER and the COMMAND HISTORY.
 */
 
+interface NewCursorData {
+    start: DoubleIterator<Glyph>;
+    end: DoubleIterator<Glyph>;
+    action: KeydownAction
+}
+
 class Editor {
     glyphs: List<Glyph>;
     start_glyph_iter: DoubleIterator<Glyph>;
     end_glyph_iter: DoubleIterator<Glyph>;
     editor: JQuery<HTMLElement>;
     cursor: Cursor = new Cursor();
-    executor: EditorExecutor;
     click_handler: Handler;
     keypress_map: KeyPressMap;
-    keydown_handler: Handler;
-    change_buffer: ChangeBuffer<Glyph> & ChangeTracker<Glyph>;
 
 
     static new = function(editor_id?: string): Maybe<Editor> {
@@ -80,17 +88,13 @@ class Editor {
         this.keypress_map = KeyPressMapSingleton.get();
         this.keypress_map.runOn(this.editor);
 
-        this.change_buffer = new EditorChangeBuffer(
-            this.glyphs.makeFrontIterator(), this.glyphs.makeBackIterator(), new EditorRenderer(this.editor.get(0))
+        let change_buffer: ChangeBuffer<Glyph> & ChangeTracker<Glyph> = ChangeBufferSingleton.get(
+            this.editor, this.glyphs
         );
-
-        this.executor = new EditorActionExecutor(this.change_buffer, this.editor.get(0));
-        
+                
         this.start_glyph_iter = this.glyphs.makeFrontIterator();
         this.end_glyph_iter = this.glyphs.makeFrontIterator();
-        this.keydown_handler = new KeydownHandler(
-            this.executor, this.editor.get(0), this.keypress_map, this.change_buffer
-        );
+        
         this.click_handler = new ClickHandler(this.cursor, this.editor.get(0));
 
         if(this.valid()) {
@@ -99,7 +103,7 @@ class Editor {
     }
 
     showBuffer(): string {
-        return (this.change_buffer.asString());
+        return (ChangeBufferSingleton.get(this.editor, this.glyphs).asString());
     }
 
     reset(): void {
@@ -116,13 +120,14 @@ class Editor {
         this.rerender();
     }
 
+    // TODO : Fix this function. Executor no longer works. How do we rerender?
     rerender() {
         this.editor.empty();
 
         let iterator = this.glyphs.makeFrontIterator();
         while(iterator.hasNext()) {
             iterator.next();
-            this.executor.renderAt(iterator);
+            //this.executor.renderAt(iterator);
         }
 
         this.updateCursorToCurrent(); // Initially is between a and b!
@@ -146,7 +151,7 @@ class Editor {
         this.rerender();
 
         let pasteObs = fromEvent(this.editor, 'paste');
-        let pasteSub = pasteObs.subscribe({
+        pasteObs.subscribe({
             next: (event: any) => {
                 // get data and supposedly remove non-utf characters.
                 let pasteText = event.originalEvent.clipboardData.getData('text')
@@ -156,7 +161,46 @@ class Editor {
             complete: () => { }
         });
 
-        let keydownObs = fromEvent(this.editor, 'keydown');
+        const keydownObs = fromEvent(this.editor, 'keydown');
+        const editorKeydownObs = keydownObs.pipe(map((event: any) => {
+            event.preventDefault();
+            return {
+                start: this.start_glyph_iter.clone(),
+                end: this.end_glyph_iter.clone(),
+                key: event.key
+            }
+        }));
+        let keydownProcessor = KeydownProcessor.subscribeTo(editorKeydownObs);
+        let newCursorPosition: Observable<NewCursorData> = keydownProcessor.pipe(map((data) => {
+            return {
+                action: data.action,
+                start: data.new_start.clone(),
+                end: data.new_end.clone()
+            }
+        }));
+        newCursorPosition.subscribe({
+            next: (data) => {
+                if(data.action !== KeydownAction.None) {
+                    this.start_glyph_iter = data.start.clone();
+                    this.end_glyph_iter = data.end.clone();
+                }  
+            },
+            error: (err) => {}, 
+            complete: () => {}
+        });
+        let newActionData: Observable<NewActionData> = keydownProcessor.pipe(map((data) => {
+            return {
+                start: data.start.clone(),
+                end: data.end.clone(),
+                action: data.action,
+                key: data.key
+            }
+        }));
+        let actionProcessor = ActionProcessor.subscribeTo(newActionData);
+
+
+
+        /*let keydownObs = fromEvent(this.editor, 'keydown');
         let keydownSub = keydownObs.subscribe({
             next: (event: any) => {
 
@@ -166,7 +210,7 @@ class Editor {
             },
             error: (err) => {},
             complete: () => {}
-        });
+        });*/
 
         let mouseDownObs = fromEvent(this.editor, 'mousedown');
         let mouseDownSub = mouseDownObs.subscribe({
@@ -202,14 +246,6 @@ class Editor {
                 this.click_handler.handle(event, this.glyphs.makeFrontIterator(), this.glyphs.makeBackIterator());
                 this._updateIteratorsFromHandler(this.click_handler);
                 this.updateCursorToCurrent();
-            },
-            error: (err) => {},
-            complete: () => {}
-        });
-
-        let focusObs = fromEvent(this.editor, 'focus');
-        let focusSub = focusObs.subscribe({
-            next: (event: any) => {
             },
             error: (err) => {},
             complete: () => {}

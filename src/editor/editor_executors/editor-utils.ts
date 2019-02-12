@@ -2,6 +2,7 @@ import { Maybe } from "tsmonad";
 import { DoubleIterator } from "data_structures/linked-list";
 import { Glyph } from "editor/glyph";
 import Strings from "string-map";
+import { startWith } from "rxjs/operators";
 
 /**
  * @description Count forwards to find distance to next newline character, MINUS 1
@@ -133,6 +134,18 @@ function findLineEnd(source_iter: DoubleIterator<Glyph>): DoubleIterator<Glyph> 
     return iter;
 }
 
+
+function moveArrow(key: string, source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>): Array< DoubleIterator<Glyph> > {
+    let start = source_start_iter.clone();
+    let end = source_end_iter.clone();
+    switch(key) {
+        case Strings.arrow.left: return arrowLeft(start, end);
+        case Strings.arrow.right: return arrowRight(start, end);
+        case Strings.arrow.up: return arrowUp(start, end);
+        case Strings.arrow.down: return arrowDown(start, end);
+        default: return [start, end];
+    }
+}
 
 
 function arrowLeft(source_start_iter: DoubleIterator<Glyph>, source_end_iter: DoubleIterator<Glyph>)
@@ -321,5 +334,6 @@ export {
     arrowDown,
     isArrowKey,
     isChar,
-    isSpace    
+    isSpace,
+    moveArrow
 };

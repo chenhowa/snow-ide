@@ -13,43 +13,24 @@ import { DoubleIterator } from "data_structures/linked-list";
 import { Glyph } from "editor/glyph";
 import KeyPressMapSingleton from "editor/singletons/keypress-map-singleton";
 
+import { Action, NewActionData } from "editor/subjects_observables/action-processor";
 
 
-interface KeydownActionData {
-    new_start: DoubleIterator<Glyph>,
-    new_end: DoubleIterator<Glyph>,
-    key: string,
-    start: DoubleIterator<Glyph>,
-    end: DoubleIterator<Glyph>,
-    action: KeydownAction
-}
-
-enum KeydownAction {
-    Insert = 1,
-    Backspace,
-    Delete,
-    Copy,
-    Paste,
-    Undo,
-    Redo,
-    None
-}
 
 interface EditorData {
     key: string;
     start: DoubleIterator<Glyph>;
     end: DoubleIterator<Glyph>;
-    
 }
 
 
-let keydown_obs: Observable<KeydownActionData>;
+let keydown_obs: Observable<NewActionData>;
 
 let keypress_map = KeyPressMapSingleton.get();
 
 
 let KeydownProcessor = {
-    subscribeTo: function(obs: Observable<EditorData>): Observable<KeydownActionData> {
+    subscribeTo: function(obs: Observable<EditorData>): Observable<NewActionData> {
         if(!keydown_obs) {
             keydown_obs = createKeydownObservable(obs);
         }
@@ -58,13 +39,13 @@ let KeydownProcessor = {
     }
 }
 
-function createKeydownObservable(obs: Observable<EditorData>): Observable<KeydownActionData> {
+function createKeydownObservable(obs: Observable<EditorData>): Observable<NewActionData> {
     let keydown_obs = obs.pipe(map((data) => {
         let start_iter = data.start.clone();
         let end_iter = data.end.clone();
 
 
-        let result_data: KeydownActionData;
+        let result_data: NewActionData;
 
         if(keypress_map.isControl()) {
             result_data = _handleKeyWithControl(data);
@@ -80,7 +61,7 @@ function createKeydownObservable(obs: Observable<EditorData>): Observable<Keydow
 }
 
 function _handleKeyWithControl(data: EditorData)
-                                    : KeydownActionData {
+                                    : NewActionData {
     /* So what might happen here?
         1. Copy.
         2. Paste.
@@ -93,73 +74,63 @@ function _handleKeyWithControl(data: EditorData)
         return a CommandResult object or something, or they should get a reference to the editor, so we can know how
         to set the resulting state. For now we'll go with returning a command object.
     */
-    let action: KeydownAction;
+    let action: Action;
     let key = data.key;
 
     if(key === Strings.control.copy) {
-        action = KeydownAction.Copy;
+        action = Action.Copy;
     } else if (key === Strings.control.paste) {
-        action = KeydownAction.Paste
+        action = Action.Paste
     } else if (key === Strings.control.undo) {
-        action = KeydownAction.Undo;
+        action = Action.Undo;
     } else if (key === Strings.control.redo) {
-        action = KeydownAction.Redo;
+        action = Action.Redo;
     } else {
-        action = KeydownAction.None;
+        action = Action.None;
     }
 
-    let action_data: KeydownActionData = {
+    let action_data: NewActionData = {
         start: data.start.clone(),
         end: data.end.clone(),
         key: data.key,
-        action: action,
-        new_start: data.start.clone(),  // We won't change the cursor position at this point, it seems.
-        new_end: data.start.clone()
+        action: action
     }
 
     return action_data;
 }
 
 function _handleKeyAlone(data: EditorData)
-                    : KeydownActionData {
+                    : NewActionData {
     let key = data.key;
-    let action: KeydownAction;
+    let action: Action;
     if(isChar(key)) {
-        action = KeydownAction.Insert;
+        action = Action.Insert;
     } else if (key === 'Backspace') {
-        action = KeydownAction.Backspace;
+        action = Action.Backspace;
     } else if (key === 'Delete' ) {
-        action = KeydownAction.Delete;
+        action = Action.Delete;
     } else if (key === 'Enter') {
         key = Strings.newline; // We convert the Enter key into a \n newline.
-        action = KeydownAction.Insert;  
+        action = Action.Insert;  
     } else if (isArrowKey(key)) {
-        action = KeydownAction.None;
+        action = Action.ArrowKey;
     } else {
-        action = KeydownAction.None;
+        action = Action.None;
     }
 
     // TODO THIS IS INCORRECT. We shouldn't be telling the 
     // editor about the new iterator position yet, since the inserts
     // and deletes haven't yet happened.
 
-    let result: KeydownActionData = {
+    let result: NewActionData = {
         start: data.start.clone(),
         end: data.end.clone(),
         key: key,
-        action: action,
-        new_start: data.start.clone(),
-        new_end: data.end.clone()
-    }
-
-    if(isArrowKey(key)) {
-        let new_iters = moveArrow(data.key, data.start, data.end);
-        result.new_start = new_iters[0];
-        result.new_end = new_iters[1];
+        action: action
     }
 
     return result;
 }
 
 export default KeydownProcessor;
-export { KeydownProcessor, KeydownAction };
+export { KeydownProcessor, EditorData };

@@ -5,7 +5,7 @@ import Strings from "string-map";
 import { DoubleIterator, LinkedList } from 'data_structures/linked-list';
 import { Glyph, GlyphStyle } from "editor/glyph";
 
-import { KeydownAction } from "editor/subjects_observables/keydown-processor";
+import { ExecuteAction } from "editor/subjects_observables/save-processor";
 
 import HistorySingleton from "editor/singletons/history-singleton";
 import { History } from "editor/undo_redo/command-history";
@@ -17,8 +17,9 @@ interface ExecuteData {
     key: string,
     start: DoubleIterator<Glyph>,
     end: DoubleIterator<Glyph>
-    action: KeydownAction,
-    position: DoubleIterator<Glyph>
+    action: ExecuteAction,
+    position: DoubleIterator<Glyph>,
+    complete: boolean
 }
 
 
@@ -60,9 +61,9 @@ function createProcessor(obs: Observable<ExecuteData>,
 
         let history: History<Glyph> = HistorySingleton.get();
         let buffer: ChangeBuffer<Glyph> & ChangeTracker<Glyph> = ChangeBufferSingleton.get(node, list);
-        let willEditText: boolean = data.action === KeydownAction.Insert 
-                                ||  data.action === KeydownAction.Backspace
-                                ||  data.action === KeydownAction.Delete;
+        let willEditText: boolean = data.action === ExecuteAction.Insert 
+                                ||  data.action === ExecuteAction.Backspace
+                                ||  data.action === ExecuteAction.Delete;
         
         if(willEditText && buffer.isDirty()) {
             // Then we anchor ourselves to the proposed start and end positions;
@@ -75,7 +76,7 @@ function createProcessor(obs: Observable<ExecuteData>,
         let position = data.position.clone();
 
         switch(data.action) {
-            case KeydownAction.Insert: {
+            case ExecuteAction.Insert: {
                 // We just...insert.
                 position.insertAfter(new Glyph(data.key, new GlyphStyle()));
                 position.next();
@@ -94,7 +95,7 @@ function createProcessor(obs: Observable<ExecuteData>,
                     }
                 }
             } break;
-            case KeydownAction.Backspace: {
+            case ExecuteAction.Backspace: {
                 if(data.start.equals(data.end)) {
                     // If this delete was occuring from collapsed cursor.
                     buffer.decrementStartAnchor();
@@ -116,7 +117,7 @@ function createProcessor(obs: Observable<ExecuteData>,
                     action: RenderAction.Rerender
                 }
             } break;
-            case KeydownAction.Delete: {
+            case ExecuteAction.Delete: {
                 if(data.start.equals(data.end)) {
                     // if this delete was occurring from collapsed cursor
                     buffer.incrementEndAnchor();
@@ -136,19 +137,15 @@ function createProcessor(obs: Observable<ExecuteData>,
                     action: RenderAction.Rerender
                 }
             } break;
-            case KeydownAction.Copy: {
+            case ExecuteAction.Copy: {
                 // TODO: COPYING IS JUST PULLING FROM THE RANGE INTO THE CLIPBOARD
                 return no_render;
             } break;
-            case KeydownAction.Paste: {
-                // TODO: DOES NOT BELONG. PASTING IS DELETING AND THEN INSERTING.
-                return no_render;
-            } break;
-            case KeydownAction.Undo: {
+            case ExecuteAction.Undo: {
                 history.undo(); // This will render on its own.
                 return no_render;
             } break;
-            case KeydownAction.Redo: {
+            case ExecuteAction.Redo: {
                 history.do();   // This will render on its own.
                 return no_render;
             } break;

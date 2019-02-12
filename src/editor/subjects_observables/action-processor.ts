@@ -1,19 +1,30 @@
-import { Observable, from } from "rxjs";
-import { map, mergeMap } from "rxjs/operators";
+import { Observable, from, merge } from "rxjs";
+import { mergeMap } from "rxjs/operators";
 import Strings from "string-map";
 
 import { DoubleIterator } from 'data_structures/linked-list';
 import { Glyph } from "editor/glyph";
-import { KeydownAction } from "editor/subjects_observables/keydown-processor";
 import { SaveData, EditorActionType, DeletionType } from "editor/undo_redo/policies/save-policy";
 
-import { SaveProcessorData } from "editor/subjects_observables/save-processor";
+import { SaveProcessorData, ExecuteAction } from "editor/subjects_observables/save-processor";
 
 interface NewActionData {
     start: DoubleIterator<Glyph>;
     end: DoubleIterator<Glyph>;
-    action: KeydownAction;
+    action: Action;
     key: string;
+}
+
+enum Action {
+    Insert = 1,
+    Backspace,
+    Delete,
+    Copy,
+    Paste,
+    Undo,
+    Redo,
+    ArrowKey,
+    None
 }
 
 let action_processor: Observable<SaveProcessorData>;
@@ -37,199 +48,85 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
         let start = data.start.clone();
         let end = data.end.clone();
         switch(data.action) {
-            case KeydownAction.Insert: {
-                let processor_data: Array<SaveProcessorData> = [];
-
-                // Create delete messages targeting everyone who is occupying the space to be inserted into.
-                if(!start.equals(end)) {
-                    while(!start.equals(end) && start.hasNext()) {
-                        start.next();
-                        if(start.equals(end)) {
-                            break;
-                        } else {
-                            processor_data.push({
-                                key: data.key,
-                                start: data.start.clone(),
-                                end: data.end.clone(),
-                                action: KeydownAction.Backspace,
-                                position: start.clone(),
-                                save_data: {
-                                    editor_action: EditorActionType.Remove,
-                                    deletion_direction: DeletionType.Backward
-                                }
-                            });
-                        }
-                    }
-
-                    // Delete the final character.
-                    processor_data.push({
-                        key: data.key,
-                        start: data.start.clone(),
-                        end:data.end.clone(),
-                        action: KeydownAction.Backspace,
-                        position: end.clone(),
-                        save_data: {
-                            editor_action: EditorActionType.Remove,
-                            deletion_direction: DeletionType.Backward
-                        }
-                    })
-                }
-                
-
-                if(!start.equals(end)) {
-                    throw new Error("ActionProcessor createProcessor: somehow start !== end");
-                }
-                
-                processor_data.push({
-                    key: data.key,
-                    start: data.start.clone(),
-                    end: data.end.clone(),
-                    action: data.action,
-                    position: end.clone(), // we are indeed inserting right where we are.
-                    save_data: {
-                        key: data.key,
-                        editor_action: EditorActionType.Insert
-                    }
-                });
-
-                return from(processor_data);
-
+            case Action.Insert: {
+                return generateInsertObservable(start, end, data);
             } break;
-            case KeydownAction.Backspace: {
-                let processor_data = [];
-                while(!start.equals(end) && start.hasNext()) {
-                    start.next();
-                    if(start.equals(end)) {
-                        break;
-                    } else {
-                        processor_data.push({
-                            key: data.key,
-                            start: data.start.clone(),
-                            end: data.end.clone(),
-                            action: KeydownAction.Backspace,
-                            position: start.clone(),
-                            save_data: {
-                                editor_action: EditorActionType.Remove,
-                                deletion_direction: DeletionType.Backward
-                            }
-                        });
-                    }
-                }
-
-                // Delete the final character.
-                processor_data.push({
-                    key: data.key,
-                    start: data.start.clone(),
-                    end:data.end.clone(),
-                    action: KeydownAction.Backspace,
-                    position: end.clone(),
-                    save_data: {
-                        editor_action: EditorActionType.Remove,
-                        deletion_direction: DeletionType.Backward
-                    }
-                });
-
-                return from(processor_data);
-                
+            case Action.Backspace: {
+                return generateRemoveObservable(start, end, data);
             } break;
-            case KeydownAction.Delete: {
-                let processor_data = [];
-                while(!start.equals(end) && start.hasNext()) {
-                    start.next();
-                    if(start.equals(end)) {
-                        break;
-                    } else {
-                        processor_data.push({
-                            key: data.key,
-                            start: data.start.clone(),
-                            end: data.end.clone(),
-                            action: KeydownAction.Delete,
-                            position: start.clone(),
-                            save_data: {
-                                editor_action: EditorActionType.Remove,
-                                deletion_direction: DeletionType.Forward
-                            }
-                        });
-                    }
-                }
-
-                // Delete the final character.
-                processor_data.push({
-                    key: data.key,
-                    start: data.start.clone(),
-                    end:data.end.clone(),
-                    action: KeydownAction.Delete,
-                    position: end.clone(),
-                    save_data: {
-                        editor_action: EditorActionType.Remove,
-                        deletion_direction: DeletionType.Forward
-                    }
-                });
-
-                return from(processor_data);
+            case Action.Delete: {
+                return generateRemoveObservable(start, end, data);
             } break;
-            case KeydownAction.Copy: {
+            case Action.Copy: {
                 return from([{
                     key: data.key,
                     start: data.start.clone(),
                     end: data.end.clone(),
-                    action: data.action,
+                    action: ExecuteAction.Copy,
+                    position: start.clone(),
+                    save_data: {
+                        key: data.key   
+                    },
+                    complete: true
+                }]);
+            } break;
+            case Action.Paste: {
+                return generatePasteObservable(start, end, data, "hello");
+            } break;
+            case Action.Undo: {
+                return from([{
+                    key: data.key,
+                    start: data.start.clone(),
+                    end: data.end.clone(),
+                    action: ExecuteAction.Undo,
                     position: data.start.clone(),
                     save_data: {
                         key: data.key   
-                    }
+                    },
+                    complete: true
                 }]);
             } break;
-            case KeydownAction.Paste: {
+            case Action.Redo: {
                 return from([{
                     key: data.key,
                     start: data.start.clone(),
                     end: data.end.clone(),
-                    action: data.action,
+                    action: ExecuteAction.Redo,
                     position: data.start.clone(),
                     save_data: {
                         key: data.key   
-                    }
+                    },
+                    complete: true
                 }]);
             } break;
-            case KeydownAction.Undo: {
+            case Action.None: {
                 return from([{
                     key: data.key,
                     start: data.start.clone(),
                     end: data.end.clone(),
-                    action: data.action,
-                    position: data.start.clone(),
-                    save_data: {
-                        key: data.key   
-                    }
-                }]);
-            } break;
-            case KeydownAction.Redo: {
-                return from([{
-                    key: data.key,
-                    start: data.start.clone(),
-                    end: data.end.clone(),
-                    action: data.action,
-                    position: data.start.clone(),
-                    save_data: {
-                        key: data.key   
-                    }
-                }]);
-            } break;
-            case KeydownAction.None: {
-                return from([{
-                    key: data.key,
-                    start: data.start.clone(),
-                    end: data.end.clone(),
-                    action: data.action,
+                    action: ExecuteAction.None,
                     position: data.start.clone(),
                     save_data: {
                         key: data.key
-                    }
+                    },
+                    complete: true
+                }]);
+            } break;
+            case Action.ArrowKey: {
+                return from([{
+                    key: data.key,
+                    start: data.start.clone(),
+                    end: data.end.clone(),
+                    position: data.start.clone(),
+                    action: ExecuteAction.ArrowKey,
+                    save_data: {
+                        key: data.key
+                    },
+                    complete: true
                 }]);
             } break;
             default: {
-                throw new Error("Unhandled KeydownAction in ActionProcessor: " + data.action);
+                throw new Error("Unhandled Action in ActionProcessor: " + data.action);
             }
         }
     }));
@@ -237,6 +134,127 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
     return action_processor;
 }
 
+function generateRemoveObservable(source_start: DoubleIterator<Glyph>, 
+                                    source_end: DoubleIterator<Glyph>, data: NewActionData) 
+                                                                : Observable<SaveProcessorData> {
+    let start = source_start.clone();
+    let end = source_end.clone();
+
+    if(data.action !== Action.Backspace && data.action!== Action.Delete) {
+        throw new Error("generateRemoveObservable called without backspace or delete action");
+    }
+
+    let is_backspace = data.action === Action.Backspace;
+
+    let processor_data = [];
+
+    let action = is_backspace ? ExecuteAction.Backspace : ExecuteAction.Delete;
+    let deletion_direction = is_backspace ? DeletionType.Backward : DeletionType.Forward;
+
+    while(!start.equals(end) && start.hasNext()) {
+        start.next();
+        if(start.equals(end)) {
+            break;
+        } else {
+            processor_data.push({
+                key: data.key,
+                start: data.start.clone(),
+                end: data.end.clone(),
+                action: action,
+                position: start.clone(),
+                save_data: {
+                    editor_action: EditorActionType.Remove,
+                    deletion_direction: deletion_direction
+                },
+                complete: false
+            });
+        }
+    }
+
+    // Delete the final character.
+    processor_data.push({
+        key: data.key,
+        start: data.start.clone(),
+        end:data.end.clone(),
+        action: action,
+        position: end.clone(),
+        save_data: {
+            editor_action: EditorActionType.Remove,
+            deletion_direction: deletion_direction
+        },
+        complete: true
+    });
+
+    return from(processor_data);
+}
+
+function generateInsertObservable(source_start: DoubleIterator<Glyph>, 
+                                    source_end: DoubleIterator<Glyph>, data: NewActionData) 
+                                                                    : Observable<SaveProcessorData> {
+    let start = source_start.clone();
+    let end = source_end.clone();
+
+    if(data.action !== Action.Insert) {
+        throw new Error("generateInsertObservable called without Action.Insert");
+    }
+
+    // Create delete messages targeting everyone who is occupying the space to be inserted into.
+    let deleteObservable: Observable<SaveProcessorData> = from([]);
+    if(!start.equals(end)) {
+        deleteObservable = generateRemoveObservable(start, end, data);
+    }
+    
+    if(!start.equals(end)) {
+        throw new Error("ActionProcessor createProcessor: somehow start !== end before insert");
+    }
+
+    let insertObservable: Observable<SaveProcessorData> = from([{
+        key: data.key,
+        start: data.start.clone(),
+        end: data.end.clone(),
+        action: ExecuteAction.Insert,
+        position: end.clone(), // we are indeed inserting right where we are.
+        save_data: {
+            key: data.key,
+            editor_action: EditorActionType.Insert
+        },
+        complete: true
+    }]);
+    return merge(deleteObservable, insertObservable);
+}
+
+function generatePasteObservable(source_start: DoubleIterator<Glyph>, 
+                source_end: DoubleIterator<Glyph>, data: NewActionData, text: string)
+                                                            : Observable<SaveProcessorData> {
+    let start = source_start.clone();
+    let end = source_end.clone();
+    let deleteObservable: Observable<SaveProcessorData> = from([]);
+    if(!start.equals(end)) {
+        deleteObservable = generateRemoveObservable(start, end, data);
+    }
+
+    if(!start.equals(end)) {
+        new Error("Action Processor Action.Paste: start !== end");
+    }
+    
+    let observables: Array<SaveProcessorData> = [];
+    for(let i = text.length - 1; i >= 0; i--) {
+        let key = text[i];
+        observables.push({
+            key: key,
+            start: data.start.clone(),
+            end: data.end.clone(),
+            action: ExecuteAction.Insert,
+            position: data.start.clone(),
+            save_data: {
+                key: key
+            },
+            complete: i === 0 ? true : false
+        });
+    }
+
+    return merge(deleteObservable, from(observables));
+}
 
 export default ActionProcessor;
-export { NewActionData };
+export { NewActionData, Action };

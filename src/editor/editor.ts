@@ -33,7 +33,7 @@ import { ChangeBuffer, EditorChangeBuffer, ChangeTracker } from "editor/undo_red
 import SavePolicySingleton from "editor/singletons/save-policy-singleton";
 import ChangeBufferSingleton from "editor/singletons/change-buffer-singleton";
 
-import KeydownProcessor, { KeydownAction } from "editor/subjects_observables/keydown-processor";
+import KeydownProcessor from "editor/subjects_observables/keydown-processor";
 import { NewActionData } from "editor/subjects_observables/action-processor";
 
 
@@ -50,7 +50,6 @@ import ExecuteProcessor, { RenderAction, RenderData } from "editor/subjects_obse
 interface NewCursorData {
     start: DoubleIterator<Glyph>;
     end: DoubleIterator<Glyph>;
-    action: KeydownAction
 }
 
 class Editor {
@@ -186,32 +185,14 @@ class Editor {
                 console.log(data);
             }
         });
-        /*let newCursorPosition: Observable<NewCursorData> = keydownProcessor.pipe(map((data) => {
-            return {
-                action: data.action,
-                start: data.new_start.clone(),
-                end: data.new_end.clone()
-            }
-        }));
-        newCursorPosition.subscribe({
+        
+        let actionProcessor = ActionProcessor.subscribeTo(keydownProcessor);
+        actionProcessor.subscribe({
             next: (data) => {
-                if(data.action !== KeydownAction.None) {
-                    this.start_glyph_iter = data.start.clone();
-                    this.end_glyph_iter = data.end.clone();
-                }  
-            },
-            error: (err) => {}, 
-            complete: () => {}
-        });
-        let newActionData: Observable<NewActionData> = keydownProcessor.pipe(map((data) => {
-            return {
-                start: data.start.clone(),
-                end: data.end.clone(),
-                action: data.action,
-                key: data.key
+                console.log(data);
             }
-        }));
-        let actionProcessor = ActionProcessor.subscribeTo(newActionData);
+        })
+        /*
         let saveProcessor = SaveProcessor.subscribeTo(actionProcessor,this.editor, this.glyphs);
         let executeProcessor = ExecuteProcessor.subscribeTo(saveProcessor, this.editor, this.glyphs);
         executeProcessor.subscribe({

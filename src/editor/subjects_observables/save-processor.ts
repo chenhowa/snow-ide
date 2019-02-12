@@ -5,7 +5,7 @@ import { map } from "rxjs/operators";
 import { DoubleIterator, LinkedList } from 'data_structures/linked-list';
 import { Glyph } from "editor/glyph";
 
-import { KeydownAction } from "editor/subjects_observables/keydown-processor";
+import { Action } from "editor/subjects_observables/action-processor";
 import { SaveData, SavePolicy } from "editor/undo_redo/policies/save-policy";
 import HistorySingleton from "editor/singletons/history-singleton";
 import ChangeBufferSingleton from "editor/singletons/change-buffer-singleton";
@@ -18,9 +18,21 @@ interface SaveProcessorData {
     key: string;
     start: DoubleIterator<Glyph>;
     end: DoubleIterator<Glyph>
-    action: KeydownAction,
+    action: ExecuteAction,
     save_data: SaveData,
-    position: DoubleIterator<Glyph>
+    position: DoubleIterator<Glyph>,
+    complete: boolean
+}
+
+enum ExecuteAction {
+    Insert = 1,
+    Backspace,
+    Delete,
+    ArrowKey,
+    Copy,
+    Undo,
+    Redo,
+    None
 }
 
 let save_processor: Observable<ExecuteData>;
@@ -45,22 +57,32 @@ function createProcessor(obs: Observable<SaveProcessorData>, node: JQuery<HTMLEl
 
     let processor = obs.pipe(map((data) => {
         // If necessary, save the buffer here.
-        if(save_policy.shouldSave(data.save_data) && buffer.isDirty()) {
+        let should_save = buffer.isDirty()
+                    && (  save_policy.shouldSave(data.save_data)
+                      ||  data.action === ExecuteAction.Redo
+                      ||  data.action === ExecuteAction.Undo
+                      ||  data.action === ExecuteAction.Copy
+                      ||  data.action === ExecuteAction.ArrowKey  );
+
+        if( should_save ) {
             history.add(buffer.generateAndClean());
             buffer.resetListState();
         }
 
-        return {
+        let execute_data: ExecuteData = {
             key: data.key,
             start: data.start.clone(),
             end: data.end.clone(),
             action: data.action,
-            position: data.position
-        }
+            position: data.position,
+            complete: data.complete
+        };
+
+        return execute_data;
     }));
 
     return processor;
 }
 
 export default SaveProcessor;
-export { SaveProcessor, SaveProcessorData };
+export { SaveProcessor, SaveProcessorData, ExecuteAction };

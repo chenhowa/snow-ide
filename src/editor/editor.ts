@@ -137,7 +137,7 @@ class Editor {
         let iterator = this.glyphs.makeFrontIterator();
         while(iterator.hasNext()) {
             iterator.next();
-            //this.executor.renderAt(iterator);
+            this.renderer.render(iterator, iterator);
         }
 
         this.updateCursorToCurrent(); // Initially is between a and b!
@@ -160,7 +160,7 @@ class Editor {
         // Render initial state of document.
         this.rerender();
 
-        let pasteObs = fromEvent(this.editor, 'paste');
+        /*let pasteObs = fromEvent(this.editor, 'paste');
         pasteObs.subscribe({
             next: (event: any) => {
                 // get data and supposedly remove non-utf characters.
@@ -169,7 +169,7 @@ class Editor {
             },
             error: (err) => { },
             complete: () => { }
-        });
+        });*/
 
         const keydownObs = fromEvent(this.editor, 'keydown');
         const editorKeydownObs = keydownObs.pipe(map((event: any) => {
@@ -181,7 +181,12 @@ class Editor {
             }
         }));
         let keydownProcessor = KeydownProcessor.subscribeTo(editorKeydownObs);
-        let newCursorPosition: Observable<NewCursorData> = keydownProcessor.pipe(map((data) => {
+        keydownProcessor.subscribe({
+            next: (data) => {
+                console.log(data);
+            }
+        });
+        /*let newCursorPosition: Observable<NewCursorData> = keydownProcessor.pipe(map((data) => {
             return {
                 action: data.action,
                 start: data.new_start.clone(),
@@ -223,7 +228,7 @@ class Editor {
                 this.end_glyph_iter = data.end.clone();
                 this.updateCursorToCurrent();
             }
-        })
+        })*/
 
         let mouseDownObs = fromEvent(this.editor, 'mousedown');
         let mouseDownSub = mouseDownObs.subscribe({

@@ -4,7 +4,7 @@ import Cursor from 'editor/editor_executors/cursor';
 import { Glyph, GlyphStyle } from 'editor/glyph';
 import { LinkedList, List, DoubleIterator } from 'data_structures/linked-list';
 import { fromEvent, Observable } from 'rxjs';
-import { map } from "rxjs/operators";
+import { map, throttleTime } from "rxjs/operators";
 import Strings from "string-map";
 import { EditorExecutor, EditorActionExecutor } from "editor/editor_executors/editor-executor";
 import { Renderer, EditorRenderer } from "editor/editor_executors/renderer";
@@ -170,38 +170,27 @@ class Editor {
             complete: () => { }
         });*/
 
-        const keydownObs = fromEvent(this.editor, 'keydown');
-        const editorKeydownObs = keydownObs.pipe(map((event: any) => {
+        const keydownObs = fromEvent(this.editor, 'keydown').pipe(map( (event:any) => {
             event.preventDefault();
+            let key: string = event.key;
+            return key;
+        }));
+        const editorKeydownObs = keydownObs.pipe(map((key: string) => {
             return {
                 start: this.start_glyph_iter.clone(),
                 end: this.end_glyph_iter.clone(),
-                key: event.key
+                key: key
             }
         }));
         let keydownProcessor = KeydownProcessor.subscribeTo(editorKeydownObs);
-        keydownProcessor.subscribe({
-            next: (data) => {
-                //console.log(data);
-            }
-        });
         
         let actionProcessor = ActionProcessor.subscribeTo(keydownProcessor);
-        actionProcessor.subscribe({
-            next: (data) => {
-                //console.log(data);
-            }
-        })
+        
         let saveProcessor = SaveProcessor.subscribeTo(actionProcessor,this.editor, this.glyphs);
-        saveProcessor.subscribe({
-            next: (data) => {
-                console.log(data);
-            }
-        })
+
         let executeProcessor = ExecuteProcessor.subscribeTo(saveProcessor, this.editor, this.glyphs);
         executeProcessor.subscribe({
             next: ( data: RenderData ) => {
-                console.log(data);
                 if(data.action === RenderAction.Render) {
                     this.renderer.render(data.render_start, data.render_end);
                 } else if (data.action === RenderAction.Rerender) {
@@ -214,7 +203,7 @@ class Editor {
                 this.end_glyph_iter = data.cursor_end.clone();
                 this.updateCursorToCurrent();
             }
-        })
+        });
 
         let mouseDownObs = fromEvent(this.editor, 'mousedown');
         let mouseDownSub = mouseDownObs.subscribe({

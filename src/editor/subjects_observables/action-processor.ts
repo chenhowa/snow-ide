@@ -52,10 +52,10 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
                 return generateInsertObservable(start, end, data);
             } break;
             case Action.Backspace: {
-                return generateRemoveObservable(start, end, data);
+                return generateRemoveObservable(start, end, data, true);
             } break;
             case Action.Delete: {
-                return generateRemoveObservable(start, end, data);
+                return generateRemoveObservable(start, end, data, true);
             } break;
             case Action.Copy: {
                 return from([{
@@ -135,7 +135,7 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
 }
 
 function generateRemoveObservable(source_start: DoubleIterator<Glyph>, 
-                                    source_end: DoubleIterator<Glyph>, data: NewActionData) 
+                                    source_end: DoubleIterator<Glyph>, data: NewActionData, complete: boolean) 
                                                                 : Observable<SaveProcessorData> {
     let start = source_start.clone();
     let end = source_end.clone();
@@ -146,44 +146,40 @@ function generateRemoveObservable(source_start: DoubleIterator<Glyph>,
 
     let is_backspace = data.action === Action.Backspace;
 
-    let processor_data = [];
+    let processor_data: Array<SaveProcessorData> = [];
 
     let action = is_backspace ? ExecuteAction.Backspace : ExecuteAction.Delete;
     let deletion_direction = is_backspace ? DeletionType.Backward : DeletionType.Forward;
 
-    while(!start.equals(end) && start.hasNext()) {
-        start.next();
-        if(start.equals(end)) {
-            break;
-        } else {
-            processor_data.push({
-                key: data.key,
-                start: data.start.clone(),
-                end: data.end.clone(),
-                action: action,
-                position: start.clone(),
-                save_data: {
-                    editor_action: EditorActionType.Remove,
-                    deletion_direction: deletion_direction
-                },
-                complete: false
-            });
-        }
-    }
+    if(!start.equals(end)) {
+        // Generate mass remove.
+        processor_data.push({
+            key: data.key,
+            start: data.start.clone(),
+            end: data.end.clone(),
+            action: ExecuteAction.MassRemove,
+            position: start.clone(),
+            save_data: {
+                editor_action: EditorActionType.Remove,
+                deletion_direction: deletion_direction
+            },
+            complete: complete
+        })
 
-    // Delete the final character.
-    processor_data.push({
-        key: data.key,
-        start: data.start.clone(),
-        end:data.end.clone(),
-        action: action,
-        position: end.clone(),
-        save_data: {
-            editor_action: EditorActionType.Remove,
-            deletion_direction: deletion_direction
-        },
-        complete: true
-    });
+    } else {
+        processor_data.push({
+            key: data.key,
+            start: data.start.clone(),
+            end: data.end.clone(),
+            action: action,
+            position: start.clone(),
+            save_data: {
+                editor_action: EditorActionType.Remove,
+                deletion_direction: deletion_direction
+            },
+            complete: true
+        })
+    }
 
     return from(processor_data);
 }
@@ -207,7 +203,7 @@ function generateInsertObservable(source_start: DoubleIterator<Glyph>,
             key: data.key,
             action: Action.Backspace
         }
-        deleteObservable = generateRemoveObservable(start, end, delete_data);
+        deleteObservable = generateRemoveObservable(start, end, delete_data, false);
     }
 
     let insertObservable: Observable<SaveProcessorData> = from([{
@@ -232,7 +228,7 @@ function generatePasteObservable(source_start: DoubleIterator<Glyph>,
     let end = source_end.clone();
     let deleteObservable: Observable<SaveProcessorData> = from([]);
     if(!start.equals(end)) {
-        deleteObservable = generateRemoveObservable(start, end, data);
+        deleteObservable = generateRemoveObservable(start, end, data, false);
     }
 
     if(!start.equals(end)) {

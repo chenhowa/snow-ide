@@ -220,7 +220,7 @@ class EditorRenderer implements Renderer {
                             }
                         },
                         nothing: () => {
-                            console.log("No glyph to render. What do?");
+                            throw new Error("No glyph to render");
                         }
                     })
                 },

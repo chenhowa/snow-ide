@@ -69,7 +69,9 @@ function createProcessor(obs: Observable<ExecuteData>,
         let buffer: ChangeBuffer<Glyph> & ChangeTracker<Glyph> = ChangeBufferSingleton.get(node, list);
         let willEditText: boolean = data.action === ExecuteAction.Insert 
                                 ||  data.action === ExecuteAction.Backspace
-                                ||  data.action === ExecuteAction.Delete;
+                                ||  data.action === ExecuteAction.Delete
+                                ||  data.action === ExecuteAction.MassInsert
+                                ||  data.action === ExecuteAction.MassRemove;
         
         if(willEditText && buffer.isDirty()) {
             // Then we anchor ourselves to the proposed start and end positions;
@@ -131,10 +133,17 @@ function createProcessor(obs: Observable<ExecuteData>,
                     // Otherwise don't delete. We don't delete the first newline.
                 }
 
+                let action: RenderAction;
+                if( data.key === Strings.newline && data.complete) {
+                    action = RenderAction.Rerender;
+                } else {
+                    action = RenderAction.None;
+                }
+
                 let new_data: RenderData = {
                     render_start: position.clone(),
                     render_end: position.clone(),
-                    action: data.complete ? RenderAction.Rerender: RenderAction.None,
+                    action: action,
                     cursor_start: position.clone(),
                     cursor_end: position.clone()
                 }
@@ -162,15 +171,74 @@ function createProcessor(obs: Observable<ExecuteData>,
                     })
                 }
 
+                let action: RenderAction;
+                if( data.key === Strings.newline && data.complete) {
+                    action = RenderAction.Rerender;
+                } else {
+                    action = RenderAction.None;
+                }
+
                 let new_data: RenderData = {
                     render_start: position.clone(),
                     render_end: position.clone(),
-                    action: data.complete ? RenderAction.Rerender : RenderAction.None,
+                    action: action,
                     cursor_start: position.clone(),
                     cursor_end: position.clone()
                 }
                 return new_data;
 
+            } break;
+            case ExecuteAction.MassInsert: {
+                let iter = data.start.clone();
+                for(let i = 0; i < data.key.length; i++) {
+                    iter.insertAfter(new Glyph(data.key[i], new GlyphStyle()));
+                    iter.next();
+                }
+
+                let new_data: RenderData = {
+                    render_start: data.start.clone(),
+                    render_end: data.end.clone(),
+                    action: RenderAction.Rerender,
+                    cursor_start: iter.clone(),
+                    cursor_end: iter.clone()
+                }
+                return new_data;
+            } break;
+            case ExecuteAction.MassRemove: {
+                console.log("MASS REMOVING");
+                let start = data.start.clone();
+                let end = data.end.clone();
+
+                let reached_end = false;
+                while(start.hasNext() && !reached_end) {
+                    start.next();
+                    reached_end = start.equals(end);
+
+                    start.remove(false).caseOf({
+                        just: (listnode) => {
+                            listnode.data.caseOf({
+                                just: (glyph) => {
+                                    glyph.destroyNode();
+                                },
+                                nothing: () => {}
+                            })
+                            buffer.addToBufferEnd(listnode);
+                        },
+                        nothing: () => { 
+                            throw new Error("ExecuteProcessor: Tried to mass remove but got no node");
+                        }
+                    });
+                }
+
+                let new_data: RenderData = {
+                    render_start: start.clone(),
+                    render_end: start.clone(),
+                    cursor_start: start.clone(),
+                    cursor_end: start.clone(),
+                    action: RenderAction.Rerender
+                }
+
+                return new_data;
             } break;
             case ExecuteAction.ArrowKey: {
                 let new_iters = moveArrow(data.key, data.start, data.end);

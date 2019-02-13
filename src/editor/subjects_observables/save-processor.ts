@@ -32,6 +32,8 @@ enum ExecuteAction {
     Copy,
     Undo,
     Redo,
+    MassInsert,
+    MassRemove,
     None
 }
 

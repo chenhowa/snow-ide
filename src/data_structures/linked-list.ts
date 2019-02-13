@@ -360,8 +360,6 @@ class LinkedListIterator<T> implements DoubleIterator<T> {
         });
     }
 
-    //////////////////////////1a1a1aa
-
     remove(goForward: boolean): Maybe< LinkedListNode<T> > {
         if(this._isSentinel()) {
             return Maybe.nothing();

@@ -49,7 +49,6 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
         let end = data.end.clone();
         switch(data.action) {
             case Action.Insert: {
-                console.log("INSERT");
                 return generateInsertObservable(start, end, data);
             } break;
             case Action.Backspace: {
@@ -202,7 +201,6 @@ function generateInsertObservable(source_start: DoubleIterator<Glyph>,
     // Create delete messages targeting everyone who is occupying the space to be inserted into.
     let deleteObservable: Observable<SaveProcessorData> = from([]);
     if(!start.equals(end)) {
-        console.log("DELETING");
         let delete_data: NewActionData = {
             start: start.clone(),
             end: end.clone(),

@@ -1,6 +1,7 @@
 import { Observable, from } from "rxjs";
 import { map, mergeMap } from "rxjs/operators";
 import Strings from "string-map";
+import $ from "jquery";
 
 import { DoubleIterator, LinkedList } from 'data_structures/linked-list';
 import { Glyph, GlyphStyle } from "editor/glyph";
@@ -11,6 +12,7 @@ import HistorySingleton from "editor/singletons/history-singleton";
 import { History } from "editor/undo_redo/command-history";
 import { ChangeBuffer, ChangeTracker } from "editor/undo_redo/change-buffer";
 import ChangeBufferSingleton from "editor/singletons/change-buffer-singleton";
+import { moveArrow } from "editor/editor_executors/editor-utils";
 
 
 interface ExecuteData {
@@ -24,9 +26,11 @@ interface ExecuteData {
 
 
 interface RenderData {
-    start: DoubleIterator<Glyph>,
-    end: DoubleIterator<Glyph>,
-    action: RenderAction
+    render_start: DoubleIterator<Glyph>,
+    render_end: DoubleIterator<Glyph>,
+    action: RenderAction,
+    cursor_start: DoubleIterator<Glyph>,
+    cursor_end: DoubleIterator<Glyph>
 }
 
 enum RenderAction {
@@ -55,8 +59,10 @@ function createProcessor(obs: Observable<ExecuteData>,
     let processor = obs.pipe(map((data: ExecuteData) => {
         let no_render: RenderData = {
             action: RenderAction.None,
-            start: data.start.clone(),
-            end: data.end.clone()
+            render_start: data.start.clone(),
+            render_end: data.end.clone(),
+            cursor_start: data.start.clone(),
+            cursor_end: data.end.clone()
         }
 
         let history: History<Glyph> = HistorySingleton.get();
@@ -82,17 +88,23 @@ function createProcessor(obs: Observable<ExecuteData>,
                 position.next();
                 if(data.key === Strings.newline) {
                     // If it was a newline, we rerender. Otherwise we just render.
-                    return {
-                        start: position.clone(),
-                        end: position.clone(),
-                        action: RenderAction.Rerender
+                    let new_data: RenderData =  {
+                        render_start: position.clone(),
+                        render_end: position.clone(),
+                        action: data.complete ? RenderAction.Rerender : RenderAction.None,
+                        cursor_start: position.clone(),
+                        cursor_end: position.clone()
                     }
+                    return new_data;
                 } else {
-                    return {
-                        start: position.clone(),
-                        end: position.clone(),
-                        action: RenderAction.Render
+                    let new_data: RenderData = {
+                        render_start: position.clone(),
+                        render_end: position.clone(),
+                        action: data.complete ? RenderAction.Render : RenderAction.None,
+                        cursor_start: position.clone(),
+                        cursor_end: position.clone()
                     }
+                    return new_data;
                 }
             } break;
             case ExecuteAction.Backspace: {
@@ -102,8 +114,16 @@ function createProcessor(obs: Observable<ExecuteData>,
                 }
                 if(position.isValid() && position.hasPrev()) {
                     position.remove(false).caseOf({
-                        just: (node) => {
-                            buffer.addToBufferStart(node);
+                        just: (listnode) => {
+                            listnode.data.caseOf({
+                                just: (glyph) => {
+                                    glyph.destroyNode();
+                                },
+                                nothing: () => { 
+                                    throw new Error ("ExecuteProcessor: No glyph in removed list node");
+                                }
+                            });
+                            buffer.addToBufferStart(listnode);
                         },
                         nothing: () => { new Error("ExecuteProcessor: backspace on empty node" ); }
                     })
@@ -111,11 +131,14 @@ function createProcessor(obs: Observable<ExecuteData>,
                     // Otherwise don't delete. We don't delete the first newline.
                 }
 
-                return {
-                    start: position.clone(),
-                    end: position.clone(),
-                    action: RenderAction.Rerender
+                let new_data: RenderData = {
+                    render_start: position.clone(),
+                    render_end: position.clone(),
+                    action: data.complete ? RenderAction.Rerender: RenderAction.None,
+                    cursor_start: position.clone(),
+                    cursor_end: position.clone()
                 }
+                return new_data;
             } break;
             case ExecuteAction.Delete: {
                 if(data.start.equals(data.end)) {
@@ -124,18 +147,42 @@ function createProcessor(obs: Observable<ExecuteData>,
                 }
                 if(position.hasNext()) {
                     position.removeNext().caseOf({
-                        just: (node) => {
-                            buffer.addToBufferEnd(node);
+                        just: (listnode) => {
+                            listnode.data.caseOf({
+                                just: (glyph) => {
+                                    glyph.destroyNode();
+                                },
+                                nothing: () => { 
+                                    throw new Error ("ExecuteProcessor: No glyph in removed list node");
+                                }
+                            });
+                            buffer.addToBufferEnd(listnode);
                         },
                         nothing: () => { throw new Error('ExecuteProcessor: Tried to delete empty node') }
                     })
                 }
 
-                return {
-                    start: position.clone(),
-                    end: position.clone(),
-                    action: RenderAction.Rerender
+                let new_data: RenderData = {
+                    render_start: position.clone(),
+                    render_end: position.clone(),
+                    action: data.complete ? RenderAction.Rerender : RenderAction.None,
+                    cursor_start: position.clone(),
+                    cursor_end: position.clone()
                 }
+                return new_data;
+
+            } break;
+            case ExecuteAction.ArrowKey: {
+                let new_iters = moveArrow(data.key, data.start, data.end);
+                let new_data: RenderData = {
+                    render_start: position.clone(),
+                    render_end: position.clone(),
+                    action: RenderAction.Rerender,
+                    cursor_start: new_iters[0],
+                    cursor_end: new_iters[1]
+
+                }
+                return new_data;
             } break;
             case ExecuteAction.Copy: {
                 // TODO: COPYING IS JUST PULLING FROM THE RANGE INTO THE CLIPBOARD
@@ -147,6 +194,9 @@ function createProcessor(obs: Observable<ExecuteData>,
             } break;
             case ExecuteAction.Redo: {
                 history.do();   // This will render on its own.
+                return no_render;
+            } break;
+            case ExecuteAction.None: {
                 return no_render;
             } break;
             default: {

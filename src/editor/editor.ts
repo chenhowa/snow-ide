@@ -77,10 +77,10 @@ class Editor {
         // configure save policies for undo/redo for the entire editor.
         let policy = SavePolicySingleton.get();
         policy.setPolicies([
-            new SwitchInsertDeleteSavePolicy(),
+            /*new SwitchInsertDeleteSavePolicy(),
             new CurrentKeySavePolicy(),
             new SwitchBackspaceDeleteSavePolicy(),
-            new SwitchCharSpaceSavePolicy()
+            new SwitchCharSpaceSavePolicy()*/
         ]);
 
         this.glyphs = new LinkedList(); // list of characters and the styles they should be rendered with.
@@ -182,34 +182,39 @@ class Editor {
         let keydownProcessor = KeydownProcessor.subscribeTo(editorKeydownObs);
         keydownProcessor.subscribe({
             next: (data) => {
-                console.log(data);
+                //console.log(data);
             }
         });
         
         let actionProcessor = ActionProcessor.subscribeTo(keydownProcessor);
         actionProcessor.subscribe({
             next: (data) => {
+                //console.log(data);
+            }
+        })
+        let saveProcessor = SaveProcessor.subscribeTo(actionProcessor,this.editor, this.glyphs);
+        saveProcessor.subscribe({
+            next: (data) => {
                 console.log(data);
             }
         })
-        /*
-        let saveProcessor = SaveProcessor.subscribeTo(actionProcessor,this.editor, this.glyphs);
         let executeProcessor = ExecuteProcessor.subscribeTo(saveProcessor, this.editor, this.glyphs);
         executeProcessor.subscribe({
             next: ( data: RenderData ) => {
+                console.log(data);
                 if(data.action === RenderAction.Render) {
-                    this.renderer.render(data.start, data.end);
+                    this.renderer.render(data.render_start, data.render_end);
                 } else if (data.action === RenderAction.Rerender) {
-                    this.renderer.rerender(data.start, data.end);
+                    this.renderer.rerender(data.render_start, data.render_end);
                 } else {
                     // No need to render, since RenderAction.None.
                 }
 
-                this.start_glyph_iter = data.start.clone();
-                this.end_glyph_iter = data.end.clone();
+                this.start_glyph_iter = data.cursor_start.clone();
+                this.end_glyph_iter = data.cursor_end.clone();
                 this.updateCursorToCurrent();
             }
-        })*/
+        })
 
         let mouseDownObs = fromEvent(this.editor, 'mousedown');
         let mouseDownSub = mouseDownObs.subscribe({

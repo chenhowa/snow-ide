@@ -143,7 +143,7 @@ function moveArrow(key: string, source_start_iter: DoubleIterator<Glyph>, source
         case Strings.arrow.right: return arrowRight(start, end);
         case Strings.arrow.up: return arrowUp(start, end);
         case Strings.arrow.down: return arrowDown(start, end);
-        default: return [start, end];
+        default: throw new Error("Invalid input to moveArrow: " + key); //return [start, end];
     }
 }
 

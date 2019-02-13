@@ -74,7 +74,7 @@ function createProcessor(obs: Observable<SaveProcessorData>, node: JQuery<HTMLEl
             start: data.start.clone(),
             end: data.end.clone(),
             action: data.action,
-            position: data.position,
+            position: data.position.clone(),
             complete: data.complete
         };
 

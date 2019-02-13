@@ -49,6 +49,7 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
         let end = data.end.clone();
         switch(data.action) {
             case Action.Insert: {
+                console.log("INSERT");
                 return generateInsertObservable(start, end, data);
             } break;
             case Action.Backspace: {
@@ -201,11 +202,14 @@ function generateInsertObservable(source_start: DoubleIterator<Glyph>,
     // Create delete messages targeting everyone who is occupying the space to be inserted into.
     let deleteObservable: Observable<SaveProcessorData> = from([]);
     if(!start.equals(end)) {
-        deleteObservable = generateRemoveObservable(start, end, data);
-    }
-    
-    if(!start.equals(end)) {
-        throw new Error("ActionProcessor createProcessor: somehow start !== end before insert");
+        console.log("DELETING");
+        let delete_data: NewActionData = {
+            start: start.clone(),
+            end: end.clone(),
+            key: data.key,
+            action: Action.Backspace
+        }
+        deleteObservable = generateRemoveObservable(start, end, delete_data);
     }
 
     let insertObservable: Observable<SaveProcessorData> = from([{
@@ -213,7 +217,7 @@ function generateInsertObservable(source_start: DoubleIterator<Glyph>,
         start: data.start.clone(),
         end: data.end.clone(),
         action: ExecuteAction.Insert,
-        position: end.clone(), // we are indeed inserting right where we are.
+        position: start.clone(), // we insert right after the start position.
         save_data: {
             key: data.key,
             editor_action: EditorActionType.Insert

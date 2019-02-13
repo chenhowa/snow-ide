@@ -59,12 +59,13 @@ function createProcessor(obs: Observable<SaveProcessorData>, node: JQuery<HTMLEl
 
     let processor = obs.pipe(map((data) => {
         // If necessary, save the buffer here.
-        let should_save = buffer.isDirty()
-                    && (  save_policy.shouldSave(data.save_data)
+        /* TODO: SAVE ON EXECUTE ACTION INSTEAD OF KEY. It's more consistent that way. */
+        let should_save = 
+                       (  save_policy.shouldSave(data.save_data)
                       ||  data.action === ExecuteAction.Redo
                       ||  data.action === ExecuteAction.Undo
                       ||  data.action === ExecuteAction.Copy
-                      ||  data.action === ExecuteAction.ArrowKey  );
+                      ||  data.action === ExecuteAction.ArrowKey  ) && buffer.isDirty();
 
         if( should_save ) {
             history.add(buffer.generateAndClean());

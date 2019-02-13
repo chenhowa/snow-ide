@@ -73,7 +73,7 @@ function createProcessor(obs: Observable<ExecuteData>,
                                 ||  data.action === ExecuteAction.MassInsert
                                 ||  data.action === ExecuteAction.MassRemove;
         
-        if(willEditText && buffer.isDirty()) {
+        if(willEditText && !buffer.isDirty()) {
             // Then we anchor ourselves to the proposed start and end positions;
             buffer.setStartAnchor(data.start); // anchor one before the selected text.
             let end = data.end.clone();
@@ -85,7 +85,11 @@ function createProcessor(obs: Observable<ExecuteData>,
 
         switch(data.action) {
             case ExecuteAction.Insert: {
-                // We just...insert.
+                // We just...insert. Always collapse to end now if buffer has been set.
+                if(buffer.isDirty()) {
+                    buffer.collapseToEnd();
+                }
+                
                 position.insertAfter(new Glyph(data.key, new GlyphStyle()));
                 position.next();
                 if(data.key === Strings.newline) {
@@ -110,6 +114,10 @@ function createProcessor(obs: Observable<ExecuteData>,
                 }
             } break;
             case ExecuteAction.Backspace: {
+                if(buffer.isDirty()) {
+                    buffer.collapseToEnd();
+                }
+
                 if(data.start.equals(data.end)) {
                     // If this delete was occuring from collapsed cursor.
                     buffer.decrementStartAnchor();
@@ -150,6 +158,10 @@ function createProcessor(obs: Observable<ExecuteData>,
                 return new_data;
             } break;
             case ExecuteAction.Delete: {
+                if(buffer.isDirty()) {
+                    buffer.collapseToStart();
+                }
+
                 if(data.start.equals(data.end)) {
                     // if this delete was occurring from collapsed cursor
                     buffer.incrementEndAnchor();
@@ -257,12 +269,27 @@ function createProcessor(obs: Observable<ExecuteData>,
                 return no_render;
             } break;
             case ExecuteAction.Undo: {
-                history.undo(); // This will render on its own.
-                return no_render;
+                let result = history.undo(); 
+                let renderData: RenderData = {
+                    render_start: data.start.clone(),
+                    render_end: data.start.clone(),
+                    action: RenderAction.None,
+                    cursor_start: result.start_iter ? result.start_iter.clone() : data.start.clone(),
+                    cursor_end: result.end_iter ? result.end_iter.clone() : data.end.clone()
+                } 
+
+                return renderData;
             } break;
             case ExecuteAction.Redo: {
-                history.do();   // This will render on its own.
-                return no_render;
+                let result = history.do();
+                let renderData: RenderData = {
+                    render_start: data.start.clone(),
+                    render_end: data.start.clone(),
+                    action: RenderAction.None,
+                    cursor_start: result.start_iter ? result.start_iter.clone() : data.start.clone(),
+                    cursor_end: result.end_iter ? result.end_iter.clone() : data.end.clone()
+                } 
+                return renderData;
             } break;
             case ExecuteAction.None: {
                 return no_render;

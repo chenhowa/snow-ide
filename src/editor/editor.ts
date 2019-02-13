@@ -73,14 +73,13 @@ class Editor {
     };
 
     constructor(editor_id?: string) {
-
         // configure save policies for undo/redo for the entire editor.
         let policy = SavePolicySingleton.get();
         policy.setPolicies([
-            /*new SwitchInsertDeleteSavePolicy(),
+            new SwitchInsertDeleteSavePolicy(),
             new CurrentKeySavePolicy(),
             new SwitchBackspaceDeleteSavePolicy(),
-            new SwitchCharSpaceSavePolicy()*/
+            new SwitchCharSpaceSavePolicy()
         ]);
 
         this.glyphs = new LinkedList(); // list of characters and the styles they should be rendered with.

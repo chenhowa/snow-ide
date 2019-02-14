@@ -23,7 +23,6 @@ class CurrentKeySavePolicy implements SavePolicy {
         if(data && data.key) {
             let press_map = KeypressMapSingleton.get();
             if(press_map.isControl()) {
-                console.log('control was pressed');
                 return this._shouldSaveIfControl(data.key);
             } else if (isArrowKey(data.key)) {
                 return true;
@@ -48,9 +47,6 @@ class CurrentKeySavePolicy implements SavePolicy {
             default:    should_save = false;
         }
 
-        if(should_save) {
-            console.log("should save with control for key " + key);
-        }
         return should_save;
     }
 

@@ -3,16 +3,14 @@ import $ from "jquery";
 import Cursor from 'editor/editor_executors/cursor';
 import { Glyph, GlyphStyle } from 'editor/glyph';
 import { LinkedList, List, DoubleIterator } from 'data_structures/linked-list';
-import { fromEvent, Observable } from 'rxjs';
+import { fromEvent, Observable, merge } from 'rxjs';
 import { map, throttleTime } from "rxjs/operators";
 import Strings from "string-map";
-import { EditorExecutor, EditorActionExecutor } from "editor/editor_executors/editor-executor";
 import { Renderer, EditorRenderer } from "editor/editor_executors/renderer";
 
 import { 
     Handler, 
     ClickHandler, 
-    KeydownHandler,
 } from "editor/handlers/handlers";
 
 import { KeyPressMap } from "editor/keypress-map";
@@ -26,7 +24,8 @@ import {
     SetPolicies,
     SwitchInsertDeleteSavePolicy,
     SwitchBackspaceDeleteSavePolicy,
-    SwitchCharSpaceSavePolicy
+    SwitchCharSpaceSavePolicy,
+    ActionSavePolicy
 } from "editor/undo_redo/policies/save-policies";
 
 import { ChangeBuffer, EditorChangeBuffer, ChangeTracker } from "editor/undo_redo/change-buffer";
@@ -34,12 +33,12 @@ import SavePolicySingleton from "editor/singletons/save-policy-singleton";
 import ChangeBufferSingleton from "editor/singletons/change-buffer-singleton";
 
 import KeydownProcessor from "editor/subjects_observables/keydown-processor";
-import { NewActionData } from "editor/subjects_observables/action-processor";
+import { NewActionData, Action } from "editor/subjects_observables/action-processor";
 
 
 import ActionProcessor from "editor/subjects_observables/action-processor";
 import SaveProcessor from "editor/subjects_observables/save-processor";
-import ExecuteProcessor, { RenderAction, RenderData } from "editor/subjects_observables/execute-processor";
+import ExecuteProcessor, { RenderAction, RenderData, ExecuteData } from "editor/subjects_observables/execute-processor";
 
 
 /*
@@ -79,7 +78,8 @@ class Editor {
             new SwitchInsertDeleteSavePolicy(),
             new CurrentKeySavePolicy(),
             new SwitchBackspaceDeleteSavePolicy(),
-            new SwitchCharSpaceSavePolicy()
+            new SwitchCharSpaceSavePolicy(),
+            new EditorActionSavePolicy
         ]);
 
         this.glyphs = new LinkedList(); // list of characters and the styles they should be rendered with.
@@ -158,16 +158,32 @@ class Editor {
         // Render initial state of document.
         this.rerender();
 
-        /*let pasteObs = fromEvent(this.editor, 'paste');
-        pasteObs.subscribe({
+        let pasteObs: Observable<NewActionData> = fromEvent(this.editor, 'paste').pipe(map((event: any) => {
+            event.preventDefault();
+            let pasteText = event.originalEvent.clipboardData.getData('text');
+            console.log(pasteText);
+            //pasteText = pasteText.replace(/[^\x20-\xFF]/gi, '');
+            console.log(this.start_glyph_iter);
+            console.log(this.end_glyph_iter);
+            let execute_data: NewActionData = {
+                key: pasteText,
+                start: this.start_glyph_iter.clone(),
+                end: this.end_glyph_iter.clone(),
+                action: Action.Paste
+            };
+            return execute_data;
+        }));
+
+        let copyObs = fromEvent(this.editor, 'copy');
+        copyObs.subscribe({
             next: (event: any) => {
-                // get data and supposedly remove non-utf characters.
-                let pasteText = event.originalEvent.clipboardData.getData('text')
-                pasteText = pasteText.replace(/[^\x20-\xFF]/gi, '');
-            },
-            error: (err) => { },
-            complete: () => { }
-        });*/
+                event.preventDefault();
+                console.log("COPYING");
+                console.log(event);
+                console.log(event.originalEvent.clipboardData.getData('text'));
+
+            }
+        });
 
         const keydownObs = fromEvent(this.editor, 'keydown').pipe(map( (event:any) => {
             event.preventDefault();
@@ -181,9 +197,10 @@ class Editor {
                 key: key
             }
         }));
-        let keydownProcessor = KeydownProcessor.subscribeTo(editorKeydownObs);
+        let keydownProcessor: Observable<NewActionData> = KeydownProcessor.subscribeTo(editorKeydownObs);
+        let newActionObs = merge(keydownProcessor, pasteObs);
         
-        let actionProcessor = ActionProcessor.subscribeTo(keydownProcessor);
+        let actionProcessor = ActionProcessor.subscribeTo(newActionObs);
         
         let saveProcessor = SaveProcessor.subscribeTo(actionProcessor,this.editor, this.glyphs);
 
@@ -209,10 +226,27 @@ class Editor {
             next: (event: any) => {
                 // Need to collapse selection on mouse down because otherwise it breaks a bunch of other shit
                 // in chrome.
+                console.log(event);
+                if(this.cursor.isSelection() && event.button === 2) {
+                    event.preventDefault();
+                    return;
+                }
+
                 if(this.cursor.isSelection()) {
                     // If is selection, start mousedown by collapsing the selection.
                     this.cursor.selection.removeAllRanges();
                 }
+                /*
+                if(event.button === 0) {
+                    if(this.cursor.isSelection()) {
+                        // If is selection, start mousedown by collapsing the selection.
+                        this.cursor.selection.removeAllRanges();
+                    }
+                } else if (event.button === 1) {
+                    
+                } else if (event.button === 2) {
+
+                }*/
             },
             error: (err) => { },
             complete: () => { }
@@ -227,6 +261,9 @@ class Editor {
                 //          -- looks like click doesn't register if you do this.
                 // RESULT TODO : Might need to sync INPUT (backspace, char, tab, enter, etc.) with the selection,
                 //          Since invalid selections can still occur by the two above methods.
+                if (event.button === 2) {
+                    this.updateCursorToCurrent();                    
+                }
             },
             error: (err) => {},
             complete: () => {}
@@ -235,9 +272,18 @@ class Editor {
         let clickObs = fromEvent(this.editor, 'click');
         let clickSub = clickObs.subscribe({
             next: (event: any) => {
-                this.click_handler.handle(event, this.glyphs.makeFrontIterator(), this.glyphs.makeBackIterator());
-                this._updateIteratorsFromHandler(this.click_handler);
+                console.log("CLICK");
+                if(event.button === 0) {
+                    this.click_handler.handle(event, this.glyphs.makeFrontIterator(), this.glyphs.makeBackIterator());
+                    this._updateIteratorsFromHandler(this.click_handler);
+                } else if (event.button === 1) {
+                    
+                } else if (event.button === 2) {
+
+                }
                 this.updateCursorToCurrent();
+
+                    
             },
             error: (err) => {},
             complete: () => {}

@@ -201,6 +201,10 @@ function createProcessor(obs: Observable<ExecuteData>,
 
             } break;
             case ExecuteAction.MassInsert: {
+                if(buffer.isDirty()) {
+                    buffer.collapseToEnd();
+                }
+
                 let iter = data.start.clone();
                 for(let i = 0; i < data.key.length; i++) {
                     iter.insertAfter(new Glyph(data.key[i], new GlyphStyle()));
@@ -209,7 +213,7 @@ function createProcessor(obs: Observable<ExecuteData>,
 
                 let new_data: RenderData = {
                     render_start: data.start.clone(),
-                    render_end: data.end.clone(),
+                    render_end: iter.clone(),
                     action: RenderAction.Rerender,
                     cursor_start: iter.clone(),
                     cursor_end: iter.clone()
@@ -217,7 +221,6 @@ function createProcessor(obs: Observable<ExecuteData>,
                 return new_data;
             } break;
             case ExecuteAction.MassRemove: {
-                console.log("MASS REMOVING");
                 let start = data.start.clone();
                 let end = data.end.clone();
 
@@ -266,6 +269,8 @@ function createProcessor(obs: Observable<ExecuteData>,
             } break;
             case ExecuteAction.Copy: {
                 // TODO: COPYING IS JUST PULLING FROM THE RANGE INTO THE CLIPBOARD
+                // the current text should already be selected.
+                document.execCommand("copy");
                 return no_render;
             } break;
             case ExecuteAction.Undo: {

@@ -65,13 +65,14 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
                     action: ExecuteAction.Copy,
                     position: start.clone(),
                     save_data: {
-                        key: data.key   
+                        key: data.key,
+                        action: data.action   
                     },
                     complete: true
                 }]);
             } break;
             case Action.Paste: {
-                return generatePasteObservable(start, end, data, "hello");
+                return generatePasteObservable(start, end, data, data.key);
             } break;
             case Action.Undo: {
                 return from([{
@@ -81,7 +82,8 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
                     action: ExecuteAction.Undo,
                     position: data.start.clone(),
                     save_data: {
-                        key: data.key   
+                        key: data.key,
+                        action: data.action   
                     },
                     complete: true
                 }]);
@@ -94,7 +96,8 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
                     action: ExecuteAction.Redo,
                     position: data.start.clone(),
                     save_data: {
-                        key: data.key   
+                        key: data.key,
+                        action: data.action
                     },
                     complete: true
                 }]);
@@ -107,7 +110,8 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
                     action: ExecuteAction.None,
                     position: data.start.clone(),
                     save_data: {
-                        key: data.key
+                        key: data.key,
+                        action: data.action
                     },
                     complete: true
                 }]);
@@ -120,7 +124,8 @@ function createProcessor(obs: Observable<NewActionData>): Observable<SaveProcess
                     position: data.start.clone(),
                     action: ExecuteAction.ArrowKey,
                     save_data: {
-                        key: data.key
+                        key: data.key,
+                        action: data.action
                     },
                     complete: true
                 }]);
@@ -161,7 +166,8 @@ function generateRemoveObservable(source_start: DoubleIterator<Glyph>,
             position: start.clone(),
             save_data: {
                 editor_action: EditorActionType.Remove,
-                deletion_direction: deletion_direction
+                deletion_direction: deletion_direction,
+                action: data.action
             },
             complete: complete
         })
@@ -175,7 +181,8 @@ function generateRemoveObservable(source_start: DoubleIterator<Glyph>,
             position: start.clone(),
             save_data: {
                 editor_action: EditorActionType.Remove,
-                deletion_direction: deletion_direction
+                deletion_direction: deletion_direction,
+                action: data.action
             },
             complete: true
         })
@@ -214,7 +221,8 @@ function generateInsertObservable(source_start: DoubleIterator<Glyph>,
         position: start.clone(), // we insert right after the start position.
         save_data: {
             key: data.key,
-            editor_action: EditorActionType.Insert
+            editor_action: EditorActionType.Insert,
+            action: data.action
         },
         complete: true
     }]);
@@ -228,28 +236,28 @@ function generatePasteObservable(source_start: DoubleIterator<Glyph>,
     let end = source_end.clone();
     let deleteObservable: Observable<SaveProcessorData> = from([]);
     if(!start.equals(end)) {
-        deleteObservable = generateRemoveObservable(start, end, data, false);
-    }
-
-    if(!start.equals(end)) {
-        new Error("Action Processor Action.Paste: start !== end");
+        let delete_data: NewActionData = {
+            start: start.clone(),
+            end: end.clone(),
+            key: data.key,
+            action: Action.Backspace
+        }
+        deleteObservable = generateRemoveObservable(start, end, delete_data, false);
     }
     
     let observables: Array<SaveProcessorData> = [];
-    for(let i = text.length - 1; i >= 0; i--) {
-        let key = text[i];
-        observables.push({
-            key: key,
-            start: data.start.clone(),
-            end: data.end.clone(),
-            action: ExecuteAction.Insert,
-            position: data.start.clone(),
-            save_data: {
-                key: key
-            },
-            complete: i === 0 ? true : false
-        });
-    }
+    observables.push({
+        key: text,
+        start: data.start.clone(),
+        end: data.end.clone(),
+        action: ExecuteAction.MassInsert,
+        position: data.start.clone(),
+        save_data: {
+            editor_action: EditorActionType.Insert, // mass insert is still an insert.
+            action: data.action
+        },
+        complete: true
+    });
 
     return merge(deleteObservable, from(observables));
 }

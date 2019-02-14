@@ -39,8 +39,6 @@ class EditorDeleter {
             }
         }
 
-        //jjjjjjjjjjjjjjzzzzzzzzzzzzzzzzzzzzjjjjjjjjjjj
-
         // First we remove and destroy nodes until start_iter equals end_iter.
         // then we remove the node at start_iter == end_iter, and move
         // in the correct direction. Then we rerender.

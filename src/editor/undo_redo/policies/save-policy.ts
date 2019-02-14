@@ -1,9 +1,11 @@
+import { Action } from "editor/subjects_observables/action-processor";
 
 
 interface SaveData {
     key?: string;
     editor_action?: EditorActionType;
-    deletion_direction?: DeletionType // true for forward, false for backward.
+    deletion_direction?: DeletionType; // true for forward, false for backward.
+    action: Action
 }
 
 enum DeletionType {
@@ -13,7 +15,10 @@ enum DeletionType {
 
 enum EditorActionType {
     Insert = 1,
-    Remove
+    Remove,
+    Undo,
+    Redo,
+    Copy
 }
 
 interface SetPolicies {

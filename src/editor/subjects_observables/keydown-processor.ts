@@ -41,10 +41,6 @@ let KeydownProcessor = {
 
 function createKeydownObservable(obs: Observable<EditorData>): Observable<NewActionData> {
     let keydown_obs = obs.pipe(map((data) => {
-        let start_iter = data.start.clone();
-        let end_iter = data.end.clone();
-
-
         let result_data: NewActionData;
 
         if(keypress_map.isControl()) {

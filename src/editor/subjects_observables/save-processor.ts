@@ -5,7 +5,6 @@ import { map } from "rxjs/operators";
 import { DoubleIterator, LinkedList } from 'data_structures/linked-list';
 import { Glyph } from "editor/glyph";
 
-import { Action } from "editor/subjects_observables/action-processor";
 import { SaveData, SavePolicy } from "editor/undo_redo/policies/save-policy";
 import HistorySingleton from "editor/singletons/history-singleton";
 import ChangeBufferSingleton from "editor/singletons/change-buffer-singleton";

@@ -76,7 +76,9 @@ function _handleKeyWithControl(data: EditorData)
     if(key === Strings.control.copy) {
         action = Action.Copy;
     } else if (key === Strings.control.paste) {
-        action = Action.Paste
+        action = Action.None;
+        console.log('exec paste');
+        document.execCommand('paste');
     } else if (key === Strings.control.undo) {
         action = Action.Undo;
     } else if (key === Strings.control.redo) {

@@ -73,6 +73,8 @@ class Editor {
 
     constructor(editor_id?: string) {
         // configure save policies for undo/redo for the entire editor.
+        document.designMode = "on";
+
         let policy = SavePolicySingleton.get();
         policy.setPolicies([
             new SwitchInsertDeleteSavePolicy(),
@@ -160,6 +162,7 @@ class Editor {
 
         let pasteObs: Observable<NewActionData> = fromEvent(this.editor, 'paste').pipe(map((event: any) => {
             event.preventDefault();
+            console.log("PASTING");
             let pasteText = event.originalEvent.clipboardData.getData('text');
             console.log(pasteText);
             //pasteText = pasteText.replace(/[^\x20-\xFF]/gi, '');
@@ -214,9 +217,14 @@ class Editor {
                     // No need to render, since RenderAction.None.
                 }
 
-                this.start_glyph_iter = data.cursor_start.clone();
-                this.end_glyph_iter = data.cursor_end.clone();
-                this.updateCursorToCurrent();
+                if(data.action !== RenderAction.None) {
+                    // Only move cursor if supposed to render.
+                    this.start_glyph_iter = data.cursor_start.clone();
+                    this.end_glyph_iter = data.cursor_end.clone();
+                    this.updateCursorToCurrent();
+                }
+
+                
             }
         });
 

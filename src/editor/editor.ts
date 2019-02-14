@@ -79,7 +79,7 @@ class Editor {
             new CurrentKeySavePolicy(),
             new SwitchBackspaceDeleteSavePolicy(),
             new SwitchCharSpaceSavePolicy(),
-            new EditorActionSavePolicy
+            new ActionSavePolicy()
         ]);
 
         this.glyphs = new LinkedList(); // list of characters and the styles they should be rendered with.

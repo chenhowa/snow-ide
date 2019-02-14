@@ -177,7 +177,6 @@ class Editor {
         let copyObs = fromEvent(this.editor, 'copy');
         copyObs.subscribe({
             next: (event: any) => {
-                event.preventDefault();
                 console.log("COPYING");
                 console.log(event);
                 console.log(event.originalEvent.clipboardData.getData('text'));
